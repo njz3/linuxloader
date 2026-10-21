@@ -1,8 +1,22 @@
 cmake_minimum_required(VERSION 3.10)
+
+# Honor CMAKE_MSVC_RUNTIME_LIBRARY (static CRT for the MSVC build)
+if(POLICY CMP0091)
+    cmake_policy(SET CMP0091 NEW)
+endif()
+
 project(linuxloader LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+if(MSVC)
+    if(NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
+        message(FATAL_ERROR "The MSVC build must target x86 (32-bit). Use the 'msvc-x86' preset or an x86 developer prompt.")
+    endif()
+    # Static CRT, matching the x86-windows-static vcpkg triplet
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
 
 # Include directories
 include_directories(${PROJECT_SOURCE_DIR}/src)
@@ -18,16 +32,28 @@ include_directories(${PROJECT_SOURCE_DIR}/src/SDL3)
 
 # 1. MinHook (Static)
 file(GLOB_RECURSE MINHOOK_SRC src/minhook/src/*.c)
-set(MINHOOK_C_FLAGS -fPIC -m32)
+if(MSVC)
+    set(MINHOOK_C_FLAGS)
+else()
+    set(MINHOOK_C_FLAGS -fPIC -m32)
+endif()
 add_library(minhook STATIC ${MINHOOK_SRC})
 target_include_directories(minhook PUBLIC src/minhook/include)
 target_compile_options(minhook PRIVATE ${MINHOOK_C_FLAGS})
 
 # 2. LibXdiff (Static)
-set(LIBXDIFF_C_FLAGS -DHAVE_CONFIG_H -fPIC -m32)
+if(MSVC)
+    # winconfig.h: same as config.h minus <unistd.h>
+    set(LIBXDIFF_C_FLAGS -DHAVE_WINCONFIG_H -D_CRT_SECURE_NO_WARNINGS /wd4244 /wd4267)
+else()
+    set(LIBXDIFF_C_FLAGS -DHAVE_CONFIG_H -fPIC -m32)
+endif()
 file(GLOB_RECURSE XDIFF_SRC src/libxdiff/xdiff/*.c)
 add_library(xdiff STATIC ${XDIFF_SRC})
 target_include_directories(xdiff PUBLIC src/libxdiff/xdiff)
+if(MSVC)
+    target_include_directories(xdiff PRIVATE src/libxdiff)
+endif()
 target_compile_options(xdiff PRIVATE ${LIBXDIFF_C_FLAGS})
 
 # ------------------------------------------------------------------------------
@@ -140,31 +166,75 @@ elseif(WIN32 OR MINGW OR CMAKE_C_COMPILER MATCHES "mingw")
         WINVER=0x0600
     )
 
-    target_compile_options(${PROJECT_NAME} PRIVATE
-        -Wall
-        -Wextra
-        -fpermissive
-        -Wno-unused-parameter
-        -Wunused-variable
-        -Wno-unused-but-set-variable
-        -Wimplicit-fallthrough=0
-        -Wstrict-aliasing=0
-    )
+    if(MSVC)
+        # Dependencies come from vcpkg (see vcpkg.json, triplet x86-windows-static)
+        find_package(SDL3 CONFIG REQUIRED)
+        find_package(SDL3_ttf CONFIG REQUIRED)
+        find_package(SDL3_image CONFIG REQUIRED)
+        find_package(FAudio CONFIG REQUIRED)
 
-    # Increase stack size to 4MB to prevent stack overflow on startup
-    target_link_options(${PROJECT_NAME} PRIVATE
-        -s
-        -Wl,--stack,4194304
-        -Wl,--large-address-aware
-    )
+        # MSVC lacks the POSIX headers and GCC extensions MinGW provides (unistd.h, dirent.h, ...)
+        target_sources(${PROJECT_NAME} PRIVATE src/msvc/msvc_compat.c)
+        target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/src/msvc)
+        set_target_properties(${PROJECT_NAME} PROPERTIES C_STANDARD 11)
 
-    target_link_directories(${PROJECT_NAME} PRIVATE "libs/win32")
+        target_compile_definitions(${PROJECT_NAME} PRIVATE
+            _CRT_SECURE_NO_WARNINGS
+            _CRT_NONSTDC_NO_WARNINGS
+            _WINSOCK_DEPRECATED_NO_WARNINGS
+            _USE_MATH_DEFINES
+            _USE_32BIT_TIME_T # 32-bit time_t like MinGW/msvcrt: Linux i386 timespec/timeval/time_t go straight through the bridges
+            NOMINMAX
+            WIN32_LEAN_AND_MEAN
+        )
 
-    # Link dependencies
-    target_link_directories(${PROJECT_NAME} PRIVATE "libs/win32")
-    target_link_libraries(${PROJECT_NAME}
-        minhook xdiff -Wl,-Bstatic SDL3 SDL3_ttf SDL3_image FAudio freetype harfbuzz winpthread stdc++ gcc gcc_eh -Wl,-Bdynamic gdi32 winmm ole32 ws2_32 psapi usp10 rpcrt4 setupapi version imm32 hid delayimp
-    )
+        target_compile_options(${PROJECT_NAME} PRIVATE
+            /FI${PROJECT_SOURCE_DIR}/src/msvc/msvc_compat.h
+            /W3
+            /utf-8
+            /Zc:preprocessor
+            /wd4100 # unreferenced parameter
+            /wd4244 # conversion, possible loss of data
+            /wd4267 # size_t conversion
+            /wd4996 # deprecated POSIX names
+        )
+
+        # Increase stack size to 4MB to prevent stack overflow on startup
+        target_link_options(${PROJECT_NAME} PRIVATE
+            /STACK:4194304
+            /LARGEADDRESSAWARE
+        )
+
+        target_link_libraries(${PROJECT_NAME} PRIVATE
+            minhook xdiff
+            SDL3::SDL3-static SDL3_ttf::SDL3_ttf-static SDL3_image::SDL3_image-static FAudio::FAudio-static
+            gdi32 winmm ole32 ws2_32 psapi usp10 rpcrt4 setupapi version imm32 hid dbghelp iphlpapi opengl32
+        )
+    else()
+        target_compile_options(${PROJECT_NAME} PRIVATE
+            -Wall
+            -Wextra
+            -fpermissive
+            -Wno-unused-parameter
+            -Wunused-variable
+            -Wno-unused-but-set-variable
+            -Wimplicit-fallthrough=0
+            -Wstrict-aliasing=0
+        )
+
+        # Increase stack size to 4MB to prevent stack overflow on startup
+        target_link_options(${PROJECT_NAME} PRIVATE
+            -s
+            -Wl,--stack,4194304
+            -Wl,--large-address-aware
+        )
+
+        # Link dependencies
+        target_link_directories(${PROJECT_NAME} PRIVATE "libs/win32")
+        target_link_libraries(${PROJECT_NAME}
+            minhook xdiff -Wl,-Bstatic SDL3 SDL3_ttf SDL3_image FAudio freetype harfbuzz winpthread stdc++ gcc gcc_eh -Wl,-Bdynamic gdi32 winmm ole32 ws2_32 psapi usp10 rpcrt4 setupapi version imm32 hid delayimp
+        )
+    endif()
 
 else()
     message(WARNING "Unknown platform, doing nothing. Please use Linux or MinGW.")

@@ -182,14 +182,14 @@ const unsigned char hod4PatchBuffer_15[] = {
     0x38, 0x31, 0x33, 0x2c, 0x20, 0x30, 0x2e, 0x30, 0x0d, 0x0a, 0x29, 0x02, 0xa2, 0x03, 0x00, 0x00, 0xc9, 0x01, 0x00, 0x00};
 
 ShaderFilesToPatch hod4ShaderPatches[] = {
-    {hod4FileName_0, hod4PatchSize_0, hod4PatchBuffer_0, 0, ""},    {hod4FileName_1, hod4PatchSize_1, hod4PatchBuffer_1, 0, ""},
-    {hod4FileName_2, hod4PatchSize_2, hod4PatchBuffer_2, 0, ""},    {hod4FileName_3, hod4PatchSize_3, hod4PatchBuffer_3, 0, ""},
-    {hod4FileName_4, hod4PatchSize_4, hod4PatchBuffer_4, 0, ""},    {hod4FileName_5, hod4PatchSize_5, hod4PatchBuffer_5, 0, ""},
-    {hod4FileName_6, hod4PatchSize_6, hod4PatchBuffer_6, 0, ""},    {hod4FileName_7, hod4PatchSize_7, hod4PatchBuffer_7, 0, ""},
-    {hod4FileName_8, hod4PatchSize_8, hod4PatchBuffer_8, 0, ""},    {hod4FileName_9, hod4PatchSize_9, hod4PatchBuffer_9, 0, ""},
-    {hod4FileName_10, hod4PatchSize_10, hod4PatchBuffer_10, 0, ""}, {hod4FileName_11, hod4PatchSize_11, hod4PatchBuffer_11, 0, ""},
-    {hod4FileName_12, hod4PatchSize_12, hod4PatchBuffer_12, 0, ""}, {hod4FileName_13, hod4PatchSize_13, hod4PatchBuffer_13, 0, ""},
-    {hod4FileName_14, hod4PatchSize_14, hod4PatchBuffer_14, 0, ""}, {hod4FileName_15, hod4PatchSize_15, hod4PatchBuffer_15, 0, ""},
+    {hod4FileName_0, sizeof(hod4PatchBuffer_0), hod4PatchBuffer_0, 0, ""},    {hod4FileName_1, sizeof(hod4PatchBuffer_1), hod4PatchBuffer_1, 0, ""},
+    {hod4FileName_2, sizeof(hod4PatchBuffer_2), hod4PatchBuffer_2, 0, ""},    {hod4FileName_3, sizeof(hod4PatchBuffer_3), hod4PatchBuffer_3, 0, ""},
+    {hod4FileName_4, sizeof(hod4PatchBuffer_4), hod4PatchBuffer_4, 0, ""},    {hod4FileName_5, sizeof(hod4PatchBuffer_5), hod4PatchBuffer_5, 0, ""},
+    {hod4FileName_6, sizeof(hod4PatchBuffer_6), hod4PatchBuffer_6, 0, ""},    {hod4FileName_7, sizeof(hod4PatchBuffer_7), hod4PatchBuffer_7, 0, ""},
+    {hod4FileName_8, sizeof(hod4PatchBuffer_8), hod4PatchBuffer_8, 0, ""},    {hod4FileName_9, sizeof(hod4PatchBuffer_9), hod4PatchBuffer_9, 0, ""},
+    {hod4FileName_10, sizeof(hod4PatchBuffer_10), hod4PatchBuffer_10, 0, ""}, {hod4FileName_11, sizeof(hod4PatchBuffer_11), hod4PatchBuffer_11, 0, ""},
+    {hod4FileName_12, sizeof(hod4PatchBuffer_12), hod4PatchBuffer_12, 0, ""}, {hod4FileName_13, sizeof(hod4PatchBuffer_13), hod4PatchBuffer_13, 0, ""},
+    {hod4FileName_14, sizeof(hod4PatchBuffer_14), hod4PatchBuffer_14, 0, ""}, {hod4FileName_15, sizeof(hod4PatchBuffer_15), hod4PatchBuffer_15, 0, ""},
 };
 
 int hod4ShaderPatchesCount = sizeof(hod4ShaderPatches) / sizeof(ShaderFilesToPatch);
@@ -266,22 +266,22 @@ const unsigned char hod4spPatchBuffer_14[] = {
     0x00, 0x00, 0xe6, 0x04, 0x00, 0x00, 0x02, 0x9d, 0xd9, 0x00, 0x00, 0xe8, 0x22, 0x00, 0x00};
 
 ShaderFilesToPatch hod4spShaderPatches[] = {
-    {hod4FileName_0, hod4PatchSize_0, hod4PatchBuffer_0, 0, ""},
-    {hod4FileName_1, hod4PatchSize_1, hod4PatchBuffer_1, 0, ""},
-    {hod4FileName_2, hod4PatchSize_2, hod4PatchBuffer_2, 0, ""},
-    {hod4FileName_3, hod4PatchSize_3, hod4PatchBuffer_3, 0, ""},
-    {hod4FileName_4, hod4PatchSize_4, hod4PatchBuffer_4, 0, ""},
-    {hod4FileName_5, hod4PatchSize_5, hod4PatchBuffer_5, 0, ""},
-    {hod4FileName_6, hod4PatchSize_6, hod4PatchBuffer_6, 0, ""},
-    {hod4FileName_7, hod4PatchSize_7, hod4PatchBuffer_7, 0, ""},
-    {hod4FileName_8, hod4PatchSize_8, hod4PatchBuffer_8, 0, ""},
-    {hod4FileName_9, hod4PatchSize_9, hod4PatchBuffer_9, 0, ""},
-    {hod4FileName_10, hod4PatchSize_10, hod4PatchBuffer_10, 0, ""},
-    {hod4FileName_11, hod4PatchSize_11, hod4PatchBuffer_11, 0, ""},
-    {hod4FileName_12, hod4PatchSize_12, hod4PatchBuffer_12, 0, ""},
-    {hod4spFileName_13, hod4spPatchSize_13, hod4spPatchBuffer_13, 0, ""},
-    {hod4spFileName_14, hod4spPatchSize_14, hod4spPatchBuffer_14, 0, ""},
-    {hod4FileName_15, hod4PatchSize_15, hod4PatchBuffer_15, 0, ""},
+    {hod4FileName_0, sizeof(hod4PatchBuffer_0), hod4PatchBuffer_0, 0, ""},
+    {hod4FileName_1, sizeof(hod4PatchBuffer_1), hod4PatchBuffer_1, 0, ""},
+    {hod4FileName_2, sizeof(hod4PatchBuffer_2), hod4PatchBuffer_2, 0, ""},
+    {hod4FileName_3, sizeof(hod4PatchBuffer_3), hod4PatchBuffer_3, 0, ""},
+    {hod4FileName_4, sizeof(hod4PatchBuffer_4), hod4PatchBuffer_4, 0, ""},
+    {hod4FileName_5, sizeof(hod4PatchBuffer_5), hod4PatchBuffer_5, 0, ""},
+    {hod4FileName_6, sizeof(hod4PatchBuffer_6), hod4PatchBuffer_6, 0, ""},
+    {hod4FileName_7, sizeof(hod4PatchBuffer_7), hod4PatchBuffer_7, 0, ""},
+    {hod4FileName_8, sizeof(hod4PatchBuffer_8), hod4PatchBuffer_8, 0, ""},
+    {hod4FileName_9, sizeof(hod4PatchBuffer_9), hod4PatchBuffer_9, 0, ""},
+    {hod4FileName_10, sizeof(hod4PatchBuffer_10), hod4PatchBuffer_10, 0, ""},
+    {hod4FileName_11, sizeof(hod4PatchBuffer_11), hod4PatchBuffer_11, 0, ""},
+    {hod4FileName_12, sizeof(hod4PatchBuffer_12), hod4PatchBuffer_12, 0, ""},
+    {hod4spFileName_13, sizeof(hod4spPatchBuffer_13), hod4spPatchBuffer_13, 0, ""},
+    {hod4spFileName_14, sizeof(hod4spPatchBuffer_14), hod4spPatchBuffer_14, 0, ""},
+    {hod4FileName_15, sizeof(hod4PatchBuffer_15), hod4PatchBuffer_15, 0, ""},
 };
 
 int hod4spShaderPatchesCount = sizeof(hod4spShaderPatches) / sizeof(ShaderFilesToPatch);

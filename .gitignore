@@ -3,3 +3,7 @@ build-linux/
 build-win32/
 compile_commands.json
 
+build-msvc/
+vcpkg_installed/
+games/
+build-mingw/

@@ -51,6 +51,10 @@ namespace MathBridge
         MAP("sqrt", bridge_sqrt);
         MAP("sqrtf", bridge_sqrtf);
         MAP("div", bridge_div);
+        MAP("ldiv", bridge_div); // long is int on i386
+        MAP("ldexp", bridge_ldexp);
+        MAP("roundf", bridge_roundf);
+        MAP("difftime", bridge_difftime);
         MAP("finitef", bridge_finitef);
         MAP("finite", bridge_finite);
         MAP("frexp", bridge_frexp);
@@ -204,10 +208,36 @@ extern "C" float bridge_sqrtf(float x)
 {
     return ::sqrtf(x);
 }
-extern "C" div_t bridge_div(int numerator, int denominator)
+// div / ldiv return a struct. The i386 Linux ABI returns it through a hidden pointer, passed before the arguments,
+// that the callee pops (ret $4), and leaves that pointer in eax; MSVC and MinGW would return it in edx:eax.
+// Stack on entry: return address, result pointer, numerator, denominator.
+#ifdef _MSC_VER
+extern "C" __declspec(naked) void bridge_div(void)
 {
-    return ::div(numerator, denominator);
+    __asm {
+        mov ecx, [esp + 4]
+        mov eax, [esp + 8]
+        cdq
+        idiv dword ptr [esp + 12]
+        mov [ecx], eax
+        mov [ecx + 4], edx
+        mov eax, ecx
+        ret 4
+    }
 }
+#else
+extern "C" void __attribute__((naked)) bridge_div(void)
+{
+    asm volatile("mov 4(%esp), %ecx\n\t"
+                 "mov 8(%esp), %eax\n\t"
+                 "cltd\n\t"
+                 "idivl 12(%esp)\n\t"
+                 "mov %eax, (%ecx)\n\t"
+                 "mov %edx, 4(%ecx)\n\t"
+                 "mov %ecx, %eax\n\t"
+                 "ret $4\n\t");
+}
+#endif
 extern "C" int bridge_finite(double x)
 {
     return std::isfinite(x) ? 1 : 0;
@@ -227,6 +257,19 @@ extern "C" float bridge_frexpf(float x, int *exp)
 extern "C" float bridge_ldexpf(float x, int exp)
 {
     return ::ldexpf(x, exp);
+}
+extern "C" double bridge_ldexp(double x, int exp)
+{
+    return ::ldexp(x, exp);
+}
+extern "C" float bridge_roundf(float x)
+{
+    return ::roundf(x);
+}
+// time_t is 32 bits in the games
+extern "C" double bridge_difftime(int end, int start)
+{
+    return (double)end - (double)start;
 }
 
 extern "C" float bridge_fabsf(float x)

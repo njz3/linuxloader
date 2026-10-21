@@ -27,7 +27,34 @@ struct DIR_Impl
     bool first_read;
     bool finished;
     std::string path;
+    std::string searchPath; // the FindFirstFile pattern, for rewinddir
 };
+
+// glibc's struct dirent64 on i386
+#pragma pack(push, 4)
+struct linux_dirent64
+{
+    unsigned long long d_ino;
+    long long d_off;
+    unsigned short d_reclen;
+    unsigned char d_type;
+    char d_name[256];
+};
+
+// glibc's glob64_t on i386
+struct linux_glob64
+{
+    unsigned int gl_pathc;
+    char **gl_pathv;
+    unsigned int gl_offs;
+    int gl_flags;
+    void *gl_closedir;
+    void *gl_readdir;
+    void *gl_opendir;
+    void *gl_lstat;
+    void *gl_stat;
+};
+#pragma pack(pop)
 
 #endif
 
@@ -187,7 +214,12 @@ extern "C"
 
     void *bridgeOpendir(const char *name);
     struct linux_dirent *bridgeReaddir(void *dirp);
+    int bridgeReaddir64R(void *dirp, struct linux_dirent64 *entry, struct linux_dirent64 **result);
+    void bridgeRewinddir(void *dirp);
     int bridgeClosedir(void *dirp);
+    int bridgeRmdir(const char *path);
+    int bridgeGlob64(const char *pattern, int flags, void *errfunc, struct linux_glob64 *pglob);
+    void bridgeGlobfree64(struct linux_glob64 *pglob);
 
     int bridgeUnlink(const char *pathname);
     int bridgeRename(const char *oldpath, const char *newpath);

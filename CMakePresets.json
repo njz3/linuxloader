@@ -1,0 +1,38 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "msvc-x86",
+      "displayName": "MSVC x86 (vcpkg, static)",
+      "description": "32-bit MSVC build. Needs VCPKG_ROOT (set by the VS Developer Prompt, or point it to a vcpkg checkout).",
+      "architecture": {
+        "value": "Win32",
+        "strategy": "set"
+      },
+      "binaryDir": "${sourceDir}/build-msvc",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x86-windows-static"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "msvc-x86-release",
+      "displayName": "MSVC x86 Release",
+      "configurePreset": "msvc-x86",
+      "configuration": "Release"
+    },
+    {
+      "name": "msvc-x86-debug",
+      "displayName": "MSVC x86 Debug",
+      "configurePreset": "msvc-x86",
+      "configuration": "Debug"
+    }
+  ]
+}

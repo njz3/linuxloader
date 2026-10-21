@@ -5,6 +5,7 @@
 #include "pthreadEmu.hpp"
 #include "pthreadInternal.hpp"
 #include "../linuxStack.hpp"
+#include "../elfCall.h"
 #include "../../log/log.h"
 #include <process.h>
 
@@ -53,6 +54,7 @@ struct ThreadStartContext
     PthreadThreadInternal *thread_info;
 };
 
+
 __attribute__((force_align_arg_pointer)) static unsigned __stdcall ThreadEntryPoint(void *param)
 {
     ThreadStartContext *ctx = (ThreadStartContext *)param;
@@ -71,7 +73,12 @@ __attribute__((force_align_arg_pointer)) static unsigned __stdcall ThreadEntryPo
     SetupCancelState();
 
     // Call the actual thread function
+#ifdef _MSC_VER
+    // MSVC has no force_align_arg_pointer and only keeps 4-byte stack alignment
+    void *retval = (void *)elfCall1((const void *)start_routine, (uintptr_t)arg);
+#else
     void *retval = start_routine(arg);
+#endif
 
     // Store return value
     if (thread_info)

@@ -41,6 +41,7 @@ extern "C"
 #include "memoryManager.hpp"
 #include "glHooks.hpp"
 #include "libcBridge.hpp"
+#include "elfCall.h"
 #include "loader/redirections/libcShared.h"
 #include "pthread/pthreadEmu.hpp"
 #include "symbolResolver.hpp"
@@ -67,10 +68,15 @@ extern "C" int __libc_start_main(int (*main_func)(int, char **, char **), int ar
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
 
+    // init, main and fini are the game's: with MSVC they are called through elfCall, for the Linux stack alignment
     if (init)
     {
         log_debug("Calling init from __libc_start_main");
+#ifdef _MSC_VER
+        elfCall0((const void *)init);
+#else
         init();
+#endif
     }
 
     CoInitializeEx(NULL, COINIT_MULTITHREADED);
@@ -78,13 +84,21 @@ extern "C" int __libc_start_main(int (*main_func)(int, char **, char **), int ar
     char **envp = argv + argc + 1;
 
     log_info("Transferring control to main()...");
+#ifdef _MSC_VER
+    int exitCode = (int)elfCall3((const void *)main_func, (uintptr_t)argc, (uintptr_t)argv, (uintptr_t)envp);
+#else
     int exitCode = main_func(argc, argv, envp);
+#endif
     log_info("Program main() exited with code: %d", exitCode);
 
     if (fini)
     {
         log_debug("Calling fini from __libc_start_main");
+#ifdef _MSC_VER
+        elfCall0((const void *)fini);
+#else
         fini();
+#endif
     }
 
     PthreadEmu::Shutdown();
@@ -99,6 +113,14 @@ extern "C" int emuSemWait(void *sem);
 extern "C" int emuSemTrywait(void *sem);
 extern "C" int emuSemPost(void *sem);
 extern "C" int emuSemGetValue(void *sem, int *sval);
+
+// C signatures for the string functions games import. Recent MinGW-w64 and MSVC headers
+// only expose the const-correct C++ overloads, so the C versions can't be named directly.
+static void *hostMemchr(const void *s, int c, size_t n) { return const_cast<void *>(memchr(s, c, n)); }
+static char *hostStrchr(const char *s, int c) { return const_cast<char *>(strchr(s, c)); }
+static char *hostStrrchr(const char *s, int c) { return const_cast<char *>(strrchr(s, c)); }
+static char *hostStrstr(const char *s, const char *needle) { return const_cast<char *>(strstr(s, needle)); }
+static char *hostStrpbrk(const char *s, const char *accept) { return const_cast<char *>(strpbrk(s, accept)); }
 
 SymbolResolver::SymbolResolver()
 {
@@ -122,15 +144,15 @@ SymbolResolver::SymbolResolver()
     m_VTables["memcpy"] = reinterpret_cast<void *>(memcpy);
     m_VTables["memset"] = reinterpret_cast<void *>(memset);
     m_VTables["memcmp"] = reinterpret_cast<void *>(memcmp);
-    m_VTables["memchr"] = reinterpret_cast<void *>(static_cast<void *(*)(const void *, int, size_t)>(memchr));
+    m_VTables["memchr"] = reinterpret_cast<void *>(hostMemchr);
     m_VTables["strlen"] = reinterpret_cast<void *>(strlen);
     m_VTables["strcpy"] = reinterpret_cast<void *>(strcpy);
     m_VTables["strncpy"] = reinterpret_cast<void *>(sharedStrncpy);
     m_VTables["strcmp"] = reinterpret_cast<void *>(strcmp);
     m_VTables["strncmp"] = reinterpret_cast<void *>(strncmp);
-    m_VTables["strchr"] = reinterpret_cast<void *>(static_cast<char *(*)(const char *, int)>(strchr));
-    m_VTables["strrchr"] = reinterpret_cast<void *>(static_cast<char *(*)(const char *, int)>(strrchr));
-    m_VTables["strstr"] = reinterpret_cast<void *>(static_cast<char *(*)(const char *, const char *)>(strstr));
+    m_VTables["strchr"] = reinterpret_cast<void *>(hostStrchr);
+    m_VTables["strrchr"] = reinterpret_cast<void *>(hostStrrchr);
+    m_VTables["strstr"] = reinterpret_cast<void *>(hostStrstr);
     m_VTables["strtol"] = reinterpret_cast<void *>(strtol);
     m_VTables["strtod"] = reinterpret_cast<void *>(strtod);
     m_VTables["strerror"] = reinterpret_cast<void *>(strerror);
@@ -138,7 +160,7 @@ SymbolResolver::SymbolResolver()
     m_VTables["strtok_r"] = reinterpret_cast<void *>(strtok_r);
     m_VTables["strncat"] = reinterpret_cast<void *>(strncat);
     m_VTables["strcat"] = reinterpret_cast<void *>(strcat);
-    m_VTables["strpbrk"] = reinterpret_cast<void *>(static_cast<char *(*)(const char *, const char *)>(strpbrk));
+    m_VTables["strpbrk"] = reinterpret_cast<void *>(hostStrpbrk);
     m_VTables["strcspn"] = reinterpret_cast<void *>(strcspn);
     m_VTables["strspn"] = reinterpret_cast<void *>(strspn);
     m_VTables["strcasecmp"] = reinterpret_cast<void *>(strcasecmp);

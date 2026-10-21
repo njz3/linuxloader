@@ -3,6 +3,7 @@
 #include "pthread/pthreadEmu.hpp"
 #include "symbolResolver.hpp"
 #include "libcBridge.hpp"
+#include "elfCall.h"
 #include "../log/log.h"
 
 #define MAP(name, func) SymbolResolver::GetInstance().RegisterVTable(name, reinterpret_cast<void *>(func))
@@ -173,7 +174,11 @@ namespace PthreadBridge
             *once_control = 1; // Running
             if (init_routine)
             {
+#ifdef _MSC_VER
+                elfCall0((const void *)init_routine); // the game's: Linux stack alignment
+#else
                 init_routine();
+#endif
             }
             *once_control = 2; // Completed
         }

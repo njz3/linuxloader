@@ -32,13 +32,13 @@
 #include "mainShared.h"
 
 std::string g_absoluteElfPath;
-uint32_t partialElfCrc = 0;
+extern "C" { uint32_t partialElfCrc = 0; } // read from C (config.c)
 
 extern SDLControllers sdlJoysticks;
 
 extern int gGrp;
 
-HMODULE hGlDLL = NULL;
+extern "C" { HMODULE hGlDLL = NULL; } // read from C (gpuVendor.c)
 
 LONG CALLBACK myVectoredHandler(PEXCEPTION_POINTERS ExceptionInfo)
 {
@@ -75,8 +75,19 @@ void initBridges()
     MathBridge::initBridges();
 }
 
+#ifdef _MSC_VER
+// The UCRT kills the process when a CRT function gets an invalid argument (a bad fd from the game, a NULL
+// stream...). Return the error to the caller instead, as msvcrt.dll does in the MinGW build.
+static void ignoreInvalidParameter(const wchar_t *, const wchar_t *, const wchar_t *, unsigned int, uintptr_t)
+{
+}
+#endif
+
 int main(int argc, char *argv[], char *envp[])
 {
+#ifdef _MSC_VER
+    _set_invalid_parameter_handler(ignoreInvalidParameter);
+#endif
     logSetMinLevel(LOG_WARN);
 
     char command[MAX_PATH_LENGTH] = {0};

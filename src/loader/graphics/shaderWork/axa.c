@@ -209,16 +209,16 @@ const unsigned char axaPatchBuffer_19[] = {
     0x0a};
 
 ShaderFilesToPatch axaShaderPatches[] = {
-    {axaFileName_0, axaPatchSize_0, axaPatchBuffer_0, 0, ""},    {axaFileName_1, axaPatchSize_1, axaPatchBuffer_1, 0, ""},
-    {axaFileName_2, axaPatchSize_2, axaPatchBuffer_2, 0, ""},    {axaFileName_3, axaPatchSize_3, axaPatchBuffer_3, 0, ""},
-    {axaFileName_4, axaPatchSize_4, axaPatchBuffer_4, 0, ""},    {axaFileName_5, axaPatchSize_5, axaPatchBuffer_5, 0, ""},
-    {axaFileName_6, axaPatchSize_6, axaPatchBuffer_6, 0, ""},    {axaFileName_7, axaPatchSize_7, axaPatchBuffer_7, 0, ""},
-    {axaFileName_8, axaPatchSize_8, axaPatchBuffer_8, 0, ""},    {axaFileName_9, axaPatchSize_9, axaPatchBuffer_9, 0, ""},
-    {axaFileName_10, axaPatchSize_10, axaPatchBuffer_10, 0, ""}, {axaFileName_11, axaPatchSize_11, axaPatchBuffer_11, 0, ""},
-    {axaFileName_12, axaPatchSize_12, axaPatchBuffer_12, 0, ""}, {axaFileName_13, axaPatchSize_13, axaPatchBuffer_13, 0, ""},
-    {axaFileName_14, axaPatchSize_14, axaPatchBuffer_14, 0, ""}, {axaFileName_15, axaPatchSize_15, axaPatchBuffer_15, 0, ""},
-    {axaFileName_16, axaPatchSize_16, axaPatchBuffer_16, 0, ""}, {axaFileName_17, axaPatchSize_17, axaPatchBuffer_17, 0, ""},
-    {axaFileName_18, axaPatchSize_18, axaPatchBuffer_18, 0, ""}, {axaFileName_19, axaPatchSize_19, axaPatchBuffer_19, 0, ""},
+    {axaFileName_0, sizeof(axaPatchBuffer_0), axaPatchBuffer_0, 0, ""},    {axaFileName_1, sizeof(axaPatchBuffer_1), axaPatchBuffer_1, 0, ""},
+    {axaFileName_2, sizeof(axaPatchBuffer_2), axaPatchBuffer_2, 0, ""},    {axaFileName_3, sizeof(axaPatchBuffer_3), axaPatchBuffer_3, 0, ""},
+    {axaFileName_4, sizeof(axaPatchBuffer_4), axaPatchBuffer_4, 0, ""},    {axaFileName_5, sizeof(axaPatchBuffer_5), axaPatchBuffer_5, 0, ""},
+    {axaFileName_6, sizeof(axaPatchBuffer_6), axaPatchBuffer_6, 0, ""},    {axaFileName_7, sizeof(axaPatchBuffer_7), axaPatchBuffer_7, 0, ""},
+    {axaFileName_8, sizeof(axaPatchBuffer_8), axaPatchBuffer_8, 0, ""},    {axaFileName_9, sizeof(axaPatchBuffer_9), axaPatchBuffer_9, 0, ""},
+    {axaFileName_10, sizeof(axaPatchBuffer_10), axaPatchBuffer_10, 0, ""}, {axaFileName_11, sizeof(axaPatchBuffer_11), axaPatchBuffer_11, 0, ""},
+    {axaFileName_12, sizeof(axaPatchBuffer_12), axaPatchBuffer_12, 0, ""}, {axaFileName_13, sizeof(axaPatchBuffer_13), axaPatchBuffer_13, 0, ""},
+    {axaFileName_14, sizeof(axaPatchBuffer_14), axaPatchBuffer_14, 0, ""}, {axaFileName_15, sizeof(axaPatchBuffer_15), axaPatchBuffer_15, 0, ""},
+    {axaFileName_16, sizeof(axaPatchBuffer_16), axaPatchBuffer_16, 0, ""}, {axaFileName_17, sizeof(axaPatchBuffer_17), axaPatchBuffer_17, 0, ""},
+    {axaFileName_18, sizeof(axaPatchBuffer_18), axaPatchBuffer_18, 0, ""}, {axaFileName_19, sizeof(axaPatchBuffer_19), axaPatchBuffer_19, 0, ""},
 };
 
 int axaShaderPatchesCount = sizeof(axaShaderPatches) / sizeof(ShaderFilesToPatch);
@@ -421,26 +421,26 @@ const unsigned char axalPatchBuffer_4[] = {
     0x2f, 0x20, 0x20, 0x09, 0x7d, 0x0d, 0x0a, 0x2f, 0x2f, 0x20, 0x20, 0x7d, 0x02, 0xfd, 0x01, 0x00, 0x00, 0x49, 0x00, 0x00, 0x00};
 
 ShaderFilesToPatch axalShaderPatches[] = {
-    {axalFileName_0, axalPatchSize_0, axalPatchBuffer_0, 0, ""}, // a.frag
-    {axaFileName_1, axaPatchSize_1, axaPatchBuffer_1, 0, ""},    // average.frag
-    {axaFileName_2, axaPatchSize_2, axaPatchBuffer_2, 0, ""},    // average.vert
-    {axalFileName_1, axalPatchSize_1, axalPatchBuffer_1, 0, ""}, // DOF.vert
-    {axaFileName_4, axaPatchSize_4, axaPatchBuffer_4, 0, ""},    // GaussH.frag
-    {axaFileName_5, axaPatchSize_5, axaPatchBuffer_5, 0, ""},    // GaussH.vert
-    {axaFileName_6, axaPatchSize_6, axaPatchBuffer_6, 0, ""},    // GaussV.frag
-    {axaFileName_7, axaPatchSize_7, axaPatchBuffer_7, 0, ""},    // GaussV.frag
-    {axaFileName_8, axaPatchSize_8, axaPatchBuffer_8, 0, ""},    // GetBrightArea.frag
-    {axaFileName_9, axaPatchSize_9, axaPatchBuffer_9, 0, ""},    // GlareCompare.frag
-    {axalFileName_2, axalPatchSize_2, axalPatchBuffer_2, 0, ""}, // Laplacian.frag
-    {axaFileName_11, axaPatchSize_11, axaPatchBuffer_11, 0, ""}, // Laplacian.vert
-    {axaFileName_12, axaPatchSize_12, axaPatchBuffer_12, 0, ""}, // Monochrome.frag
-    {axaFileName_13, axaPatchSize_13, axaPatchBuffer_13, 0, ""}, // Monochrome.vert
-    {axaFileName_15, axaPatchSize_15, axaPatchBuffer_15, 0, ""}, // Posterization.frag
-    {axaFileName_16, axaPatchSize_16, axaPatchBuffer_16, 0, ""}, // Sepia.frag
-    {axaFileName_17, axaPatchSize_17, axaPatchBuffer_17, 0, ""}, // Solarization.frag
-    {axalFileName_3, axalPatchSize_3, axalPatchBuffer_3, 0, ""}, // toon.frag
-    {axalFileName_4, axalPatchSize_4, axalPatchBuffer_4, 0, ""}, // toon.vert
-    {axaFileName_19, axaPatchSize_19, axaPatchBuffer_19, 0, ""}, // YUVCompose.frag
+    {axalFileName_0, sizeof(axalPatchBuffer_0), axalPatchBuffer_0, 0, ""}, // a.frag
+    {axaFileName_1, sizeof(axaPatchBuffer_1), axaPatchBuffer_1, 0, ""},    // average.frag
+    {axaFileName_2, sizeof(axaPatchBuffer_2), axaPatchBuffer_2, 0, ""},    // average.vert
+    {axalFileName_1, sizeof(axalPatchBuffer_1), axalPatchBuffer_1, 0, ""}, // DOF.vert
+    {axaFileName_4, sizeof(axaPatchBuffer_4), axaPatchBuffer_4, 0, ""},    // GaussH.frag
+    {axaFileName_5, sizeof(axaPatchBuffer_5), axaPatchBuffer_5, 0, ""},    // GaussH.vert
+    {axaFileName_6, sizeof(axaPatchBuffer_6), axaPatchBuffer_6, 0, ""},    // GaussV.frag
+    {axaFileName_7, sizeof(axaPatchBuffer_7), axaPatchBuffer_7, 0, ""},    // GaussV.frag
+    {axaFileName_8, sizeof(axaPatchBuffer_8), axaPatchBuffer_8, 0, ""},    // GetBrightArea.frag
+    {axaFileName_9, sizeof(axaPatchBuffer_9), axaPatchBuffer_9, 0, ""},    // GlareCompare.frag
+    {axalFileName_2, sizeof(axalPatchBuffer_2), axalPatchBuffer_2, 0, ""}, // Laplacian.frag
+    {axaFileName_11, sizeof(axaPatchBuffer_11), axaPatchBuffer_11, 0, ""}, // Laplacian.vert
+    {axaFileName_12, sizeof(axaPatchBuffer_12), axaPatchBuffer_12, 0, ""}, // Monochrome.frag
+    {axaFileName_13, sizeof(axaPatchBuffer_13), axaPatchBuffer_13, 0, ""}, // Monochrome.vert
+    {axaFileName_15, sizeof(axaPatchBuffer_15), axaPatchBuffer_15, 0, ""}, // Posterization.frag
+    {axaFileName_16, sizeof(axaPatchBuffer_16), axaPatchBuffer_16, 0, ""}, // Sepia.frag
+    {axaFileName_17, sizeof(axaPatchBuffer_17), axaPatchBuffer_17, 0, ""}, // Solarization.frag
+    {axalFileName_3, sizeof(axalPatchBuffer_3), axalPatchBuffer_3, 0, ""}, // toon.frag
+    {axalFileName_4, sizeof(axalPatchBuffer_4), axalPatchBuffer_4, 0, ""}, // toon.vert
+    {axaFileName_19, sizeof(axaPatchBuffer_19), axaPatchBuffer_19, 0, ""}, // YUVCompose.frag
 };
 
 int axalShaderPatchesCount = sizeof(axalShaderPatches) / sizeof(ShaderFilesToPatch);

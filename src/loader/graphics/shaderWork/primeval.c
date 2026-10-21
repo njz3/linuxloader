@@ -43,8 +43,8 @@ const unsigned char phPatchBuffer_1[] = {
     0x00, 0x00};
 
 ShaderFilesToPatch phShaderPatches[] = {
-    {phFileName_0, phPatchSize_0, phPatchBuffer_0, 0, ""},
-    {phFileName_1, phPatchSize_1, phPatchBuffer_1, 0, ""},
+    {phFileName_0, sizeof(phPatchBuffer_0), phPatchBuffer_0, 0, ""},
+    {phFileName_1, sizeof(phPatchBuffer_1), phPatchBuffer_1, 0, ""},
 };
 
 int phShaderPatchesCount = sizeof(phShaderPatches) / sizeof(ShaderFilesToPatch);

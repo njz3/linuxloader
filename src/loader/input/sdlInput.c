@@ -1,3 +1,6 @@
+#ifdef _MSC_VER
+#include <windows.h> // MSVC's GL/gl.h needs WINGDIAPI/APIENTRY
+#endif
 #include <GL/gl.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_events.h>

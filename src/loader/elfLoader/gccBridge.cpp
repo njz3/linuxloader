@@ -37,6 +37,8 @@ namespace GccBridge
         MAP("__strtoul_internal", __strtoul_internal);
         MAP("__strtof_internal", bridge__strtof_internal);
         MAP("__strtoll_internal", __strtoll_internal);
+        MAP("__strtold_internal", __strtold_internal);
+        MAP("strtoll", bridgeStrtoll);
 
         MAP("__assert_fail", __assert_fail);
         MAP("__errno_location", __errno_location);
@@ -98,6 +100,17 @@ namespace GccBridge
         } 
 
         long long __strtoll_internal(const char *n, char **e, int b, int g)
+        {
+            return strtoll(n, e, b);
+        }
+
+        // long double is returned in st(0) on i386, so a double return value is read correctly
+        double __strtold_internal(const char *n, char **e, int g)
+        {
+            return strtod(n, e);
+        }
+
+        long long bridgeStrtoll(const char *n, char **e, int b)
         {
             return strtoll(n, e, b);
         }

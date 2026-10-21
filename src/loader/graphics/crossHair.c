@@ -495,15 +495,15 @@ static void *pollingThreadFunc(void *arg)
             uint8_t *gameMode;
             if (gGrp == GROUP_HOD4)
             {
-                uint32_t *gameModeAddress = *(void **)pGunMgr + 0x2c;
+                uint32_t *gameModeAddress = (uint32_t *)(*(uint8_t **)pGunMgr + 0x2c);
                 gameMode = *(uint8_t **)gameModeAddress + 0x38;
             }
             if (gGrp != GROUP_HOD4 || *gameMode == 8)
             {
                 if (*pPlayerMgr != 0x0)
                 {
-                    uint32_t *p1ModeAddress = *(void **)pPlayerMgr + 0x34;
-                    uint32_t *p2ModeAddress = *(void **)pPlayerMgr + 0x38;
+                    uint32_t *p1ModeAddress = (uint32_t *)(*(uint8_t **)pPlayerMgr + 0x34);
+                    uint32_t *p2ModeAddress = (uint32_t *)(*(uint8_t **)pPlayerMgr + 0x38);
 
                     if (*p1ModeAddress != 0x0)
                     {

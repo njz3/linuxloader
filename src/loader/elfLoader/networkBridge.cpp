@@ -3,6 +3,7 @@
 #include "networkBridge.hpp"
 #include "symbolResolver.hpp"
 #include "../log/log.h"
+#include "../config/config.h"
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -13,195 +14,99 @@ static std::mutex g_net_mutex;
 
 #define MAP(name, func) SymbolResolver::GetInstance().RegisterVTable(name, reinterpret_cast<void *>(func))
 
-// Helper to map WSA errors to POSIX errno
-
-// Some POSIX error codes might not be defined in MinGW's <cerrno>
-#ifndef ENOTSOCK
-#define ENOTSOCK EINVAL
-#endif
-#ifndef EDESTADDRREQ
-#define EDESTADDRREQ EINVAL
-#endif
-#ifndef EMSGSIZE
-#define EMSGSIZE EINVAL
-#endif
-#ifndef EPROTOTYPE
-#define EPROTOTYPE EINVAL
-#endif
-#ifndef ENOPROTOOPT
-#define ENOPROTOOPT EINVAL
-#endif
-#ifndef EPROTONOSUPPORT
-#define EPROTONOSUPPORT EINVAL
-#endif
-#ifndef ESOCKTNOSUPPORT
-#define ESOCKTNOSUPPORT EINVAL
-#endif
-#ifndef EOPNOTSUPP
-#define EOPNOTSUPP EINVAL
-#endif
-#ifndef EPFNOSUPPORT
-#define EPFNOSUPPORT EINVAL
-#endif
-#ifndef EAFNOSUPPORT
-#define EAFNOSUPPORT EINVAL
-#endif
-#ifndef EADDRINUSE
-#define EADDRINUSE EINVAL
-#endif
-#ifndef EADDRNOTAVAIL
-#define EADDRNOTAVAIL EINVAL
-#endif
-#ifndef ENETDOWN
-#define ENETDOWN EINVAL
-#endif
-#ifndef ENETUNREACH
-#define ENETUNREACH EINVAL
-#endif
-#ifndef ENETRESET
-#define ENETRESET EINVAL
-#endif
-#ifndef ECONNABORTED
-#define ECONNABORTED EINVAL
-#endif
-#ifndef ECONNRESET
-#define ECONNRESET EINVAL
-#endif
-#ifndef ENOBUFS
-#define ENOBUFS EINVAL
-#endif
-#ifndef EISCONN
-#define EISCONN EINVAL
-#endif
-#ifndef ENOTCONN
-#define ENOTCONN EINVAL
-#endif
-#ifndef ESHUTDOWN
-#define ESHUTDOWN EINVAL
-#endif
-#ifndef ETOOMANYREFS
-#define ETOOMANYREFS EINVAL
-#endif
-#ifndef ETIMEDOUT
-#define ETIMEDOUT EINVAL
-#endif
-#ifndef ECONNREFUSED
-#define ECONNREFUSED EINVAL
-#endif
-#ifndef EHOSTDOWN
-#define EHOSTDOWN EINVAL
-#endif
-#ifndef EHOSTUNREACH
-#define EHOSTUNREACH EINVAL
-#endif
-#ifndef EPROCLIM
-#define EPROCLIM EINVAL
-#endif
-#ifndef EUSERS
-#define EUSERS EINVAL
-#endif
-#ifndef EDQUOT
-#define EDQUOT EINVAL
-#endif
-#ifndef ESTALE
-#define ESTALE EINVAL
-#endif
-#ifndef EREMOTE
-#define EREMOTE EINVAL
-#endif
-
+// Maps a Winsock error to the errno value the Linux game expects. The game reads errno through __errno_location, so
+// the numbers must be Linux i386 ones: the CRT <errno.h> of MSVC and MinGW uses other values for the socket errors
+// (EINPROGRESS is 112 there, 115 on Linux).
 static int mapWSAErrorToErrno(int wsaError)
 {
     switch (wsaError)
     {
         case WSAEINTR:
-            return EINTR;
+            return 4; // EINTR
         case WSAEBADF:
-            return EBADF;
+            return 9; // EBADF
         case WSAEACCES:
-            return EACCES;
+            return 13; // EACCES
         case WSAEFAULT:
-            return EFAULT;
+            return 14; // EFAULT
         case WSAEINVAL:
-            return EINVAL;
+            return 22; // EINVAL
         case WSAEMFILE:
-            return EMFILE;
+            return 24; // EMFILE
         case WSAEWOULDBLOCK:
-            return EAGAIN;
+            return 11; // EAGAIN
         case WSAEINPROGRESS:
-            return EINPROGRESS;
+            return 115; // EINPROGRESS
         case WSAEALREADY:
-            return EALREADY;
+            return 114; // EALREADY
         case WSAENOTSOCK:
-            return ENOTSOCK;
+            return 88; // ENOTSOCK
         case WSAEDESTADDRREQ:
-            return EDESTADDRREQ;
+            return 89; // EDESTADDRREQ
         case WSAEMSGSIZE:
-            return EMSGSIZE;
+            return 90; // EMSGSIZE
         case WSAEPROTOTYPE:
-            return EPROTOTYPE;
+            return 91; // EPROTOTYPE
         case WSAENOPROTOOPT:
-            return ENOPROTOOPT;
+            return 92; // ENOPROTOOPT
         case WSAEPROTONOSUPPORT:
-            return EPROTONOSUPPORT;
+            return 93; // EPROTONOSUPPORT
         case WSAESOCKTNOSUPPORT:
-            return ESOCKTNOSUPPORT;
+            return 94; // ESOCKTNOSUPPORT
         case WSAEOPNOTSUPP:
-            return EOPNOTSUPP;
+            return 95; // EOPNOTSUPP
         case WSAEPFNOSUPPORT:
-            return EPFNOSUPPORT;
+            return 96; // EPFNOSUPPORT
         case WSAEAFNOSUPPORT:
-            return EAFNOSUPPORT;
+            return 97; // EAFNOSUPPORT
         case WSAEADDRINUSE:
-            return EADDRINUSE;
+            return 98; // EADDRINUSE
         case WSAEADDRNOTAVAIL:
-            return EADDRNOTAVAIL;
+            return 99; // EADDRNOTAVAIL
         case WSAENETDOWN:
-            return ENETDOWN;
+            return 100; // ENETDOWN
         case WSAENETUNREACH:
-            return ENETUNREACH;
+            return 101; // ENETUNREACH
         case WSAENETRESET:
-            return ENETRESET;
+            return 102; // ENETRESET
         case WSAECONNABORTED:
-            return ECONNABORTED;
+            return 103; // ECONNABORTED
         case WSAECONNRESET:
-            return ECONNRESET;
+            return 104; // ECONNRESET
         case WSAENOBUFS:
-            return ENOBUFS;
+            return 105; // ENOBUFS
         case WSAEISCONN:
-            return EISCONN;
+            return 106; // EISCONN
         case WSAENOTCONN:
-            return ENOTCONN;
+            return 107; // ENOTCONN
         case WSAESHUTDOWN:
-            return ESHUTDOWN;
+            return 108; // ESHUTDOWN
         case WSAETOOMANYREFS:
-            return ETOOMANYREFS;
+            return 109; // ETOOMANYREFS
         case WSAETIMEDOUT:
-            return ETIMEDOUT;
+            return 110; // ETIMEDOUT
         case WSAECONNREFUSED:
-            return ECONNREFUSED;
+            return 111; // ECONNREFUSED
         case WSAELOOP:
-            return ELOOP;
+            return 40; // ELOOP
         case WSAENAMETOOLONG:
-            return ENAMETOOLONG;
+            return 36; // ENAMETOOLONG
         case WSAEHOSTDOWN:
-            return EHOSTDOWN;
+            return 112; // EHOSTDOWN
         case WSAEHOSTUNREACH:
-            return EHOSTUNREACH;
+            return 113; // EHOSTUNREACH
         case WSAENOTEMPTY:
-            return ENOTEMPTY;
-        case WSAEPROCLIM:
-            return EPROCLIM;
+            return 39; // ENOTEMPTY
         case WSAEUSERS:
-            return EUSERS;
+            return 87; // EUSERS
         case WSAEDQUOT:
-            return EDQUOT;
+            return 122; // EDQUOT
         case WSAESTALE:
-            return ESTALE;
+            return 116; // ESTALE
         case WSAEREMOTE:
-            return EREMOTE;
+            return 66; // EREMOTE
         default:
-            return EINVAL;
+            return 22; // EINVAL
     }
 }
 
@@ -220,6 +125,9 @@ namespace NetworkBridge
         MAP("recv", bridgeRecv);
         MAP("sendto", bridgeSendto);
         MAP("recvfrom", bridgeRecvfrom);
+        MAP("sendmsg", bridgeSendmsg);
+        MAP("recvmsg", bridgeRecvmsg);
+        MAP("getsockname", bridgeGetsockname);
         MAP("shutdown", shutdown);
         MAP("setsockopt", bridgeSetsockopt);
         MAP("getsockopt", bridgeGetsockopt);
@@ -241,7 +149,28 @@ namespace NetworkBridge
 
     unsigned long bridgeInet_addr(const char *cp)
     {
-        // cp = "127.0.0.1";
+        // Same redirections as the inet_addr() hook in patchNetwork.c on Linux
+        if (cp && getConfig()->enableNetworkPatches)
+        {
+            uint32_t id = getConfig()->crc32;
+            if (id == TOO_SPICY_SBMV)
+            {
+                if (strcmp("10.0.0.1", cp) == 0 && strcmp(getConfig()->tooSpicyIpCab1, "") != 0)
+                    cp = getConfig()->tooSpicyIpCab1;
+                else if (strcmp("10.0.0.2", cp) == 0 && strcmp(getConfig()->tooSpicyIpCab2, "") != 0)
+                    cp = getConfig()->tooSpicyIpCab2;
+            }
+            else if (id == SEGA_RACE_TV_SBPF)
+            {
+                // Standalone = 4, Main = 0, 2-Sub = 1, 3-Sub = 2 and 4-Sub = 3
+                if (strcmp("192.168.49.1", cp) == 0 || strcmp("192.168.49.2", cp) == 0 || strcmp("192.168.49.3", cp) == 0 ||
+                    strcmp("192.168.49.4", cp) == 0)
+                {
+                    // An IP that is not the PC's makes the game crash in klib::lan::GetLanParam
+                    cp = strcmp(getConfig()->srtvIP, "") != 0 ? getConfig()->srtvIP : "127.0.0.1";
+                }
+            }
+        }
         return inet_addr(cp);
     }
 
@@ -301,7 +230,9 @@ extern "C" int bridgeConnect(SOCKET s, const struct sockaddr *name, int namelen)
     int ret = connect(s, name, namelen);
     if (ret == SOCKET_ERROR)
     {
-        errno = mapWSAErrorToErrno(WSAGetLastError());
+        // A non-blocking connect in progress is WSAEWOULDBLOCK on Windows, EINPROGRESS on Linux
+        int wsaError = WSAGetLastError();
+        errno = wsaError == WSAEWOULDBLOCK ? 115 : mapWSAErrorToErrno(wsaError);
     }
     log_info(">>> connect EXIT: returning %d (WSAError=%d)", ret, ret < 0 ? WSAGetLastError() : 0);
     return ret;
@@ -402,6 +333,88 @@ extern "C" int bridgeSendto(SOCKET s, const char *buf, int len, int flags, const
     }
     log_info(">>> sendto EXIT: returning %d", ret);
     return ret;
+}
+
+// Linux i386 struct iovec / struct msghdr
+struct LinuxIovec
+{
+    void *iov_base;
+    uint32_t iov_len;
+};
+
+struct LinuxMsghdr
+{
+    void *msg_name;
+    uint32_t msg_namelen;
+    LinuxIovec *msg_iov;
+    uint32_t msg_iovlen;
+    void *msg_control;
+    uint32_t msg_controllen;
+    int msg_flags;
+};
+
+static bool msghdrToWsabuf(const LinuxMsghdr *msg, WSABUF *bufs, DWORD maxBufs)
+{
+    if (!msg || msg->msg_iovlen > maxBufs)
+        return false;
+    for (uint32_t i = 0; i < msg->msg_iovlen; i++)
+    {
+        bufs[i].buf = (CHAR *)msg->msg_iov[i].iov_base;
+        bufs[i].len = msg->msg_iov[i].iov_len;
+    }
+    return true;
+}
+
+extern "C" int bridgeSendmsg(SOCKET s, const LinuxMsghdr *msg, int flags)
+{
+    WSABUF bufs[16];
+    if (!msghdrToWsabuf(msg, bufs, 16))
+    {
+        errno = EINVAL;
+        return -1;
+    }
+    DWORD sent = 0;
+    if (WSASendTo(s, bufs, msg->msg_iovlen, &sent, flags & ~(0x4000 | 0x40), (const struct sockaddr *)msg->msg_name,
+                  msg->msg_name ? (int)msg->msg_namelen : 0, NULL, NULL) == SOCKET_ERROR)
+    {
+        errno = mapWSAErrorToErrno(WSAGetLastError());
+        return -1;
+    }
+    return (int)sent;
+}
+
+extern "C" int bridgeRecvmsg(SOCKET s, LinuxMsghdr *msg, int flags)
+{
+    WSABUF bufs[16];
+    if (!msghdrToWsabuf(msg, bufs, 16))
+    {
+        errno = EINVAL;
+        return -1;
+    }
+    DWORD received = 0;
+    DWORD wsaFlags = flags & ~0x40; // MSG_DONTWAIT has no Winsock equivalent
+    INT fromLen = (INT)msg->msg_namelen;
+    if (WSARecvFrom(s, bufs, msg->msg_iovlen, &received, &wsaFlags, (struct sockaddr *)msg->msg_name,
+                    msg->msg_name ? &fromLen : NULL, NULL, NULL) == SOCKET_ERROR)
+    {
+        errno = mapWSAErrorToErrno(WSAGetLastError());
+        return -1;
+    }
+    if (msg->msg_name)
+        msg->msg_namelen = (uint32_t)fromLen;
+    msg->msg_controllen = 0;
+    msg->msg_flags = 0;
+    return (int)received;
+}
+
+extern "C" int bridgeGetsockname(SOCKET s, struct sockaddr *addr, int *addrlen)
+{
+    if (getsockname(s, addr, addrlen) == SOCKET_ERROR)
+    {
+        errno = mapWSAErrorToErrno(WSAGetLastError());
+        return -1;
+    }
+    return 0;
 }
 
 extern "C" int bridgeSetsockopt(SOCKET s, int level, int optname, const char *optval, int optlen)

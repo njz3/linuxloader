@@ -16,6 +16,7 @@
 
 #define REAL_FUNC(name) dlsym(RTLD_NEXT, #name)
 #else
+#include <windows.h>
 #include <processenv.h>
 #define REAL_FUNC(name) name
 #endif

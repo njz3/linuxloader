@@ -4,6 +4,7 @@
 
 #include "pthreadEmu.hpp"
 #include "pthreadInternal.hpp"
+#include "../elfCall.h"
 
 // ============================================================
 // pthread_once Implementation
@@ -30,8 +31,12 @@ int PthreadEmu::pthreadOnce(void* once_control, void (*init_routine)(void)) {
     LONG old = InterlockedCompareExchange(state, ONCE_STATE_RUNNING, ONCE_STATE_INIT);
 
     if (old == ONCE_STATE_INIT) {
-        // We won the race - run the initializer
+        // We won the race - run the initializer (the game's: Linux stack alignment with MSVC)
+#ifdef _MSC_VER
+        elfCall0((const void *)init_routine);
+#else
         init_routine();
+#endif
 
         // Mark as done
         InterlockedExchange(state, ONCE_STATE_DONE);

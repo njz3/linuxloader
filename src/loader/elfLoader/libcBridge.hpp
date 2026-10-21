@@ -18,6 +18,7 @@ extern "C" {
 #include <time.h>
 #include <wchar.h>
 #include <sys/types.h>
+#include <sys/timeb.h>
 #include <windows.h>
 #include <locale.h>
 
@@ -128,6 +129,10 @@ namespace LibcBridge
 
     int bridgeSysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp, void *newp, size_t newlen);
     int bridgeStubSuccess();
+    void bridgeSiglongjmp(void *env, int val);
+    char *bridgeXpgBasename(char *path);
+    int bridgeDladdr(const void *addr, void *info);
+    int bridgeDlIteratePhdr(void *callback, void *data);
 
     int bridgeSyslog(int priority, const char *format, ...);
     void bridgeOpenlog(const char *ident, int option, int facility);
@@ -149,6 +154,10 @@ namespace LibcBridge
     int bridgeSigfillset(void *set);
     int bridgeSigemptyset(void *set);
     int bridgeSigaction(int signum, const struct linux_sigaction *act, struct linux_sigaction *oldact);
+#ifdef _MSC_VER
+    void bridgeQsort(void *base, size_t count, size_t size, int (*compare)(const void *, const void *));
+    void *bridgeBsearch(const void *key, const void *base, size_t count, size_t size, int (*compare)(const void *, const void *));
+#endif
     int bridgeNice(int inc);
 
     // Wide char memory and string functions

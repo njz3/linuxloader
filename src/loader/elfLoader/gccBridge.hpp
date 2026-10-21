@@ -38,6 +38,8 @@ extern "C"
     unsigned long __strtoul_internal(const char *n, char **e, int b, int g);
     float bridge__strtof_internal(const char *n, char **e, int g);
     long long __strtoll_internal(const char *n, char **e, int b, int g);
+    double __strtold_internal(const char *n, char **e, int g);
+    long long bridgeStrtoll(const char *n, char **e, int b);
 
     const unsigned short **__ctype_b_loc(void);
     const int32_t **__ctype_tolower_loc(void);

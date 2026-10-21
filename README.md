@@ -59,6 +59,17 @@ To build this project in Windows you can use the following script.
 ```
 The script will download Msys, install the required packages and compile the project. After this it will create a .exe file in the build-win32 directory. You can copy this file along with all the required.dll files to any folder you want and run it.
 
+#### Windows with MSVC (Visual Studio)
+
+The project also builds with MSVC (Visual Studio 2022 or 2026 with the "Desktop development with C++" workload). SDL3, SDL3_ttf, SDL3_image and FAudio are fetched and built statically by vcpkg from `vcpkg.json` (Visual Studio ships vcpkg). From a "Developer PowerShell for VS" (which sets `VCPKG_ROOT`):
+
+```shell
+cmake --preset msvc-x86
+cmake --build --preset msvc-x86-release
+```
+
+The executable is created in `build-msvc\Release`. You can also open the folder in Visual Studio and pick the `msvc-x86` preset. Copy the `libs/win32/ll-deps` folder next to it, as for the MinGW build, including `libgcc_s_dw2-1.dll` from an i686 MinGW toolchain (games import `libgcc_s.so` through it).
+
 
 If you'd like to change game settings, you can create a file named `linuxloader.ini` in the same directory as the game executable and copy the default configuration file to it. For example:
 

@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <winsock2.h>
 
+struct LinuxMsghdr; // Linux i386 struct msghdr, see networkBridge.cpp
+
 namespace NetworkBridge
 {
     void initBridges();
@@ -21,6 +23,9 @@ namespace NetworkBridge
     extern "C" int bridgeSend(SOCKET s, const char *buf, int len, int flags);
     extern "C" int bridgeRecvfrom(SOCKET s, char *buf, int len, int flags, struct sockaddr *from, int *fromlen);
     extern "C" int bridgeSendto(SOCKET s, const char *buf, int len, int flags, const struct sockaddr *to, int tolen);
+    extern "C" int bridgeSendmsg(SOCKET s, const struct LinuxMsghdr *msg, int flags);
+    extern "C" int bridgeRecvmsg(SOCKET s, struct LinuxMsghdr *msg, int flags);
+    extern "C" int bridgeGetsockname(SOCKET s, struct sockaddr *addr, int *addrlen);
     extern "C" int bridgeSetsockopt(SOCKET s, int level, int optname, const char *optval, int optlen);
     extern "C" int bridgeGetsockopt(SOCKET s, int level, int optname, char *optval, int *optlen);
     extern "C" int bridgeShutdown(SOCKET s, int how);

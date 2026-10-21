@@ -5,6 +5,7 @@
 #include "symbolResolver.hpp"
 #include "linuxStack.hpp"
 #include "libcBridge.hpp"
+#include "elfCall.h"
 #include <elfio.hpp>
 #include <cstring>
 #include <cstdlib>
@@ -807,7 +808,11 @@ bool ElfLoader::RunInit()
                 log_debug("Calling DT_INIT at %p", actualInit);
                 typedef void (*InitFunc)(void);
                 InitFunc init = reinterpret_cast<InitFunc>(actualInit);
+#ifdef _MSC_VER
+                elfCall0((const void *)init); // Linux stack alignment
+#else
                 init();
+#endif
             }
 
             if (initArrayAddr != 0 && initArraySz > 0)
@@ -832,8 +837,12 @@ bool ElfLoader::RunInit()
 
                     log_debug("Calling DT_INIT_ARRAY function %zu at 0x%08X", k, funcPtrVal);
                     typedef void (*InitArrayFunc)(void);
-                    InitArrayFunc func = reinterpret_cast<InitArrayFunc>(reinterpret_cast<uintptr_t>(funcPtrVal));
+                    InitArrayFunc func = reinterpret_cast<InitArrayFunc>(static_cast<uintptr_t>(funcPtrVal));
+#ifdef _MSC_VER
+                    elfCall0((const void *)func); // Linux stack alignment
+#else
                     func();
+#endif
                 }
             }
         }
@@ -945,6 +954,23 @@ bool ElfLoader::Execute(int argc, char **argv, char **envp)
 
     Sleep(100);
 
+#ifdef _MSC_VER
+    uint32_t linuxEsp = esp; // 'esp' names the register inside __asm
+    __asm {
+        push 0x1F80
+        ldmxcsr [esp]
+        add esp, 4
+
+        mov esi, entry
+        mov ecx, linuxEsp
+        mov esp, ecx
+        xor eax, eax
+        xor ebx, ebx
+        xor ecx, ecx
+        xor edx, edx // no rtld_fini for _start
+        jmp esi
+    }
+#else
     __asm__ volatile("push $0x1F80\n\t"
                      "ldmxcsr (%%esp)\n\t"
                      "add $4, %%esp\n\t"
@@ -960,6 +986,7 @@ bool ElfLoader::Execute(int argc, char **argv, char **envp)
                      :
                      : "r"(esp), "r"(entry)
                      : "eax", "ebx", "ecx", "memory");
+#endif
 
     __builtin_unreachable();
 }

@@ -4,7 +4,9 @@
 #include "libcBridge.hpp"
 #include "symbolResolver.hpp"
 #include "../log/log.h"
+#include <algorithm>
 #include <string>
+#include <vector>
 #include <windows.h>
 #include <io.h>
 #include <direct.h>
@@ -87,7 +89,12 @@ namespace FileSystemBridge
         MAP("getcwd", bridgeGetcwd);
         MAP("opendir", bridgeOpendir);
         MAP("readdir", bridgeReaddir);
+        MAP("readdir64_r", bridgeReaddir64R);
+        MAP("rewinddir", bridgeRewinddir);
         MAP("closedir", bridgeClosedir);
+        MAP("rmdir", bridgeRmdir);
+        MAP("glob64", bridgeGlob64);
+        MAP("globfree64", bridgeGlobfree64);
         MAP("clearerr", clearerr);
 
         MAP("unlink", bridgeUnlink);
@@ -169,7 +176,8 @@ namespace FileSystemBridge
     FILE *bridgeFdopen(int fd, const char *mode)
     {
         log_trace("Intercepted fdopen");
-        return fdopen(fd, mode);
+        char binary[16];
+        return fdopen(fd, sharedBinaryMode(mode, binary, sizeof(binary))); // no text mode, as on Linux
     }
 
     int bridgeSetvbuf(FILE *stream, char *buf, int mode, size_t size)
@@ -335,6 +343,7 @@ extern "C"
 
         DIR_Impl *dir = new DIR_Impl();
         dir->path = name; // logging uses original name
+        dir->searchPath = searchPath;
         dir->hFind = FindFirstFileA(searchPath.c_str(), &dir->findData);
 
         if (dir->hFind == INVALID_HANDLE_VALUE)
@@ -400,6 +409,120 @@ extern "C"
         }
         delete dir;
         return 0;
+    }
+
+    // readdir64_r: the next entry copied into the caller's struct dirent64; *result is NULL at the end
+    int bridgeReaddir64R(void *dirp, struct linux_dirent64 *entry, struct linux_dirent64 **result)
+    {
+        struct linux_dirent *ent = bridgeReaddir(dirp);
+        if (!ent)
+        {
+            *result = NULL;
+            return 0;
+        }
+        // Field by field, the name with its own length: the caller may have sized its entry by pathconf (boost)
+        entry->d_ino = (unsigned long long)ent->d_ino;
+        entry->d_off = ent->d_off;
+        entry->d_type = ent->d_type;
+        size_t length = strnlen(ent->d_name, sizeof(entry->d_name) - 1);
+        memcpy(entry->d_name, ent->d_name, length);
+        entry->d_name[length] = '\0';
+        entry->d_reclen = (unsigned short)(offsetof(struct linux_dirent64, d_name) + length + 1);
+        *result = entry;
+        return 0;
+    }
+
+    void bridgeRewinddir(void *dirp)
+    {
+        if (!dirp)
+            return;
+        DIR_Impl *dir = (DIR_Impl *)dirp;
+        if (dir->hFind != INVALID_HANDLE_VALUE)
+            FindClose(dir->hFind);
+        dir->hFind = FindFirstFileA(dir->searchPath.c_str(), &dir->findData);
+        dir->first_read = true;
+        dir->finished = dir->hFind == INVALID_HANDLE_VALUE;
+    }
+
+    int bridgeRmdir(const char *path)
+    {
+        if (strncmp(path, "/tmp", 4) == 0)
+            path += 1;
+        else if (strncmp(path, "/var/tmp", 8) == 0)
+            path += 5;
+        char winPath[MAX_PATH];
+        ConvertPath(winPath, path, MAX_PATH);
+        log_debug("rmdir: %s (as %s)", path, winPath);
+        return _rmdir(winPath);
+    }
+
+    // glob64 for patterns with wildcards in their last component, the usual case: the paths found keep the pattern's
+    // directory as written, sorted unless GLOB_NOSORT. Flags are glibc's.
+    int bridgeGlob64(const char *pattern, int flags, void *errfunc, struct linux_glob64 *pglob)
+    {
+        (void)errfunc;
+        const int GLOB_MARK = 2, GLOB_NOSORT = 4, GLOB_DOOFFS = 8, GLOB_NOCHECK = 16, GLOB_NOMATCH = 3;
+        const char *slash = strrchr(pattern, '/');
+        const std::string directory = slash ? std::string(pattern, slash - pattern + 1) : std::string();
+
+        const char *mapped = pattern;
+        if (strncmp(mapped, "/tmp", 4) == 0)
+            mapped += 1;
+        else if (strncmp(mapped, "/var/tmp", 8) == 0)
+            mapped += 5;
+        char winPattern[MAX_PATH];
+        ConvertPath(winPattern, mapped, MAX_PATH);
+
+        std::vector<std::string> found;
+        WIN32_FIND_DATAA data;
+        HANDLE find = FindFirstFileA(winPattern, &data);
+        if (find != INVALID_HANDLE_VALUE)
+        {
+            do
+            {
+                if (strcmp(data.cFileName, ".") == 0 || strcmp(data.cFileName, "..") == 0)
+                    continue;
+                std::string path = directory + data.cFileName;
+                if ((flags & GLOB_MARK) && (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+                    path += "/";
+                found.push_back(path);
+            } while (FindNextFileA(find, &data));
+            FindClose(find);
+        }
+        if (found.empty())
+        {
+            if (!(flags & GLOB_NOCHECK))
+            {
+                pglob->gl_pathc = 0;
+                pglob->gl_pathv = NULL;
+                return GLOB_NOMATCH;
+            }
+            found.push_back(pattern);
+        }
+        if (!(flags & GLOB_NOSORT))
+            std::sort(found.begin(), found.end());
+
+        const unsigned int offs = (flags & GLOB_DOOFFS) ? pglob->gl_offs : 0;
+        char **pathv = (char **)calloc(offs + found.size() + 1, sizeof(char *));
+        for (size_t i = 0; i < found.size(); i++)
+            pathv[offs + i] = _strdup(found[i].c_str());
+        pglob->gl_pathc = (unsigned int)found.size();
+        pglob->gl_pathv = pathv;
+        if (!(flags & GLOB_DOOFFS))
+            pglob->gl_offs = 0;
+        log_debug("glob64(\"%s\"): %u found", pattern, pglob->gl_pathc);
+        return 0;
+    }
+
+    void bridgeGlobfree64(struct linux_glob64 *pglob)
+    {
+        if (!pglob || !pglob->gl_pathv)
+            return;
+        for (unsigned int i = 0; i < pglob->gl_pathc; i++)
+            free(pglob->gl_pathv[pglob->gl_offs + i]);
+        free(pglob->gl_pathv);
+        pglob->gl_pathv = NULL;
+        pglob->gl_pathc = 0;
     }
 
 

@@ -19,16 +19,18 @@ namespace CppBridge
         MAP("_ZdaPv", bridgeOperatorDelete); 
     }
 
+    // Zeroed, as MemoryManager::customMalloc: objects whose constructors read members not set yet (Dead Heat's
+    // clTestMode) find zeros, as on Linux
     void *bridgeOperatorNew(size_t size)
     {
         log_trace("Intercepted operator new, size: %zu", size);
-        return malloc(size);
+        return calloc(1, size ? size : 1);
     }
 
     void *bridgeOperatorNewArray(size_t size)
     {
         log_trace("Intercepted operator new[], size: %zu", size);
-        return malloc(size);
+        return calloc(1, size ? size : 1);
     }
 
     void bridgeOperatorDelete(void *ptr)

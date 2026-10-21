@@ -732,10 +732,10 @@ const unsigned char gsevoMesaPatchBuffer_3[] = {
     0x0a};
 
 ShaderFilesToPatch gsevoMesaShaderPatches[] = {
-    {gsevoMesaFileName_0, gsevoMesaPatchSize_0, gsevoMesaPatchBuffer_0, 0, ""},
-    {gsevoMesaFileName_1, gsevoMesaPatchSize_1, gsevoMesaPatchBuffer_1, 0, ""},
-    {gsevoMesaFileName_2, gsevoMesaPatchSize_2, gsevoMesaPatchBuffer_2, 0, ""},
-    {gsevoMesaFileName_3, gsevoMesaPatchSize_3, gsevoMesaPatchBuffer_3, 0, ""},
+    {gsevoMesaFileName_0, sizeof(gsevoMesaPatchBuffer_0), gsevoMesaPatchBuffer_0, 0, ""},
+    {gsevoMesaFileName_1, sizeof(gsevoMesaPatchBuffer_1), gsevoMesaPatchBuffer_1, 0, ""},
+    {gsevoMesaFileName_2, sizeof(gsevoMesaPatchBuffer_2), gsevoMesaPatchBuffer_2, 0, ""},
+    {gsevoMesaFileName_3, sizeof(gsevoMesaPatchBuffer_3), gsevoMesaPatchBuffer_3, 0, ""},
 };
 
 // File: vsu_lit_all_lambert_d.vsh
@@ -1184,10 +1184,10 @@ const unsigned char gsevoNvidiaPatchBuffer_3[] = {
     0x02, 0x40, 0x0e, 0x00, 0x00, 0xed, 0x00, 0x00, 0x00};
 
 ShaderFilesToPatch gsevoNvidiaShaderPatches[] = {
-    {gsevoNvidiaFileName_0, gsevoNvidiaPatchSize_0, gsevoNvidiaPatchBuffer_0, 0, ""},
-    {gsevoNvidiaFileName_1, gsevoNvidiaPatchSize_1, gsevoNvidiaPatchBuffer_1, 0, ""},
-    {gsevoNvidiaFileName_2, gsevoNvidiaPatchSize_2, gsevoNvidiaPatchBuffer_2, 0, ""},
-    {gsevoNvidiaFileName_3, gsevoNvidiaPatchSize_3, gsevoNvidiaPatchBuffer_3, 0, ""},
+    {gsevoNvidiaFileName_0, sizeof(gsevoNvidiaPatchBuffer_0), gsevoNvidiaPatchBuffer_0, 0, ""},
+    {gsevoNvidiaFileName_1, sizeof(gsevoNvidiaPatchBuffer_1), gsevoNvidiaPatchBuffer_1, 0, ""},
+    {gsevoNvidiaFileName_2, sizeof(gsevoNvidiaPatchBuffer_2), gsevoNvidiaPatchBuffer_2, 0, ""},
+    {gsevoNvidiaFileName_3, sizeof(gsevoNvidiaPatchBuffer_3), gsevoNvidiaPatchBuffer_3, 0, ""},
 };
 
 int gsevoShaderPatchesCount = 4;

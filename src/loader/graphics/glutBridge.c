@@ -21,6 +21,7 @@
 #include "overlayMsgs.h"
 #include "../graphics/sdlCalls.h"
 #include "../hardware/lindbergh/touchScreen.h"
+#include "../elfLoader/elfCall.h"
 
 extern uint32_t gId;
 extern int gGrp;
@@ -60,17 +61,31 @@ void bridgeGlutMainLoop(void)
         pollEvents();
         int w, h;
         SDL_GetWindowSize(g_SdlWindow, &w, &h);
+        // The game's callbacks: through elfCall with MSVC, for the Linux stack alignment
         if (g_displayFunc && g_redisplayNeeded)
         {
+#ifdef _MSC_VER
+            elfCall0(g_displayFunc);
+#else
             (((void *(*)(void))g_displayFunc)());
+#endif
             g_redisplayNeeded = false;
         }
+#ifdef _MSC_VER
+        if (reshapeFunc)
+            elfCall2(reshapeFunc, (uintptr_t)w, (uintptr_t)h);
+        if (g_visibilityFunc)
+            elfCall1(g_visibilityFunc, 1);
+        if (g_idleFunc)
+            elfCall0(g_idleFunc);
+#else
         if (reshapeFunc)
             (((void *(*)(int, int))reshapeFunc)(w, h));
         if (g_visibilityFunc)
             (((void *(*)(int))g_visibilityFunc)(1));
         if (g_idleFunc)
             (((void *(*)(void))g_idleFunc)());
+#endif
         SDL_Delay(1);
     }
     SDL_DestroyWindow(g_SdlWindow);

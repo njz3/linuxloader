@@ -235,9 +235,15 @@ size_t MemoryManager::customStrxfrm(char *dest, const char *src, size_t n)
     return strxfrm(dest, src, n);
 }
 
+// Zeroed, like the memory a Linux process gets fresh from the system: games read fields they have not set yet. Dead
+// Heat's clTestMode reads its clock offsets while it is constructed: a year near 50000, and a Boost exception at
+// startup, in more than half of the MSVC runs.
 void *MemoryManager::customMalloc(size_t size)
 {
-    return _aligned_malloc(size, 16);
+    void *ptr = _aligned_malloc(size, 16);
+    if (ptr)
+        memset(ptr, 0, size);
+    return ptr;
 }
 
 struct mallinfo MemoryManager::customMallinfo(void)

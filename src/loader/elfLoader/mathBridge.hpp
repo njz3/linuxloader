@@ -43,7 +43,10 @@ namespace MathBridge
     extern "C" double bridge_sqrt(double x);
     extern "C" float bridge_sqrtf(float x);
 
-    extern "C" div_t bridge_div(int numerator, int denominator);
+    extern "C" void bridge_div(void); // div and ldiv, with the i386 Linux struct return: see mathBridge.cpp
+    extern "C" double bridge_ldexp(double x, int exp);
+    extern "C" float bridge_roundf(float x);
+    extern "C" double bridge_difftime(int end, int start);
     extern "C" int bridge_finite(double x);
     extern "C" int bridge_finitef(float x);
     extern "C" double bridge_frexp(double x, int *exp);

@@ -302,14 +302,25 @@ int sharedOpen64(const char *pathname, int flags, ...)
 }
 
 static FILE *(*_fopen)(const char *restrict pathname, const char *restrict mode) = NULL;
+#ifdef _WIN32
+// Linux has no text mode: a stream opened "r" or "w" reads and writes the bytes as they are. Windows' would turn CRLF
+// into LF, and a file read into a buffer of its size would leave the end unwritten (Dead Heat's CRLF shaders).
+const char *sharedBinaryMode(const char *mode, char *buffer, size_t size)
+{
+    if (!mode || strchr(mode, 'b') || strlen(mode) + 2 > size)
+        return mode;
+    snprintf(buffer, size, "%sb", mode);
+    return buffer;
+}
+#endif
+
 FILE *sharedFopen(const char *restrict pathname, const char *restrict mode)
 {
     if (_fopen == NULL)
         _fopen = REAL_FUNC(fopen);
 #ifdef _WIN32
-
-    if (strcmp(mode, "r") == 0)
-        mode = "rb";
+    char binary[16];
+    mode = sharedBinaryMode(mode, binary, sizeof(binary));
 #endif
 
     if (strcmp(pathname, "/proc/net/route") == 0)
@@ -535,6 +546,10 @@ FILE *sharedFopen64(const char *pathname, const char *mode)
 {
     if (_fopen64 == NULL)
         _fopen64 = REAL_FUNC(fopen64);
+#ifdef _WIN32
+    char binary[16];
+    mode = sharedBinaryMode(mode, binary, sizeof(binary));
+#endif
 
     if (strcmp(pathname, "/proc/sys/kernel/osrelease") == 0)
     {
@@ -682,6 +697,14 @@ int sharedClose(int fd)
             return 0;
         }
     }
+
+#ifndef __linux__
+    // Games close their sockets with close(), but on Windows they are Winsock handles, not CRT descriptors
+    int socketType;
+    int socketTypeLen = sizeof(socketType);
+    if (getsockopt((SOCKET)fd, SOL_SOCKET, SO_TYPE, (char *)&socketType, &socketTypeLen) == 0)
+        return closesocket((SOCKET)fd) == 0 ? 0 : -1;
+#endif
 
     return _close(fd);
 }
@@ -929,6 +952,95 @@ ssize_t sharedWrite(int fd, const void *buf, size_t count)
 }
 
 
+#ifndef __linux__
+// Linux socket ioctls. FIONBIO/FIONREAD map to ioctlsocket(): without FIONBIO the game's UDP sockets stay blocking
+// and its per-frame recvfrom() polling hangs the main loop (SEGA Race TV link setup). Windows has no ifreq interface:
+// report one "eth0" with the IP the game's link setup expects (SRTV_IPADDRESS for SEGA Race TV, else loopback), so
+// the IP lookups line up with the inet_addr() redirections.
+#define LINUX_FIONREAD 0x541b
+#define LINUX_FIONBIO 0x5421
+#define LINUX_SIOCGIFFLAGS 0x8913
+#define LINUX_SIOCGIFADDR 0x8915
+#define LINUX_SIOCGIFBRDADDR 0x8919
+#define LINUX_SIOCGIFNETMASK 0x891b
+#define LINUX_SIOCGIFHWADDR 0x8927
+
+typedef struct
+{
+    char ifrName[16];
+    union
+    {
+        struct
+        {
+            uint16_t family;
+            uint16_t port;
+            uint32_t addr;
+            uint8_t zero[8];
+        } in;
+        struct
+        {
+            uint16_t family;
+            uint8_t data[14];
+        } hw;
+        int16_t flags;
+    } u;
+} LinuxIfreq;
+
+static int windowsSocketIoctl(int fd, unsigned long int request, void *argp)
+{
+    if (request == LINUX_FIONBIO || request == LINUX_FIONREAD)
+    {
+        u_long value = (request == LINUX_FIONBIO && argp) ? (u_long)(*(int *)argp != 0) : 0;
+        if (ioctlsocket((SOCKET)fd, request == LINUX_FIONBIO ? FIONBIO : FIONREAD, &value) != 0)
+            return -1;
+        if (request == LINUX_FIONREAD && argp)
+            *(int *)argp = (int)value;
+        return 0;
+    }
+
+    LinuxIfreq *ifr = (LinuxIfreq *)argp;
+    if (!ifr)
+        return 0;
+
+    const char *ip = "127.0.0.1";
+    if (getConfig()->crc32 == SEGA_RACE_TV_SBPF && strcmp(getConfig()->srtvIP, "") != 0)
+        ip = getConfig()->srtvIP;
+
+    switch (request)
+    {
+        case LINUX_SIOCGIFADDR:
+        case LINUX_SIOCGIFNETMASK:
+        case LINUX_SIOCGIFBRDADDR:
+        {
+            uint32_t addr = inet_addr(ip);
+            uint32_t mask = htonl(0xFFFFFF00);
+            memset(&ifr->u, 0, sizeof(ifr->u));
+            ifr->u.in.family = AF_INET;
+            if (request == LINUX_SIOCGIFADDR)
+                ifr->u.in.addr = addr;
+            else if (request == LINUX_SIOCGIFNETMASK)
+                ifr->u.in.addr = mask;
+            else
+                ifr->u.in.addr = addr | ~mask;
+            return 0;
+        }
+        case LINUX_SIOCGIFFLAGS:
+            ifr->u.flags = 0x1 | 0x2 | 0x40 | 0x1000; // IFF_UP | IFF_BROADCAST | IFF_RUNNING | IFF_MULTICAST
+            return 0;
+        case LINUX_SIOCGIFHWADDR:
+        {
+            static const uint8_t mac[6] = {0x00, 0xD0, 0xF1, 0x00, 0x00, 0x01}; // SEGA OUI
+            memset(&ifr->u, 0, sizeof(ifr->u));
+            ifr->u.hw.family = 1; // ARPHRD_ETHER
+            memcpy(ifr->u.hw.data, mac, sizeof(mac));
+            return 0;
+        }
+        default:
+            return 0;
+    }
+}
+#endif
+
 int sharedIoctl(int fd, unsigned long int request, ...)
 {
     va_list args;
@@ -980,8 +1092,9 @@ int sharedIoctl(int fd, unsigned long int request, ...)
         strncpy(ifr->ifr_name, getConfig()->nicName, IFNAMSIZ);
     }
     return _ioctl(fd, request, argp);
+#else
+    return windowsSocketIoctl(fd, request, argp);
 #endif
-    return 0;
 }
 
 #ifdef WIN32

@@ -6,7 +6,11 @@
 #include "../log/log.h"
 #include "gccBridge.hpp"
 #include "symbolResolver.hpp"
+#include "elfCall.h"
 #include <csignal>
+#ifdef _MSC_VER
+#include <intrin.h> // _ReturnAddress
+#endif
 #include <cstdarg>
 #include <cstdio>
 #include <ctime>
@@ -135,6 +139,10 @@ namespace LibcBridge
         MAP("__fixunsdfdi", __fixunsdfdi);
         MAP("__fixunssfdi", __fixunssfdi);
         MAP("_setjmp", bridgeSetjmp);
+        MAP("__sigsetjmp", bridgeSetjmp); // savemask is ignored, like the signal mask itself
+        MAP("siglongjmp", bridgeSiglongjmp);
+        MAP("setrlimit", bridgeStubSuccess);
+        MAP("__xpg_basename", bridgeXpgBasename);
 
         // system
         MAP("system", bridgeSystem);
@@ -166,9 +174,20 @@ namespace LibcBridge
         MAP("sigemptyset", bridgeSigemptyset);
         MAP("sigaction", bridgeSigaction);
         MAP("alarm", bridgeStubSuccess);
+        // R-Tuned mounts its media and traces its allocations: nothing to do here
+        MAP("mount", bridgeStubSuccess);
+        MAP("umount", bridgeStubSuccess);
+        MAP("mtrace", bridgeStubSuccess);
+        MAP("muntrace", bridgeStubSuccess);
+#ifdef _MSC_VER
+        // The CRT calls the game's comparator: through a host one that realigns the stack
+        MAP("qsort", bridgeQsort);
+        MAP("bsearch", bridgeBsearch);
+#else
         MAP("qsort", qsort);
-        MAP("poll", bridgePoll);
         MAP("bsearch", bsearch);
+#endif
+        MAP("poll", bridgePoll);
         MAP("realpath", bridgeRealpath);
         MAP("popen", bridgePopen);
         MAP("pclose", bridgePclose);
@@ -199,6 +218,8 @@ namespace LibcBridge
         MAP("dlsym", sharedDlsym);
         MAP("dlclose", sharedDlclose);
         MAP("dlerror", sharedDlerror);
+        MAP("dladdr", bridgeDladdr);
+        MAP("dl_iterate_phdr", bridgeDlIteratePhdr);
 
         MAP("kswap_collect", sharedKswap_collect);
         MAP("bzero", bridgeBzero);
@@ -237,6 +258,24 @@ namespace LibcBridge
         MAP("fputwc", bridgePutwc);
     }
 
+#ifdef _MSC_VER
+    __declspec(naked) int bridgeSetjmp(int *env)
+    {
+        __asm {
+            mov edx, [esp + 4]
+            mov [edx], ebx
+            mov [edx + 4], esi
+            mov [edx + 8], edi
+            mov [edx + 12], ebp
+            lea ecx, [esp + 4]
+            mov [edx + 16], ecx
+            mov eax, [esp]
+            mov [edx + 20], eax
+            xor eax, eax
+            ret
+        }
+    }
+#else
     int __attribute__((naked)) bridgeSetjmp(int *env)
     {
         asm volatile("mov 4(%esp), %edx\n\t"
@@ -251,6 +290,7 @@ namespace LibcBridge
                      "xor %eax, %eax\n\t"
                      "ret\n\t");
     }
+#endif
 
     void bridgeAbort()
     {
@@ -260,7 +300,12 @@ namespace LibcBridge
 
     void bridgeExit(int status)
     {
-        log_fatal("exit(%d) called by ELF!", status);
+#ifdef _MSC_VER
+        void *caller = _ReturnAddress();
+#else
+        void *caller = __builtin_return_address(0);
+#endif
+        log_fatal("exit(%d) called by ELF! (from %p)", status, caller);
         ::exit(status);
     }
 
@@ -631,7 +676,7 @@ namespace LibcBridge
     char *bridgeIndex(const char *str, int c)
     {
         log_trace("Intercepted index");
-        return strchr(str, c);
+        return const_cast<char *>(strchr(str, c));
     }
 
 #define FNM_NOMATCH 1
@@ -911,35 +956,70 @@ namespace LibcBridge
         return 0;
     }
 
+    // Only reached from crash traceback code (Intel's libirc tbk_*), there is no matching jmp_buf to restore
+    void bridgeSiglongjmp(void *env, int val)
+    {
+        log_fatal("siglongjmp() called by ELF!");
+        ::abort();
+    }
+
+    char *bridgeXpgBasename(char *path)
+    {
+        static char dot[] = ".";
+        if (!path || !*path)
+            return dot;
+        char *slash = strrchr(path, '/');
+        return slash ? slash + 1 : path;
+    }
+
+    int bridgeDladdr(const void *addr, void *info)
+    {
+        return 0; // no symbol information available
+    }
+
+    int bridgeDlIteratePhdr(void *callback, void *data)
+    {
+        return 0; // no Linux program headers to walk
+    }
+
+    // The commands a game runs: the ones below, translated for cmd.exe; the others are Linux ones (Dead Heat's
+    // su -c 'date ...', sudo route, sudo ifconfig, sudo rm, sudo mount...), which cmd would at best answer with errors
+    // and, with Windows' own sudo enabled, run in part elevated. They are not run, and answered as /bin/sh answers a
+    // command it cannot find (exit status 127).
     int bridgeSystem(const char *command)
     {
         log_debug("system(\"%s\")", command);
-        if (strcmp(command, "touch /var/tmp/mwlogo") == 0)
-            command = "type nul > .\\tmp\\mwlogo";
+        static const struct
+        {
+            const char *game;
+            const char *windows;
+        } translations[] = {
+            {"touch /var/tmp/mwlogo", "type nul > .\\tmp\\mwlogo"},
+            {"mkdir /tmp/segaboot > /dev/null", "md .\\tmp\\segaboot > nul"},
+            {"touch /tmp/segaboot/test", "type nul > .\\tmp\\segaboot\\test"},
+            {"touch /var/tmp/atr_init", "type nul > .\\tmp\\atr_init"},
+            {"touch /var/tmp/atr_err", "type nul > .\\tmp\\atr_err"},
+        };
 
         if (strcmp(command, "cd /tmp/segaboot > /dev/null") == 0)
             return -1;
-
-        if (strcmp(command, "mkdir /tmp/segaboot > /dev/null") == 0)
-            command = "md .\\tmp\\segaboot > nul";
-
-        if (strcmp(command, "touch /tmp/segaboot/test") == 0)
-            command = "type nul > .\\tmp\\segaboot\\test";
-
-        if (strcmp(command, "touch /var/tmp/atr_init") == 0)
-            command = "type nul > .\\tmp\\atr_init";
-
-        if (strcmp(command, "touch /var/tmp/atr_err") == 0)
-            command = "type nul > .\\tmp\\atr_err";
-
-        if (strncmp(command, "touch /var/tmp/warning", 20) == 0)
-            command = "type nul > .\\tmp\\warning";
-
         if (strncmp(command, "ifconfig eth0", 11) == 0)
             return 0;
 
-        log_info("Intercepted system: %s", command ? command : "(null)");
-        return system(command);
+        const char *windows = NULL;
+        for (size_t i = 0; i < sizeof(translations) / sizeof(translations[0]); i++)
+            if (strcmp(command, translations[i].game) == 0)
+                windows = translations[i].windows;
+        if (strncmp(command, "touch /var/tmp/warning", 20) == 0)
+            windows = "type nul > .\\tmp\\warning";
+
+        if (!windows)
+        {
+            log_info("system() not run on Windows: %s", command);
+            return 127 << 8;
+        }
+        log_info("Intercepted system: %s", windows);
+        return system(windows);
     }
 
     int bridgeSyslog(int priority, const char *format, ...)
@@ -1011,6 +1091,52 @@ namespace LibcBridge
         return *seedp;
     }
 
+#ifdef _MSC_VER
+    // The CRT's comparator, given the game's as its context: the game's called with the Linux stack alignment
+    static int __cdecl elfCompare(void *compare, const void *a, const void *b)
+    {
+        return (int)elfCall2(compare, (uintptr_t)a, (uintptr_t)b);
+    }
+
+    void bridgeQsort(void *base, size_t count, size_t size, int (*compare)(const void *, const void *))
+    {
+        qsort_s(base, count, size, elfCompare, (void *)compare);
+    }
+
+    void *bridgeBsearch(const void *key, const void *base, size_t count, size_t size, int (*compare)(const void *, const void *))
+    {
+        return bsearch_s(key, base, count, size, elfCompare, (void *)compare);
+    }
+
+    // The game's signal handlers, by Windows signal number. The CRT calls hostSignalHandler (from raise, or its
+    // exception filter for SIGSEGV / SIGFPE / SIGILL), which calls the game's with the Linux stack alignment and the
+    // Linux signal number: they share their numbers but SIGABRT, 22 in Windows and 6 in Linux.
+    static void (*s_gameSignalHandlers[NSIG])(int);
+
+    static void __cdecl hostSignalHandler(int winSig)
+    {
+        void (*handler)(int) = (winSig >= 0 && winSig < NSIG) ? s_gameSignalHandlers[winSig] : nullptr;
+        if (handler)
+            elfCall1((const void *)handler, (uintptr_t)(winSig == SIGABRT ? 6 : winSig));
+    }
+
+    // signal() with the game's handler put behind hostSignalHandler; returns the game's previous handler
+    static void (*installGameSignal(int winSig, void (*handler)(int)))(int)
+    {
+        void (*previousGame)(int) = s_gameSignalHandlers[winSig];
+        void (*installed)(int) = handler;
+        if (handler != SIG_DFL && handler != SIG_IGN && handler != SIG_ERR)
+        {
+            s_gameSignalHandlers[winSig] = handler;
+            installed = hostSignalHandler;
+        }
+        void (*previous)(int) = signal(winSig, installed);
+        if (previous == hostSignalHandler)
+            return previousGame;
+        return previous;
+    }
+#endif
+
     void (*bridgeSignal(int signum, void (*handler)(int)))(int)
     {
         log_debug("signal() called");
@@ -1045,7 +1171,11 @@ namespace LibcBridge
                 return (void (*)(int))-1; // SIG_ERR
         }
 
+#ifdef _MSC_VER
+        return installGameSignal(win_sig, handler);
+#else
         return signal(win_sig, handler);
+#endif
     }
 
     int bridgeRaise(int sig)
@@ -1134,7 +1264,11 @@ namespace LibcBridge
 
         if (act)
         {
+#ifdef _MSC_VER
+            old_handler = installGameSignal(win_sig, act->sa_handler);
+#else
             old_handler = signal(win_sig, act->sa_handler);
+#endif
             if (old_handler == SIG_ERR)
                 return -1;
         }
@@ -1142,6 +1276,10 @@ namespace LibcBridge
         {
             old_handler = signal(win_sig, SIG_DFL);
             signal(win_sig, old_handler);
+#ifdef _MSC_VER
+            if (old_handler == hostSignalHandler)
+                old_handler = s_gameSignalHandlers[win_sig];
+#endif
         }
 
         if (oldact)

@@ -1,5 +1,8 @@
 #pragma once
 
+#ifdef _MSC_VER
+#include <windows.h> // MSVC's GL/gl.h needs WINGDIAPI/APIENTRY
+#endif
 #include <GL/gl.h>
 #include <stdint.h>
 #include <stdio.h>

@@ -1178,10 +1178,11 @@ extern "C" void __attribute__((cdecl)) wrap_glDrawBuffer(GLenum mode)
         glad_glDrawBuffer(mode);
 }
 
-extern "C" void __attribute__((cdecl)) wrap_glCheckFramebufferStatusEXT(GLenum target)
+extern "C" GLenum __attribute__((cdecl)) wrap_glCheckFramebufferStatusEXT(GLenum target)
 {
     if (glad_glCheckFramebufferStatusEXT)
-        glad_glCheckFramebufferStatusEXT(target);
+        return glad_glCheckFramebufferStatusEXT(target);
+    return (GLenum)0;
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glGenBuffersARB(GLsizei n, GLuint *buffers)
@@ -1428,10 +1429,11 @@ extern "C" void __attribute__((cdecl)) wrap_glColor4dv(const GLdouble *v)
         glad_glColor4dv(v);
 }
 
-extern "C" void __attribute__((cdecl)) wrap_glGetUniformLocationARB(GLint program, const GLchar *name)
+extern "C" GLint __attribute__((cdecl)) wrap_glGetUniformLocationARB(GLint program, const GLchar *name)
 {
     if (glad_glGetUniformLocationARB)
-        glad_glGetUniformLocationARB(program, name);
+        return glad_glGetUniformLocationARB(program, name);
+    return (GLint)0;
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glUniform1fvARB(GLint location, GLsizei count, const GLfloat *value)
@@ -1513,10 +1515,11 @@ extern "C" void __attribute__((cdecl)) wrap_glAttachObjectARB(GLhandleARB contai
         glad_glAttachObjectARB(containerObj, obj);
 }
 
-extern "C" void __attribute__((cdecl)) wrap_glCreateProgramObjectARB()
+extern "C" GLhandleARB __attribute__((cdecl)) wrap_glCreateProgramObjectARB()
 {
     if (glad_glCreateProgramObjectARB)
-        glad_glCreateProgramObjectARB();
+        return glad_glCreateProgramObjectARB();
+    return (GLhandleARB)0;
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glBindAttribLocationARB(GLhandleARB programObj, GLuint index, const GLchar *name)
@@ -1561,10 +1564,11 @@ extern "C" void __attribute__((cdecl)) wrap_glLoadProgramNV(GLenum target, GLuin
         glad_glLoadProgramNV(target, id, len, program);
 }
 
-extern "C" void __attribute__((cdecl)) wrap_glIsProgramNV(GLuint program)
+extern "C" GLboolean __attribute__((cdecl)) wrap_glIsProgramNV(GLuint program)
 {
     if (glad_glIsProgramNV)
-        glad_glIsProgramNV(program);
+        return glad_glIsProgramNV(program);
+    return (GLboolean)0;
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glTrackMatrixNV(GLenum target, GLuint address, GLenum matrix, GLenum transform)

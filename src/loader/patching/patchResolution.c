@@ -1805,7 +1805,7 @@ __attribute__((used)) static void checkMagicXst(void)
     decryptOr2Buffer(buf);
     if (sprFontXstLoaded)
     {
-        uint8_t *xpr0 = buf + 0x28;
+        uint8_t *xpr0 = (uint8_t *)buf + 0x28;
 
         size_t pos = 0x0C;
 
@@ -1820,8 +1820,8 @@ __attribute__((used)) static void checkMagicXst(void)
 
             // Patch Glyph sizes
             uint16_t fontW, fontH;
-            memcpy(&fontW, (void *)0x081de4a8 + i * 0x10, sizeof(uint16_t));
-            memcpy(&fontH, (void *)0x081de4aa + i * 0x10, sizeof(uint16_t));
+            memcpy(&fontW, (uint8_t *)0x081de4a8 + i * 0x10, sizeof(uint16_t));
+            memcpy(&fontH, (uint8_t *)0x081de4aa + i * 0x10, sizeof(uint16_t));
             fontW = fontW * or2FontScaling[i].glyphMultiplier;
             fontH = fontH * or2FontScaling[i].glyphMultiplier;
             setVariable16(0x081de4a8 + i * 0x10, fontW);
@@ -1833,6 +1833,19 @@ __attribute__((used)) static void checkMagicXst(void)
     }
 }
 
+#ifdef _MSC_VER
+__declspec(naked) static void replacementSprani(void)
+{
+    __asm {
+        pushad
+        mov eax, [esp + 16]
+        mov gEbxSprani, eax
+        call checkMagicSprani
+        popad
+        jmp dword ptr [trampolineSprani]
+    }
+}
+#else
 __attribute__((naked)) static void replacementSprani(void)
 {
     __asm__("pusha\n"
@@ -1849,7 +1862,21 @@ __attribute__((naked)) static void replacementSprani(void)
             : "m"(trampolineSprani)
             : "eax");
 }
+#endif
 
+#ifdef _MSC_VER
+__declspec(naked) static void myReadXstsetSub(void)
+{
+    __asm {
+        pushad
+        mov eax, [esp + 16]
+        mov gEbxXst, eax
+        call checkMagicXst
+        popad
+        jmp dword ptr [readXstsetSubOri]
+    }
+}
+#else
 __attribute__((naked)) static void myReadXstsetSub(void)
 {
     __asm__("pusha\n"
@@ -1866,6 +1893,7 @@ __attribute__((naked)) static void myReadXstsetSub(void)
             : "m"(readXstsetSubOri)
             : "eax");
 }
+#endif
 
 __attribute__((used)) static void checkMagicXmtTexture(void)
 {
@@ -1875,6 +1903,19 @@ __attribute__((used)) static void checkMagicXmtTexture(void)
     decryptOr2Buffer(buf);
 }
 
+#ifdef _MSC_VER
+__declspec(naked) static void replacementXmtTexture(void)
+{
+    __asm {
+        pushad
+        mov gEsiXmt, esi
+        call checkMagicXmtTexture
+        popad
+        mov dword ptr [esi + 0x14], 6 // original: state = 6 (LoadTextures)
+        jmp dword ptr [trampolineXmtTexture]
+    }
+}
+#else
 __attribute__((naked)) static void replacementXmtTexture(void)
 {
     __asm__("pusha\n"
@@ -1891,6 +1932,7 @@ __attribute__((naked)) static void replacementXmtTexture(void)
             : "m"(trampolineXmtTexture)
             : "esi");
 }
+#endif
 
 int initResolutionPatches()
 {

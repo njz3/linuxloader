@@ -4,6 +4,7 @@
 
 #include "pthreadEmu.hpp"
 #include "pthreadInternal.hpp"
+#include "../elfCall.h"
 
 // ============================================================
 // TLS Key Management
@@ -57,7 +58,11 @@ void CallTlsDestructors() {
                     void (*dtor)(void*) = s_tls_keys[key].destructor;
                     LeaveCriticalSection(&s_tls_lock);
                     
+#ifdef _MSC_VER
+                    elfCall1((const void *)dtor, (uintptr_t)value); // the game's destructor, Linux stack alignment
+#else
                     dtor(value);
+#endif
                     any_non_null = true;
                     
                     EnterCriticalSection(&s_tls_lock);
