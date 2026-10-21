@@ -1,6 +1,8 @@
 #ifndef ALSA2SDL_H
 #define ALSA2SDL_H
 
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -47,6 +49,24 @@ extern "C"
     int shared_snd_pcm_state(snd_pcm_t *pcm);
     int shared_snd_pcm_format_width(int format);
     const char *shared_snd_strerror(int errnum);
+
+    // Namco's sound driver (Dead Heat's nsAdrv)
+    int shared_snd_pcm_hw_params_set_channels_max(snd_pcm_t *pcm, snd_pcm_hw_params_t *params, unsigned int *val);
+    int shared_snd_pcm_hw_params_set_buffer_time_near(snd_pcm_t *pcm, snd_pcm_hw_params_t *params, unsigned int *val, int *dir);
+    int shared_snd_pcm_hw_params_set_period_time_near(snd_pcm_t *pcm, snd_pcm_hw_params_t *params, unsigned int *val, int *dir);
+    int shared_snd_pcm_hw_params_get_buffer_size(const snd_pcm_hw_params_t *params, snd_pcm_uframes_t *val);
+    int shared_snd_pcm_hw_params_get_period_size(const snd_pcm_hw_params_t *params, snd_pcm_uframes_t *frames, int *dir);
+    int shared_snd_pcm_sw_params_set_xrun_mode(snd_pcm_t *pcm, snd_pcm_sw_params_t *params, int val);
+    int shared_snd_pcm_wait(snd_pcm_t *pcm, int timeout);
+    int shared_snd_ctl_open(void **ctl, const char *name, int mode);
+    int shared_snd_ctl_close(void *ctl);
+    size_t shared_snd_ctl_card_info_sizeof(void);
+    int shared_snd_ctl_card_info(void *ctl, void *info);
+    int shared_snd_mixer_open(void **mixer, int mode);
+    int shared_snd_mixer_ok(void);
+    void *shared_snd_mixer_none(void);
+    const char *shared_snd_mixer_selem_get_name(void *element);
+    int shared_snd_mixer_selem_get_volume_range(void *element, long *min, long *max);
 
 #ifdef __cplusplus
 }

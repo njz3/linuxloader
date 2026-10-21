@@ -1,12 +1,14 @@
 #include <glad/gl.h>
 #include <SDL3/SDL.h>
 #include <string.h>
+#include <string>
 #include "glHooks.hpp"
 #include "../graphics/shaderPatches.h"
 #include "../patching/patchResolution.h"
 #include "../graphics/crossHair.h"
 #include "../graphics/blitStretching.h"
 #include "../config/config.h"
+#include "../log/log.h"
 
 
 extern "C" void __attribute__((cdecl)) wrap_glBegin(GLenum mode)
@@ -847,10 +849,51 @@ extern "C" void __attribute__((cdecl)) wrap_glReadPixels(GLint x, GLint y, GLsiz
         glad_glReadPixels(x, y, width, height, format, type, pixels);
 }
 
+// Dead Heat's GLSL was written for NVIDIA's compiler. Intel's wants gl_TexCoord redeclared with a size before an index
+// that is a variable (its downsampling and glow shaders), and warns of the missing #version; the game takes any log
+// for an error and leaves (clShaderManager). Both are added in front of each source, and a shader that compiled, or a
+// program that linked, has no log.
+extern "C" uint32_t gId;
+
+static bool deadHeatShaders()
+{
+    return gId == DEAD_HEAT_US;
+}
+
+static std::string deadHeatSource(GLsizei count, const char *const *strings, const GLint *lengths)
+{
+    std::string source;
+    for (GLsizei i = 0; i < count; i++)
+        if (strings[i])
+            source.append(strings[i], lengths && lengths[i] >= 0 ? (size_t)lengths[i] : strlen(strings[i]));
+    std::string prefix;
+    if (source.find("#version") == std::string::npos)
+        prefix += "#version 110\n";
+    if (source.find("vec4 gl_TexCoord") == std::string::npos)
+        prefix += "varying vec4 gl_TexCoord[8];\n";
+    return prefix + source;
+}
+
+static void emptyLog(GLsizei *length, char *log, GLsizei size)
+{
+    if (log && size > 0)
+        log[0] = '\0';
+    if (length)
+        *length = 0;
+}
+
 extern "C" void __attribute__((cdecl)) wrap_glShaderSource(GLuint shader, GLsizei count, const GLchar *const *string, const GLint *length)
 {
-    if (glad_glShaderSource)
-        glad_glShaderSource(shader, count, string, length);
+    if (!glad_glShaderSource)
+        return;
+    if (deadHeatShaders())
+    {
+        std::string source = deadHeatSource(count, string, length);
+        const GLchar *text = source.c_str();
+        glad_glShaderSource(shader, 1, &text, NULL);
+        return;
+    }
+    glad_glShaderSource(shader, count, string, length);
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glCompileShader(GLuint shader)
@@ -861,14 +904,32 @@ extern "C" void __attribute__((cdecl)) wrap_glCompileShader(GLuint shader)
 
 extern "C" void __attribute__((cdecl)) wrap_glGetShaderiv(GLuint shader, GLenum pname, GLint *params)
 {
-    if (glad_glGetShaderiv)
-        glad_glGetShaderiv(shader, pname, params);
+    if (!glad_glGetShaderiv)
+        return;
+    glad_glGetShaderiv(shader, pname, params);
+    if (deadHeatShaders() && pname == GL_INFO_LOG_LENGTH)
+    {
+        GLint compiled = 0;
+        glad_glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+        if (compiled)
+            *params = 0;
+    }
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glGetShaderInfoLog(GLuint shader, GLsizei bufSize, GLsizei *length, GLchar *infoLog)
 {
-    if (glad_glGetShaderInfoLog)
-        glad_glGetShaderInfoLog(shader, bufSize, length, infoLog);
+    if (!glad_glGetShaderInfoLog)
+        return;
+    glad_glGetShaderInfoLog(shader, bufSize, length, infoLog);
+    if (deadHeatShaders())
+    {
+        GLint compiled = 0;
+        glad_glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+        if (compiled)
+            emptyLog(length, infoLog, bufSize);
+        else if (infoLog && bufSize > 0)
+            log_warn("Shader %u not compiled: %s", shader, infoLog);
+    }
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glDeleteShader(GLuint shader)
@@ -891,14 +952,32 @@ extern "C" void __attribute__((cdecl)) wrap_glLinkProgram(GLuint program)
 
 extern "C" void __attribute__((cdecl)) wrap_glGetProgramiv(GLuint program, GLenum pname, GLint *params)
 {
-    if (glad_glGetProgramiv)
-        glad_glGetProgramiv(program, pname, params);
+    if (!glad_glGetProgramiv)
+        return;
+    glad_glGetProgramiv(program, pname, params);
+    if (deadHeatShaders() && pname == GL_INFO_LOG_LENGTH)
+    {
+        GLint linked = 0;
+        glad_glGetProgramiv(program, GL_LINK_STATUS, &linked);
+        if (linked)
+            *params = 0;
+    }
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glGetProgramInfoLog(GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog)
 {
-    if (glad_glGetProgramInfoLog)
-        glad_glGetProgramInfoLog(program, bufSize, length, infoLog);
+    if (!glad_glGetProgramInfoLog)
+        return;
+    glad_glGetProgramInfoLog(program, bufSize, length, infoLog);
+    if (deadHeatShaders())
+    {
+        GLint linked = 0;
+        glad_glGetProgramiv(program, GL_LINK_STATUS, &linked);
+        if (linked)
+            emptyLog(length, infoLog, bufSize);
+        else if (infoLog && bufSize > 0)
+            log_warn("Program %u not linked: %s", program, infoLog);
+    }
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glUseProgram(GLuint program)
@@ -1224,8 +1303,16 @@ extern "C" void __attribute__((cdecl)) wrap_glBufferSubDataARB(GLenum target, GL
 extern "C" void __attribute__((cdecl)) wrap_glShaderSourceARB(GLhandleARB shader, GLsizei count, const GLcharARB **string,
                                                               const GLint *length)
 {
-    if (glad_glShaderSourceARB)
-        glad_glShaderSourceARB(shader, count, string, length);
+    if (!glad_glShaderSourceARB)
+        return;
+    if (deadHeatShaders())
+    {
+        std::string source = deadHeatSource(count, string, length);
+        const GLcharARB *text = source.c_str();
+        glad_glShaderSourceARB(shader, 1, &text, NULL);
+        return;
+    }
+    glad_glShaderSourceARB(shader, count, string, length);
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glCompileShaderARB(GLhandleARB shader)
@@ -1254,14 +1341,32 @@ extern "C" void __attribute__((cdecl)) wrap_glDeleteObjectARB(GLhandleARB obj)
 
 extern "C" void __attribute__((cdecl)) wrap_glGetObjectParameterivARB(GLhandleARB obj, GLenum pname, GLint *params)
 {
-    if (glad_glGetObjectParameterivARB)
-        glad_glGetObjectParameterivARB(obj, pname, params);
+    if (!glad_glGetObjectParameterivARB)
+        return;
+    glad_glGetObjectParameterivARB(obj, pname, params);
+    if (deadHeatShaders() && pname == GL_OBJECT_INFO_LOG_LENGTH_ARB)
+    {
+        GLint compiled = 0, linked = 0;
+        glad_glGetObjectParameterivARB(obj, GL_OBJECT_COMPILE_STATUS_ARB, &compiled);
+        glad_glGetObjectParameterivARB(obj, GL_OBJECT_LINK_STATUS_ARB, &linked);
+        if (compiled || linked)
+            *params = 0;
+    }
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glGetInfoLogARB(GLhandleARB obj, GLsizei maxLength, GLsizei *length, GLcharARB *infoLog)
 {
-    if (glad_glGetInfoLogARB)
-        glad_glGetInfoLogARB(obj, maxLength, length, infoLog);
+    if (!glad_glGetInfoLogARB)
+        return;
+    glad_glGetInfoLogARB(obj, maxLength, length, infoLog);
+    if (deadHeatShaders())
+    {
+        GLint compiled = 0, linked = 0;
+        glad_glGetObjectParameterivARB(obj, GL_OBJECT_COMPILE_STATUS_ARB, &compiled);
+        glad_glGetObjectParameterivARB(obj, GL_OBJECT_LINK_STATUS_ARB, &linked);
+        if (compiled || linked)
+            emptyLog(length, infoLog, maxLength);
+    }
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glGenQueriesARB(GLsizei n, GLuint *ids)
@@ -2019,9 +2124,82 @@ extern "C" void __attribute__((cdecl)) wrap_glBufferSubData(GLenum target, GLint
         glad_glBufferSubData(target, offset, size, data);
 }
 
+// Dead Heat calls these too
+extern "C" void __attribute__((cdecl)) wrap_glGetQueryiv(GLenum target, GLenum pname, GLint *params)
+{
+    if (glad_glGetQueryiv)
+        glad_glGetQueryiv(target, pname, params);
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glMultiDrawArrays(GLenum mode, const GLint *first, const GLsizei *count, GLsizei drawcount)
+{
+    if (glad_glMultiDrawArrays)
+        glad_glMultiDrawArrays(mode, first, count, drawcount);
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glStencilFuncSeparate(GLenum face, GLenum func, GLint ref, GLuint mask)
+{
+    if (glad_glStencilFuncSeparate)
+        glad_glStencilFuncSeparate(face, func, ref, mask);
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glStencilOpSeparate(GLenum face, GLenum sfail, GLenum dpfail, GLenum dppass)
+{
+    if (glad_glStencilOpSeparate)
+        glad_glStencilOpSeparate(face, sfail, dpfail, dppass);
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glUniform2f(GLint location, GLfloat v0, GLfloat v1)
+{
+    if (glad_glUniform2f)
+        glad_glUniform2f(location, v0, v1);
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glUniform2i(GLint location, GLint v0, GLint v1)
+{
+    if (glad_glUniform2i)
+        glad_glUniform2i(location, v0, v1);
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glUniform3i(GLint location, GLint v0, GLint v1, GLint v2)
+{
+    if (glad_glUniform3i)
+        glad_glUniform3i(location, v0, v1, v2);
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glUniform4f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3)
+{
+    if (glad_glUniform4f)
+        glad_glUniform4f(location, v0, v1, v2, v3);
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glUniform4i(GLint location, GLint v0, GLint v1, GLint v2, GLint v3)
+{
+    if (glad_glUniform4i)
+        glad_glUniform4i(location, v0, v1, v2, v3);
+}
+
 // The interceptor router mapping string names to our safe __cdecl wrappers
 void *GLHooks_GetProcAddress(const char *procName)
 {
+    if (strcmp(procName, "glGetQueryiv") == 0)
+        return (void *)&wrap_glGetQueryiv;
+    if (strcmp(procName, "glMultiDrawArrays") == 0)
+        return (void *)&wrap_glMultiDrawArrays;
+    if (strcmp(procName, "glStencilFuncSeparate") == 0)
+        return (void *)&wrap_glStencilFuncSeparate;
+    if (strcmp(procName, "glStencilOpSeparate") == 0)
+        return (void *)&wrap_glStencilOpSeparate;
+    if (strcmp(procName, "glUniform2f") == 0)
+        return (void *)&wrap_glUniform2f;
+    if (strcmp(procName, "glUniform2i") == 0)
+        return (void *)&wrap_glUniform2i;
+    if (strcmp(procName, "glUniform3i") == 0)
+        return (void *)&wrap_glUniform3i;
+    if (strcmp(procName, "glUniform4f") == 0)
+        return (void *)&wrap_glUniform4f;
+    if (strcmp(procName, "glUniform4i") == 0)
+        return (void *)&wrap_glUniform4i;
     if (strcmp(procName, "glOrtho") == 0)
         return (void *)&bridgeglOrtho;
     if (strcmp(procName, "glViewport") == 0)

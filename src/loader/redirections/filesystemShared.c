@@ -680,12 +680,23 @@ int sharedFclose(FILE *stream)
     return _fclose(stream);
 }
 
+#ifdef _WIN32
+// The descriptors the loader makes itself (eventfd, epoll): elfLoader/sysBridge.cpp
+int sysVirtualFd(int fd);
+int sysVirtualRead(int fd, void *buffer, size_t count);
+int sysVirtualWrite(int fd, const void *buffer, size_t count);
+int sysVirtualClose(int fd);
+#endif
+
 int sharedClose(int fd)
 {
 #ifdef __linux__
     static int (*_close)(int fd) = NULL;
     if (_close == NULL)
         _close = REAL_FUNC(close);
+#else
+    if (sysVirtualFd(fd))
+        return sysVirtualClose(fd);
 #endif
 
 
@@ -750,6 +761,9 @@ ssize_t sharedRead(int fd, void *buf, size_t count)
     static ssize_t (*_read)(int fd, void *buf, size_t count) = NULL;
     if (_read == NULL)
         _read = REAL_FUNC(read);
+#else
+    if (sysVirtualFd(fd))
+        return sysVirtualRead(fd, buf, count);
 #endif
 
     if (fd == (int)hooks[BASEBOARD])
@@ -914,6 +928,9 @@ ssize_t sharedWrite(int fd, const void *buf, size_t count)
     static ssize_t (*_write)(int fd, const void *buf, size_t count) = NULL;
     if (_write == NULL)
         _write = REAL_FUNC(write);
+#else
+    if (sysVirtualFd(fd))
+        return sysVirtualWrite(fd, buf, count);
 #endif
 
     // void *addr = __builtin_return_address(0);

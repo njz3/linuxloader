@@ -12,6 +12,7 @@
 #define SND_PCM_FORMAT_S16_BE 3
 #define SND_PCM_FORMAT_U16_LE 4
 #define SND_PCM_FORMAT_U16_BE 5
+#define SND_PCM_FORMAT_S32_LE 10
 #define SND_PCM_FORMAT_FLOAT_LE 14
 
 #define SND_PCM_ACCESS_RW_INTERLEAVED 3
@@ -253,6 +254,9 @@ int shared_snd_pcm_hw_params(snd_pcm_t *pcm, snd_pcm_hw_params_t *params)
         case SND_PCM_FORMAT_S16_BE:
             pcm->spec.format = SDL_AUDIO_S16BE;
             break;
+        case SND_PCM_FORMAT_S32_LE: // Namco's sound driver (Dead Heat)
+            pcm->spec.format = SDL_AUDIO_S32LE;
+            break;
         case SND_PCM_FORMAT_FLOAT_LE:
             pcm->spec.format = SDL_AUDIO_F32LE;
             break;
@@ -440,6 +444,7 @@ int shared_snd_pcm_format_width(int format)
             return 16;
         case SND_PCM_FORMAT_S16_BE:
             return 16;
+        case SND_PCM_FORMAT_S32_LE:
         case SND_PCM_FORMAT_FLOAT_LE:
             return 32;
     }
@@ -449,4 +454,136 @@ int shared_snd_pcm_format_width(int format)
 const char *shared_snd_strerror(int errnum)
 {
     return "ALSA Error";
+}
+
+// --- what Namco's sound driver (Dead Heat's nsAdrv) asks more of ALSA
+
+int shared_snd_pcm_hw_params_set_channels_max(snd_pcm_t *pcm, snd_pcm_hw_params_t *params, unsigned int *val)
+{
+    (void)pcm;
+    if (params && val && params->channels > (int)*val)
+        params->channels = (int)*val;
+    return 0;
+}
+
+int shared_snd_pcm_hw_params_set_buffer_time_near(snd_pcm_t *pcm, snd_pcm_hw_params_t *params, unsigned int *val, int *dir)
+{
+    (void)pcm;
+    (void)dir;
+    if (params && val && params->rate)
+        params->buffer_size = (snd_pcm_uframes_t)(((unsigned long long)params->rate * *val + 999999) / 1000000); // rounded up
+    return 0;
+}
+
+int shared_snd_pcm_hw_params_set_period_time_near(snd_pcm_t *pcm, snd_pcm_hw_params_t *params, unsigned int *val, int *dir)
+{
+    (void)pcm;
+    (void)dir;
+    if (params && val && params->rate)
+        params->period_size = (snd_pcm_uframes_t)(((unsigned long long)params->rate * *val + 999999) / 1000000); // rounded up
+    return 0;
+}
+
+int shared_snd_pcm_hw_params_get_buffer_size(const snd_pcm_hw_params_t *params, snd_pcm_uframes_t *val)
+{
+    if (!params || !val)
+        return -22;
+    *val = params->buffer_size;
+    return 0;
+}
+
+int shared_snd_pcm_hw_params_get_period_size(const snd_pcm_hw_params_t *params, snd_pcm_uframes_t *frames, int *dir)
+{
+    if (!params || !frames)
+        return -22;
+    *frames = params->period_size;
+    if (dir)
+        *dir = 0;
+    return 0;
+}
+
+int shared_snd_pcm_sw_params_set_xrun_mode(snd_pcm_t *pcm, snd_pcm_sw_params_t *params, int val)
+{
+    (void)pcm;
+    (void)params;
+    (void)val;
+    return 0;
+}
+
+// Ready when the buffer has room; 1 then, 0 after timeout milliseconds (negative: no limit)
+int shared_snd_pcm_wait(snd_pcm_t *pcm, int timeout)
+{
+    Uint64 start = SDL_GetTicks();
+    while (shared_snd_pcm_avail_update(pcm) <= 0)
+    {
+        if (timeout >= 0 && SDL_GetTicks() - start >= (Uint64)timeout)
+            return 0;
+        SDL_Delay(1);
+    }
+    return 1;
+}
+
+// A control device and a mixer with nothing in them: the volume loops find no element
+static int dummyHandle;
+
+int shared_snd_ctl_open(void **ctl, const char *name, int mode)
+{
+    (void)name;
+    (void)mode;
+    if (ctl)
+        *ctl = &dummyHandle;
+    return 0;
+}
+
+int shared_snd_ctl_close(void *ctl)
+{
+    (void)ctl;
+    return 0;
+}
+
+size_t shared_snd_ctl_card_info_sizeof(void)
+{
+    return 512;
+}
+
+int shared_snd_ctl_card_info(void *ctl, void *info)
+{
+    (void)ctl;
+    if (info)
+        SDL_memset(info, 0, 512);
+    return 0;
+}
+
+int shared_snd_mixer_open(void **mixer, int mode)
+{
+    (void)mode;
+    if (mixer)
+        *mixer = &dummyHandle;
+    return 0;
+}
+
+int shared_snd_mixer_ok(void)
+{
+    return 0;
+}
+
+void *shared_snd_mixer_none(void)
+{
+    return NULL;
+}
+
+const char *shared_snd_mixer_selem_get_name(void *element)
+{
+    (void)element;
+    return "";
+}
+
+int shared_snd_mixer_selem_get_volume_range(void *element, long *min, long *max)
+{
+    (void)element;
+    if (min)
+        *min = 0;
+    if (max)
+        *max = 100;
+    return 0;
 }

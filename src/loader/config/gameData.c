@@ -47,6 +47,7 @@ static const GameData gameData[] = {
     {QUIZ_AXA_SBUR_LIVE, "Network Taisen Quiz Answer x Answer Live! (SBUR 3.530)", "axalive", "DVP-0087D", "SBUR", "", "1024x768", WORKING, SEGA_TYPE_3, MAHJONG, 1024, 768, -1, 0, 0, 0, 0, 0, 1, YELLOW},
     {RAMBO_SBQL, "Rambo", "rambo", "DVP-0069", "SBQL", "2008", "640x480, 1280x768", WORKING, SEGA_TYPE_3, SHOOTING, 1280, 768, GROUP_RAMBO, 0, 0, 0, 0, 0, 0, REDEX},
     {RAMBO_SBSS_CHINA, "Rambo", "rambo-cn", "DVP-0078", "SBSS", "2008", "640x480, 1280x768", WORKING, SEGA_TYPE_3, SHOOTING, 1280, 768, GROUP_RAMBO, 0, 0, 0, 0, 0, 0, REDEX},
+    {DEAD_HEAT_US, "Dead Heat", "deadheat", "US DRIVE", "ES1", "2011", "1360x768", WORKING, SEGA_TYPE_3, DRIVING, 1360, 768, -1, 0, 0, 0, 0, 0, 0, YELLOW},
     {R_TUNED_SBQW, "R-Tuned: Ultimate Street Racing", "r-tuned", "DVP-0060", "SBQW", "2008", "640x480", WORKING, SEGA_TYPE_3, DRIVING, 640, 480, -1, 0, 1, 0, 1, 0, 0, YELLOW},
     {SEGABOOT_2_4, "Segaboot 2.4", "segaboot-24", "", "", "", "", WORKING, SEGA_TYPE_3, DIGITAL, 640, 480, -1, 0, 0, 0, 0, 0, 0, YELLOW},
     {SEGABOOT_2_4_SYM, "Segaboot 2.4 with symbols", "segaboot-24-sym", "", "", "", "", WORKING, SEGA_TYPE_3, DIGITAL, 640, 480, -1, 0, 0, 0, 0, 0, 0, YELLOW},

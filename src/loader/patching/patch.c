@@ -20,6 +20,7 @@
 #include "../hardware/lindbergh/cardReader.h"
 #include "../config/config.h"
 #include "../hardware/lindbergh/securityBoard.h"
+#include "../hardware/namco/deadHeatIo.h"
 #include "../graphics/shaderCache.h"
 #include "../graphics/shaderPatches.h"
 #include "../graphics/customCursor.h"
@@ -38,6 +39,54 @@ extern void *touchCursor;
 extern void *blankCursor;
 
 extern void (*idWriteFileHeader)(void *);
+
+// Namco's Dead Heat (US DRIVE rev. 6273): its HASP dongle answered as Team HackItUp's dh_emu.c does (logged in, a
+// serial in what is read or decrypted) and its link IDs fixed: PCB 1 (DH_PCB_ID for another) of group 1
+static void dhSerial(unsigned char *buffer, int length)
+{
+    static const char serial[] = "HACKITUP";
+    for (int i = 0; i < length; i++)
+        buffer[i] = (unsigned char)rand();
+    memcpy(buffer, serial, length < (int)sizeof(serial) ? (size_t)length : sizeof(serial));
+}
+
+static int dhHaspLogin(int feature, void *vendorCode, void *handle)
+{
+    (void)feature;
+    (void)vendorCode;
+    (void)handle;
+    return 0; // HASP_STATUS_OK
+}
+
+static int dhHaspRead(int handle, int file, int offset, int length, unsigned char *buffer)
+{
+    (void)handle;
+    (void)file;
+    (void)offset;
+    dhSerial(buffer, length);
+    return 0;
+}
+
+static int dhHaspDecrypt(int handle, unsigned char *buffer, int length)
+{
+    (void)handle;
+    dhSerial(buffer, length);
+    return 0;
+}
+
+static int dhPcbId(int object)
+{
+    (void)object;
+    const char *id = getenv("DH_PCB_ID");
+    return id ? atoi(id) : 1;
+}
+
+static int dhLinkGroupId(int object, int other)
+{
+    (void)object;
+    (void)other;
+    return 1;
+}
 
 int amDongleInit()
 {
@@ -2658,6 +2707,19 @@ int initPatch()
                 replaceCallAtAddress(0x082014b3, compileWithCGC);
                 replaceCallAtAddress(0x082011b5, compileWithCGC);
             }
+        }
+        break;
+        case DEAD_HEAT_US:
+        {
+            // As dh_emu.c: the dongle, the link IDs, and two objects the game tears down badly when it quits
+            detourFunction(0x084B9FD0, dhHaspLogin);
+            detourFunction(0x084BADC8, dhHaspRead);
+            detourFunction(0x084BA248, dhHaspDecrypt);
+            detourFunction(0x08452890, dhPcbId);
+            detourFunction(0x08458500, dhLinkGroupId);
+            patchMemoryFromString(0x0845D9D0, "c3"); // the network object's teardown
+            patchMemoryFromString(0x08465C70, "c3"); // the audio object's teardown
+            deadHeatIoInstall();                     // the cabinet's I/O and wheel boards
         }
         break;
         case R_TUNED_SBQW:

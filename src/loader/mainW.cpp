@@ -25,6 +25,7 @@
 #include "elfLoader/termiosBridge.hpp"
 #include "elfLoader/networkBridge.hpp"
 #include "elfLoader/mathBridge.hpp"
+#include "elfLoader/sysBridge.hpp"
 #include "elfLoader/symbolResolver.hpp"
 #include "elfLoader/pthread/pthreadEmu.hpp"
 #include "loader/config/config.h"
@@ -148,6 +149,7 @@ void initBridges()
     Alsa2SdlBridge::initBridges();
     RegexBridge::initBridges();
     MathBridge::initBridges();
+    SysBridge::initBridges();
 }
 
 #ifdef _MSC_VER

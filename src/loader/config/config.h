@@ -26,6 +26,7 @@
 #define AFTER_BURNER_CLIMAX_SDX_SBMN_REVA 0xcb768831              // DVP-0018A
 #define AFTER_BURNER_CLIMAX_SE_SBLR 0x86df4e64                    // DVP-0031
 #define AFTER_BURNER_CLIMAX_SE_SBLR_REVA 0x684352f4               // DVP-0031A
+#define DEAD_HEAT_US 0x7a3a5554                                   // Namco ES1, US DRIVE rev. 6273
 #define GHOST_SQUAD_EVOLUTION_SBNJ 0x455edaec                     // DVP-0029A
 #define HARLEY_DAVIDSON_SBRG 0xb1dd1c12                           // DVP-5007
 #define HUMMER_SBQN 0xf3778f44                                    // DVP-0057

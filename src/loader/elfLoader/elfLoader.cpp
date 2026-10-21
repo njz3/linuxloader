@@ -391,6 +391,8 @@ bool ElfLoader::LoadDependencies()
         SymbolResolver::GetInstance().RegisterLibrary("libm.so.6", "INTERNAL");
         SymbolResolver::GetInstance().RegisterLibrary("libdl.so", "INTERNAL");
         SymbolResolver::GetInstance().RegisterLibrary("libdl.so.2", "INTERNAL");
+        SymbolResolver::GetInstance().RegisterLibrary("librt.so.1", "INTERNAL");
+        SymbolResolver::GetInstance().RegisterLibrary("libSDL-1.2.so.0", "INTERNAL"); // sdl12Bridge.c
         // Intel compiler runtimes: when the game ships them (SEGA Race TV imports _intel_fast_memcpy and the
         // register-based __libm_sse2_* entry points), load them natively; bridges still take priority.
         for (const char *intelLib : {"libimf.so", "libirc.so", "libsvml.so"})

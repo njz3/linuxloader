@@ -45,6 +45,34 @@ namespace Alsa2SdlBridge
         MAP("snd_pcm_state", shared_snd_pcm_state);
         MAP("snd_pcm_format_width", shared_snd_pcm_format_width);
         MAP("snd_strerror", shared_snd_strerror);
+
+        // Namco's sound driver (Dead Heat's nsAdrv): a mixer without elements, the card's info empty
+        MAP("snd_pcm_hw_params_set_channels_max", shared_snd_pcm_hw_params_set_channels_max);
+        MAP("snd_pcm_hw_params_set_buffer_time_near", shared_snd_pcm_hw_params_set_buffer_time_near);
+        MAP("snd_pcm_hw_params_set_period_time_near", shared_snd_pcm_hw_params_set_period_time_near);
+        MAP("snd_pcm_hw_params_get_buffer_size", shared_snd_pcm_hw_params_get_buffer_size);
+        MAP("snd_pcm_hw_params_get_period_size", shared_snd_pcm_hw_params_get_period_size);
+        MAP("snd_pcm_sw_params_set_xrun_mode", shared_snd_pcm_sw_params_set_xrun_mode);
+        MAP("snd_pcm_wait", shared_snd_pcm_wait);
+        MAP("snd_ctl_open", shared_snd_ctl_open);
+        MAP("snd_ctl_close", shared_snd_ctl_close);
+        MAP("snd_ctl_card_info_sizeof", shared_snd_ctl_card_info_sizeof);
+        MAP("snd_ctl_card_info", shared_snd_ctl_card_info);
+        MAP("snd_mixer_open", shared_snd_mixer_open);
+        MAP("snd_mixer_selem_get_name", shared_snd_mixer_selem_get_name);
+        MAP("snd_mixer_selem_get_playback_volume_range", shared_snd_mixer_selem_get_volume_range);
+        MAP("snd_mixer_selem_get_capture_volume_range", shared_snd_mixer_selem_get_volume_range);
+        MAP("snd_mixer_first_elem", shared_snd_mixer_none);
+        MAP("snd_mixer_elem_next", shared_snd_mixer_none);
+        for (const char *name : {"snd_mixer_attach", "snd_mixer_detach", "snd_mixer_load", "snd_mixer_close", "snd_mixer_free",
+                                 "snd_mixer_selem_register", "snd_mixer_selem_is_active", "snd_mixer_selem_has_capture_switch",
+                                 "snd_mixer_selem_has_capture_volume", "snd_mixer_selem_has_capture_volume_joined",
+                                 "snd_mixer_selem_has_common_volume", "snd_mixer_selem_has_playback_switch",
+                                 "snd_mixer_selem_has_playback_volume", "snd_mixer_selem_has_playback_volume_joined",
+                                 "snd_mixer_selem_set_capture_switch_all", "snd_mixer_selem_set_capture_volume",
+                                 "snd_mixer_selem_set_capture_volume_all", "snd_mixer_selem_set_playback_switch_all",
+                                 "snd_mixer_selem_set_playback_volume", "snd_mixer_selem_set_playback_volume_all"})
+            MAP(name, shared_snd_mixer_ok);
     }
 } // namespace Alsa2SdlBridge
 

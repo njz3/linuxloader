@@ -3,6 +3,7 @@
 #include "../graphics/glxBridge.h"
 #include "../graphics/glutBridge.h"
 #include "../graphics/shaderPatches.h"
+#include "../graphics/sdl12Bridge.h"
 #include "symbolResolver.hpp"
 #include "../log/log.h"
 
@@ -20,6 +21,28 @@ namespace GraphicsBridge
     void initBridges()
     {
         log_info("Initializing Graphics Bridges (OpenGL/GLX/X11)...");
+
+        // ============================================================
+        // SDL 1.2 (Namco's Dead Heat)
+        // ============================================================
+        MAP("SDL_Init", sdl12Init);
+        MAP("SDL_Quit", sdl12Quit);
+        MAP("SDL_GetError", sdl12GetError);
+        MAP("SDL_SetVideoMode", sdl12SetVideoMode);
+        MAP("SDL_GL_SetAttribute", sdl12GLSetAttribute);
+        MAP("SDL_GL_SwapBuffers", sdl12GLSwapBuffers);
+        MAP("SDL_ShowCursor", sdl12ShowCursor);
+        MAP("SDL_PollEvent", sdl12PollEvent);
+        MAP("SDL_GetKeyState", sdl12GetKeyState);
+        MAP("SDL_GetMouseState", sdl12GetMouseState);
+        MAP("SDL_NumJoysticks", sdl12NumJoysticks);
+        MAP("SDL_JoystickOpen", sdl12JoystickOpen);
+        MAP("SDL_JoystickOpened", sdl12JoystickOpened);
+        MAP("SDL_JoystickClose", sdl12JoystickClose);
+        MAP("SDL_JoystickEventState", sdl12JoystickEventState);
+        MAP("SDL_JoystickNumAxes", sdl12JoystickNumAxes);
+        MAP("SDL_JoystickNumButtons", sdl12JoystickNumButtons);
+        MAP("SDL_JoystickGetAxis", sdl12JoystickGetAxis);
 
         // ============================================================
         // GLUT / GLU
