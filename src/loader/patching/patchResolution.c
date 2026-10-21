@@ -2124,8 +2124,8 @@ int initResolutionPatches()
         break;
         case HUMMER_SBQN:
         {
-            if ((gWidth <= 1280 && gHeight <= 768) && !getConfig()->fullscreen)
-                break;
+            // Patched at every size, the native one too: a dump set up for another size (TeknoParrot's Hummer
+            // Extreme asks for 2560x1440 in its kernel.nut) would otherwise draw past the window and show only a corner.
             replaceCallAtAddress(0x080d8b14, hummerRespatch);
             replaceCallAtAddress(0x080d8b2f, hummerRespatch);
             replaceCallAtAddress(0x080d8b4a, hummerRespatch);
@@ -2136,8 +2136,6 @@ int initResolutionPatches()
         break;
         case HUMMER_SBQN_REVB:
         {
-            if ((gWidth <= 1280 && gHeight <= 768) && !getConfig()->fullscreen)
-                break;
             replaceCallAtAddress(0x080d8b58, hummerRespatch);
             replaceCallAtAddress(0x080d8b73, hummerRespatch);
             replaceCallAtAddress(0x080d8b8e, hummerRespatch);
@@ -2148,8 +2146,6 @@ int initResolutionPatches()
         break;
         case HUMMER_EXTREME_SBST:
         {
-            if ((gWidth <= 1280 && gHeight <= 768) && !getConfig()->fullscreen)
-                break;
             replaceCallAtAddress(0x08159eab, hummerRespatch);
             replaceCallAtAddress(0x08159ec9, hummerRespatch);
             replaceCallAtAddress(0x08159ee7, hummerRespatch);
@@ -2160,8 +2156,6 @@ int initResolutionPatches()
         break;
         case HUMMER_EXTREME_MDX_SBTL:
         {
-            if ((gWidth <= 1280 && gHeight <= 768) && !getConfig()->fullscreen)
-                break;
             replaceCallAtAddress(0x0816348b, hummerRespatch);
             replaceCallAtAddress(0x081634a9, hummerRespatch);
             replaceCallAtAddress(0x081634c7, hummerRespatch);

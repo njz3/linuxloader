@@ -34,12 +34,13 @@ int enableRead = 0;
 ssize_t driveboardRead(int fd, void *buf, size_t count)
 {
     memset(buffer, '\0', 64);
-    if (enableRead)
-    {
-        char *mybuf = (char *)buf;
-        mybuf[0] = response;
-        enableRead = 0;
-    }
+    if (count == 0)
+        return 0;
+    // select() reports the port readable at all times (sharedSelect), so a game reads it with no new answer too: it
+    // gets the last one again. The byte was left unwritten before, and OutRun read what its stack held: 0x11, 0x22 or
+    // 0x33 were taken for a board's encoder, overcurrent or overheat alarm ("DRIVE BOARD FAULT DETECTED").
+    ((char *)buf)[0] = response;
+    enableRead = 0;
     return 1;
 }
 

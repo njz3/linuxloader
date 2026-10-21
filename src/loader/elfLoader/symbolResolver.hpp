@@ -26,6 +26,7 @@ class SymbolResolver
 
     // Add a subdirectory relative to the DLL search base (exeDir/ll-deps or libraryPath)
     void AddDllSearchSubPath(const std::string &subPath);
+    bool IsInSearchPaths(const std::string &fileName) const;
 
     // Get the DLL search base path (exeDir/ll-deps or libraryPathParam)
     std::string GetDllSearchBase() const { return m_DllSearchBase; }

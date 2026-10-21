@@ -6,6 +6,7 @@
 #include "../patching/patchResolution.h"
 #include "../graphics/crossHair.h"
 #include "../graphics/blitStretching.h"
+#include "../config/config.h"
 
 
 extern "C" void __attribute__((cdecl)) wrap_glBegin(GLenum mode)
@@ -668,6 +669,12 @@ extern "C" void __attribute__((cdecl)) wrap_glBindProgramARB(GLenum target, GLui
 
 extern "C" void __attribute__((cdecl)) wrap_glProgramStringARB(GLenum target, GLenum format, GLsizei len, const GLvoid *string)
 {
+    extern int gGrp;
+    if (gGrp == GROUP_ID4_JAP || gGrp == GROUP_ID4_EXP || gGrp == GROUP_ID5) // Initial D: through its shader patches
+    {
+        gl_ProgramStringARB((int)target, (int)format, (int)len, (char *)string);
+        return;
+    }
     if (glad_glProgramStringARB)
         glad_glProgramStringARB(target, format, len, string);
 }
@@ -732,6 +739,18 @@ extern "C" void __attribute__((cdecl)) wrap_glGenBuffers(GLsizei n, GLuint *buff
 {
     if (glad_glGenBuffers)
         glad_glGenBuffers(n, buffers);
+}
+
+// R-Tuned frees its buffers with these when it leaves (Test pressed): unresolved, they stopped it on an error box
+extern "C" GLboolean __attribute__((cdecl)) wrap_glIsBuffer(GLuint buffer)
+{
+    return glad_glIsBuffer ? glad_glIsBuffer(buffer) : GL_FALSE;
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glGetBufferParameteriv(GLenum target, GLenum pname, GLint *params)
+{
+    if (glad_glGetBufferParameteriv)
+        glad_glGetBufferParameteriv(target, pname, params);
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glBufferData(GLenum target, GLsizeiptr size, const GLvoid *data, GLenum usage)
@@ -2064,6 +2083,10 @@ void *GLHooks_GetProcAddress(const char *procName)
         return (void *)&wrap_glBindAttribLocationARB;
     if (strcmp(procName, "glBindBuffer") == 0)
         return (void *)&wrap_glBindBuffer;
+    if (strcmp(procName, "glIsBuffer") == 0)
+        return (void *)&wrap_glIsBuffer;
+    if (strcmp(procName, "glGetBufferParameteriv") == 0)
+        return (void *)&wrap_glGetBufferParameteriv;
     if (strcmp(procName, "glBindBufferARB") == 0)
         return (void *)&wrap_glBindBufferARB;
     if (strcmp(procName, "glBindFramebuffer") == 0)

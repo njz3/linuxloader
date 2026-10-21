@@ -245,8 +245,29 @@ void SymbolResolver::InitSearchPaths(const std::string &libraryPathParam, const 
 
         }
     }
+
+    // 5th: when given the ELF's own folder (the current directory), that folder and its /lib too
+    // (SEGA Race TV ships libimf.so, libirc.so and libsvml.so in <game>\lib)
+    DWORD gamePathAttributes = gameElfPath.empty() ? INVALID_FILE_ATTRIBUTES : GetFileAttributesA(gameElfPath.c_str());
+    if (gamePathAttributes != INVALID_FILE_ATTRIBUTES && (gamePathAttributes & FILE_ATTRIBUTE_DIRECTORY))
+    {
+        m_LibrarySearchPaths.push_back(gameElfPath);
+        m_LibrarySearchPaths.push_back(gameElfPath + "\\lib");
+        log_info("Added library search paths (ELF dir): %s and its lib folder", gameElfPath.c_str());
+    }
     log_info("Initialized %zu library search paths", m_LibrarySearchPaths.size());
     log_info("DLL search base set to: %s", m_DllSearchBase.c_str());
+}
+
+bool SymbolResolver::IsInSearchPaths(const std::string &fileName) const
+{
+    for (const auto &searchPath : m_LibrarySearchPaths)
+    {
+        DWORD attributes = GetFileAttributesA((searchPath + "\\" + fileName).c_str());
+        if (attributes != INVALID_FILE_ATTRIBUTES && !(attributes & FILE_ATTRIBUTE_DIRECTORY))
+            return true;
+    }
+    return false;
 }
 
 void SymbolResolver::AddDllSearchSubPath(const std::string &subPath)

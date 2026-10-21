@@ -391,9 +391,13 @@ bool ElfLoader::LoadDependencies()
         SymbolResolver::GetInstance().RegisterLibrary("libm.so.6", "INTERNAL");
         SymbolResolver::GetInstance().RegisterLibrary("libdl.so", "INTERNAL");
         SymbolResolver::GetInstance().RegisterLibrary("libdl.so.2", "INTERNAL");
-        SymbolResolver::GetInstance().RegisterLibrary("libimf.so", "INTERNAL");
-        SymbolResolver::GetInstance().RegisterLibrary("libirc.so", "INTERNAL");
-        SymbolResolver::GetInstance().RegisterLibrary("libsvml.so", "INTERNAL");
+        // Intel compiler runtimes: when the game ships them (SEGA Race TV imports _intel_fast_memcpy and the
+        // register-based __libm_sse2_* entry points), load them natively; bridges still take priority.
+        for (const char *intelLib : {"libimf.so", "libirc.so", "libsvml.so"})
+        {
+            if (!SymbolResolver::GetInstance().IsInSearchPaths(intelLib))
+                SymbolResolver::GetInstance().RegisterLibrary(intelLib, "INTERNAL");
+        }
         SymbolResolver::GetInstance().RegisterLibrary("libalpb.so", "INTERNAL");
         SymbolResolver::GetInstance().RegisterLibrary("libbdlog.so", "INTERNAL");
         SymbolResolver::GetInstance().RegisterLibrary("libsama.so", "INTERNAL");
@@ -679,8 +683,9 @@ bool ElfLoader::ExportSymbols()
 
         if (symbols.get_symbol(k, symbolName, value, size, bind, type, shndx, other))
         {
+            // STT_NOTYPE too, like ld.so: hand-written asm entry points (libirc's __intel_new_memcpy) carry no type
             if (value != 0 && shndx != 0 && (bind == STB_GLOBAL || bind == STB_WEAK || bind == 10) &&
-                (type == STT_FUNC || type == STT_OBJECT || type == 10))
+                (type == STT_FUNC || type == STT_OBJECT || type == 10 || type == STT_NOTYPE))
             {
                 void *symbolAddr = reinterpret_cast<void *>(value + m_LoadBias);
                 SymbolResolver::GetInstance().RegisterNativeSymbol(symbolName, symbolAddr);

@@ -24,6 +24,7 @@
 #include "../patching/flowControl.h"
 #include "../log/log.h"
 #include "shaderWork/common.h"
+#include "nvProgramToArb.h"
 
 #include "shaderWork/abc.h"
 #include "shaderWork/gsevo.h"
@@ -539,6 +540,7 @@ void gl_ProgramStringARB(int target, int program_fmt, int program_len, char *pro
 {
     char *newProgram = program;
     char *program_to_free = NULL;
+    int programBorrowed = 0; // newProgram is kept elsewhere: not to be freed
     int newProgramLen;
     void *addr = __builtin_return_address(0);
 
@@ -632,14 +634,49 @@ void gl_ProgramStringARB(int target, int program_fmt, int program_len, char *pro
             newProgram = replaceInBlock(program, mj4FsMesa, mj4FsMesaCount, "", "");
         }
     }
+    else if (gId == SEGA_RACE_TV_SBPF && getConfig()->GPUVendor != NVIDIA_GPU)
+    {
+        // The precompiled nnstdshader programs need NV_fragment_program2 / NV_vertex_program3.
+        char *arbProgram = nvProgramToArb(program, program_len, target == GL_FRAGMENT_PROGRAM_ARB);
+        if (arbProgram)
+            newProgram = arbProgram;
+    }
     else if ((gGrp == GROUP_ID4_JAP || gGrp == GROUP_ID4_EXP || gGrp == GROUP_ID5) && getConfig()->GPUVendor == ATI_GPU)
     {
         if (strstr(program, "vertex.attrib[1]") != NULL)
             return;
         newProgram = replaceInBlock(program, idFsAti, idFsAtiCount, "", "");
     }
+    else if (gGrp == GROUP_ID4_JAP || gGrp == GROUP_ID4_EXP || gGrp == GROUP_ID5)
+    {
+        // The game asks Cg for the string of a NULL program and gets the last one compiled (bridgeCgGetProgramString),
+        // sometimes a fragment program for a vertex target: then the last vertex program, and the other way round
+        static char *lastVertex = NULL, *lastFragment = NULL;
+        bool isFragment = strncmp(program, "!!ARBfp", 7) == 0;
+        bool isVertex = strncmp(program, "!!ARBvp", 7) == 0;
+        if (target == GL_VERTEX_PROGRAM_ARB && isFragment && lastVertex)
+        {
+            newProgram = lastVertex;
+            programBorrowed = 1;
+        }
+        else if (target == GL_FRAGMENT_PROGRAM_ARB && isVertex && lastFragment)
+        {
+            newProgram = lastFragment;
+            programBorrowed = 1;
+        }
+        else if (target == GL_VERTEX_PROGRAM_ARB && isVertex)
+        {
+            free(lastVertex);
+            lastVertex = strdup(program);
+        }
+        else if (target == GL_FRAGMENT_PROGRAM_ARB && isFragment)
+        {
+            free(lastFragment);
+            lastFragment = strdup(program);
+        }
+    }
 
-    if (newProgram != program)
+    if (newProgram != program && !programBorrowed)
         program_to_free = newProgram;
 
     newProgramLen = strlen(newProgram);
@@ -807,7 +844,17 @@ void gl_ShaderSourceARB(GLhandleARB shaderObj, GLsizei count, const GLcharARB **
         void *addr = __builtin_return_address(0);
         if (addr <= (void *)0x82fd823)
         {
-            newProgram = strdup(*string);
+            // Built-in shaders, already patched in place by srtvElfShaderPatcher. The game still joins them with their
+            // original sizes, so the NUL padding left by the shorter patched text ends up inside the source: drop it.
+            size_t sourceLen = (length && length[0] >= 0) ? (size_t)length[0] : strlen(*string);
+            newProgram = (char *)malloc(sourceLen + 1);
+            size_t outLen = 0;
+            for (size_t i = 0; i < sourceLen; i++)
+            {
+                if ((*string)[i] != '\0')
+                    newProgram[outLen++] = (*string)[i];
+            }
+            newProgram[outLen] = '\0';
         }
         else if (addr == (void *)0x84bbff1)
         {
@@ -865,11 +912,11 @@ void gl_ShaderSourceARB(GLhandleARB shaderObj, GLsizei count, const GLcharARB **
     if (length != NULL)
     {
         final_length = strlen(final_string);
-        glad_glShaderSourceARB(shaderObj, count, &final_string, &final_length);
+        glad_glShaderSourceARB(shaderObj, 1, &final_string, &final_length); // final_string is one whole program
     }
     else
     {
-        glad_glShaderSourceARB(shaderObj, count, &final_string, NULL);
+        glad_glShaderSourceARB(shaderObj, 1, &final_string, NULL);
     }
 
     if (program_to_free)
@@ -991,6 +1038,13 @@ void *gl_XGetProcAddressARB(const unsigned char *procName)
             printf("glShaderSourceARB Intercepted.\n");
         }
         return (void *)gl_ShaderSourceARB;
+    }
+    if (gId == SEGA_RACE_TV_SBPF && strcmp((const char *)procName, "glProgramStringARB") == 0)
+    {
+        if (dbgMsg)
+            log_debug("%s Intercepted.\n", procName);
+
+        return (void *)gl_ProgramStringARB;
     }
 
 #ifdef __linux__
@@ -1743,7 +1797,9 @@ GLboolean bridgeglTestFenceNV(GLuint fence)
         if (!sync)
             return GL_TRUE;
 
-        GLenum status = glad_glClientWaitSync(sync, 0, 0);
+        // Flush so the fence actually reaches the GPU: a game polling TestFence in a loop without issuing
+        // other GL commands would otherwise never see it signal (ARB_sync).
+        GLenum status = glad_glClientWaitSync(sync, GL_SYNC_FLUSH_COMMANDS_BIT, 0);
         return (status == GL_ALREADY_SIGNALED || status == GL_CONDITION_SATISFIED) ? GL_TRUE : GL_FALSE;
     }
 
