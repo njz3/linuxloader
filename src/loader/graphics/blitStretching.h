@@ -38,6 +38,7 @@ extern int blitOffscreen;
 unsigned int blitRedirectFramebuffer(unsigned int framebuffer);
 unsigned int blitRedirectBuffer(unsigned int mode, int read);
 void blitAfterSwap(void);
+void blitAgentPresent(void); // the agent's `screen`
 
 #ifdef __cplusplus
 }

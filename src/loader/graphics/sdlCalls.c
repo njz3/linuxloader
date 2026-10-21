@@ -23,6 +23,7 @@
 #include "crossHair.h"
 #include "overlayMsgs.h"
 #include "fpsLimiter.h"
+#include "../agent/agent.h"
 #include "customCursor.h"
 #include "../input/sdlInput.h"
 #include "../hardware/lindbergh/jvs.h"
@@ -252,7 +253,8 @@ void startSDL()
     if (gId != PRIMEVAL_HUNT_SBPP && gGrp != GROUP_LGJ)
         SDL_SetWindowResizable(g_SdlWindow, true);
 
-    SDL_ShowWindow(g_SdlWindow);
+    if (!agentHidden()) // --agent: the game draws offscreen, its window never shown
+        SDL_ShowWindow(g_SdlWindow);
 
     Uint64 startTime = SDL_GetTicks();
     int running = 1;
@@ -361,6 +363,9 @@ void pollEvents()
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
+        // The agent mode: the inputs are the agent's holds; keyboard, mouse and controllers are not read
+        if (agentActive() && event.type >= SDL_EVENT_KEY_DOWN && event.type < SDL_EVENT_FINGER_DOWN)
+            continue;
 #ifdef _WIN32
         if (guiOverlayProcessEvent(&event))
             continue;
@@ -458,7 +463,8 @@ void pollEvents()
     {
         if (gGrp == GROUP_HOD4 || gGrp == GROUP_HOD4_TEST)
             updateGunShake();
-        updateCombinedAxes();
+        if (!agentActive()) // built from the controllers' axes, which would undo the agent's holds
+            updateCombinedAxes();
         processChangedActions();
     }
 }

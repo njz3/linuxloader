@@ -121,6 +121,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "Linux" AND NOT MINGW AND NOT CMAKE_C_COMPILER MATC
         src/loader/patching/*.c
         src/loader/redirections/*.c
         src/loader/graphics/shaderWork/*.c
+        src/loader/agent/*.c
         src/glad/src/gl.c)
 
     add_library(linuxloader SHARED ${LINUX_LOADER_OBJS})
@@ -151,6 +152,7 @@ elseif(WIN32 OR MINGW OR CMAKE_C_COMPILER MATCHES "mingw")
         src/loader/patching/*.c
         src/loader/redirections/*.c
         src/loader/graphics/shaderWork/*.c
+        src/loader/agent/*.c
         src/loader/elfLoader/*.cpp
         src/loader/elfLoader/pthread/*.cpp
         src/glad/src/gl.c

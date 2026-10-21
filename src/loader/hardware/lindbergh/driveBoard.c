@@ -8,6 +8,7 @@
 #include "forceFeedback.h"
 #include "jvs.h"
 #include "netOutputs.h"
+#include "../../agent/agent.h"
 
 #define DRIVEBOARD_READY 0x00
 #define DRIVEBOARD_NOT_INIT 0x11
@@ -49,6 +50,7 @@ ssize_t driveboardWrite(int fd, const void *buf, size_t count)
 {
     const uint8_t *bytes = (const uint8_t *)buf;
     netOutputsDrive(bytes, count);
+    agentDriveboard(bytes, count);
     for (size_t i = 0; i < count; ++i)
     {
         buffer[bufferIdx++] = bytes[i];

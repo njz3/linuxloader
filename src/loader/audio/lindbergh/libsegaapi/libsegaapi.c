@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <pthread.h>
+#include "../../../agent/agent.h"
 
 GUID EAX_NULL_GUID;
 GUID EAX_FREQUENCYSHIFTER_EFFECT;
@@ -1088,6 +1089,8 @@ Routing SEGAAPI_GetSPDIFOutChannelRouting(unsigned int dwChannel)
 
 int SEGAAPI_SetIOVolume(SoundBoardIO dwPhysIO, unsigned int dwVolume)
 {
+    if (agentHidden()) // --agent: the sound runs, silent
+        dwVolume = 0;
     FAudioVoice_SetVolume(fAudioMasteringVoice, dwVolume / (float)VOL_MAX, FAUDIO_COMMIT_NOW);
     return SEGA_SUCCESS;
 }
@@ -1134,6 +1137,8 @@ int SEGAAPI_Init(void)
 
     FAudio_CreateMasteringVoice(fAudio, &fAudioMasteringVoice, FAUDIO_DEFAULT_CHANNELS, FAUDIO_DEFAULT_SAMPLERATE, 0, 0,
                                 NULL);
+    if (agentHidden()) // --agent: the sound runs, silent
+        FAudioVoice_SetVolume(fAudioMasteringVoice, 0.0f, FAUDIO_COMMIT_NOW);
 
     FAudioVoiceDetails fAudioVoiceDetails;
     FAudioVoice_GetVoiceDetails(fAudioMasteringVoice, &fAudioVoiceDetails);

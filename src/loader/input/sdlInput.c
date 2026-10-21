@@ -2569,3 +2569,100 @@ int listSdlControllers(void)
     SDL_Quit();
     return 0;
 }
+
+// The agent mode's inputs: by the names of controls.ini (Test, P1_Coin, P2_Start, ViewChange...), or the ones
+// Supermodel's and sm2-emu's agent modes give a wheel (Steering, Accelerator). Only an action the game reads (its JVS
+// mapping) is found.
+bool sdlInputAgentFind(const char *name, int *player, int *action, AgentInputKind *kind)
+{
+    if (strcmp(name, "Steering") == 0)
+        name = "Steer";
+    else if (strcmp(name, "Accelerator") == 0)
+        name = "Gas";
+    JVSPlayer jvsPlayer;
+    LogicalAction logicalAction;
+    if (!parseActionKey(name, &jvsPlayer, &logicalAction))
+        return false;
+    const JVSActionMapping *map = &gJvsMap[jvsPlayer][logicalAction];
+    if (map->call_type == JVS_CALL_NONE)
+        return false;
+    *player = jvsPlayer;
+    *action = logicalAction;
+    if (map->call_type != JVS_CALL_ANALOGUE)
+        *kind = AGENT_INPUT_SWITCH;
+    else
+        *kind = logicalAction == LA_Steer ? AGENT_INPUT_AXIS : AGENT_INPUT_ANALOG;
+    return true;
+}
+
+// Held as a controller would: a switch pressed when value is not 0, an analogue control 0..1 (the steering already
+// turned into its 0..1, 0 at the left), applied with the frame's other changes
+void sdlInputAgentSet(int player, int action, float value)
+{
+    ActionState *state = &gActionStates[player][action];
+    if (gJvsMap[player][action].call_type == JVS_CALL_ANALOGUE)
+    {
+        state->isActive = true;
+        state->analogValue = SDL_clamp(value, 0.0f, 1.0f);
+    }
+    else
+    {
+        state->isActive = value != 0.0f;
+        state->analogValue = state->isActive ? 1.0f : 0.0f;
+    }
+    addActionToDirtyList((JVSPlayer)player, (LogicalAction)action);
+}
+
+// The value the game reads, written as is: a switch's state, an analogue channel's count
+void sdlInputAgentSetRaw(int player, int action, int raw)
+{
+    const JVSActionMapping *map = &gJvsMap[player][action];
+    if (map->call_type == JVS_CALL_ANALOGUE)
+        setAnalogue(map->jvsInput, raw);
+    else if (map->call_type == JVS_CALL_SWITCH)
+        setSwitch((JVSPlayer)player, map->jvsInput, raw != 0);
+    else if (map->call_type == JVS_CALL_COIN && raw > 0)
+        incrementCoin((JVSPlayer)player, raw);
+}
+
+// What the game reads now: 1 for a pressed switch, an analogue channel's count, a player's coins
+int sdlInputAgentGet(int player, int action)
+{
+    const JVSActionMapping *map = &gJvsMap[player][action];
+    JVSIO *io = getJVSIO();
+    switch (map->call_type)
+    {
+        case JVS_CALL_SWITCH:
+            return (io->state.inputSwitch[player] & map->jvsInput) != 0;
+        case JVS_CALL_ANALOGUE:
+            return io->state.analogueChannel[map->jvsInput];
+        case JVS_CALL_COIN:
+            return player >= 1 ? io->state.coinCount[player - 1] : 0;
+        default:
+            return 0;
+    }
+}
+
+// Every input the game reads, under the name `set` takes: P2_ for player 2, no prefix for player 1 and the system
+void sdlInputAgentList(void (*emit)(const char *name, AgentInputKind kind, void *context), void *context)
+{
+    for (int player = SYSTEM; player <= PLAYER_2; player++)
+    {
+        for (int i = 0; i < NUM_ACTION_NAMES; i++)
+        {
+            LogicalAction action = gActionNameMap[i].action;
+            const JVSActionMapping *map = &gJvsMap[player][action];
+            if (map->call_type == JVS_CALL_NONE || action == LA_ExitGame)
+                continue;
+            char name[80];
+            if (player == PLAYER_2)
+                snprintf(name, sizeof(name), "P2_%s", gActionNameMap[i].name);
+            else
+                snprintf(name, sizeof(name), "%s", gActionNameMap[i].name);
+            AgentInputKind kind = map->call_type != JVS_CALL_ANALOGUE ? AGENT_INPUT_SWITCH
+                                  : action == LA_Steer                ? AGENT_INPUT_AXIS
+                                                                       : AGENT_INPUT_ANALOG;
+            emit(name, kind, context);
+        }
+    }
+}

@@ -1,6 +1,7 @@
 #include <SDL3/SDL.h>
 #include <stdlib.h>
 #include "../../../log/log.h"
+#include "../../../agent/agent.h"
 
 #define SND_PCM_STREAM_PLAYBACK 0
 #define SND_PCM_STREAM_CAPTURE 1
@@ -84,6 +85,8 @@ static void EnsureAudioInit()
         else
         {
             log_info("ALSA: Opened SDL audio device ID %u", g_alsaDevice);
+            if (agentHidden()) // --agent: the sound runs, silent
+                SDL_SetAudioDeviceGain(g_alsaDevice, 0.0f);
         }
     }
 }

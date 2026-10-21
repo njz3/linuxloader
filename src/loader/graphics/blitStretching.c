@@ -13,6 +13,7 @@
 #ifdef _WIN32
 #include "../gui/gui.h"
 #include "../hardware/lindbergh/forceFeedback.h"
+#include "../agent/agent.h"
 void pollEvents();             // sdlCalls.h, which brings GL/gl.h with it
 void segaapiPause(int paused); // libsegaapi.c
 void alsaPause(int paused);    // alsa2sdl.c
@@ -277,6 +278,13 @@ static void blitPresent(void)
     CHECK_GL("second blit (GL_LINEAR scaled) to default framebuffer");
 }
 
+// The agent's `screen`: the picture placed in the window as the display settings want, in the window's back buffer
+void blitAgentPresent(void)
+{
+    SDL_GetWindowSizeInPixels(g_SdlWindow, &drawableW, &drawableH);
+    blitPresent();
+}
+
 #ifdef _WIN32
 // F10: the game's thread waits here, inside its buffer swap, while the settings are open. The window shows the
 // game's last picture with the settings over it; its sound and the wheel's forces stop meanwhile.
@@ -358,7 +366,7 @@ void blitStretch()
         // The game's picture larger than the window (a window bigger than the screen shrunk to it, a smaller window,
         // OutRun's Chihiro mode): from now on the game draws in fboId at its own size, through the redirections of
         // glHooks, and the window shows it scaled
-        if (!blitOffscreen && (gameIsOutrunChihiroMode || drawableW < renderWidth || drawableH < renderHeight))
+        if (!blitOffscreen && (gameIsOutrunChihiroMode || drawableW < renderWidth || drawableH < renderHeight || agentHidden()))
         {
             blitOffscreen = 1;
             log_info("Offscreen rendering: game %dx%d, window %dx%d", renderWidth, renderHeight, drawableW, drawableH);
@@ -423,6 +431,9 @@ void blitStretch()
                 CHECK_GL("first blit to fboId");
         }
 
+        // The agent mode: the frame, drawn in fboId, read and stepped by the agent (agent.c)
+        if (agentActive())
+            agentFrame(fboId, blitWidth, blitHeight);
 
         blitPresent();
 #ifdef _WIN32

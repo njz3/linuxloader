@@ -7,6 +7,7 @@
 #include "../../config/config.h"
 #include "../../input/sdlInput.h"
 #include "../../log/log.h"
+#include "../../agent/agent.h"
 
 static int effect_id = -1;
 extern SDLControllers sdlJoysticks;
@@ -29,6 +30,7 @@ static SDL_Condition *boardChanged = NULL;
 static SDL_Thread *wheelThread = NULL;
 static bool wheelQuit = false;
 static bool wheelPaused = false; // F10 settings open: the game waits, the wheel goes limp
+static bool agentBoard = false;  // the agent mode without a wheel: the board model kept for its journal only
 
 static int SDLCALL wheelThreadMain(void *data);
 
@@ -475,8 +477,39 @@ static void sdlFfbWheelDriveboard(const unsigned char *buffer)
     SDL_UnlockMutex(boardLock);
 }
 
+// The agent mode with no wheel driven: the board model alone, updated from the game's frames for the agent's journal
+static void agentBoardInit(void)
+{
+    boardLock = SDL_CreateMutex();
+    boardChanged = SDL_CreateCondition();
+    boardReset();
+    agentBoard = true;
+}
+
+int sdlFfbAgentEffects(float effects[4])
+{
+    if (!boardLock)
+        return 0;
+    SDL_LockMutex(boardLock);
+    boardTimers(SDL_GetTicks());
+    WheelEffects now = boardEffects();
+    SDL_UnlockMutex(boardLock);
+    effects[0] = now.constant;
+    effects[1] = now.springStrength;
+    effects[2] = now.damperStrength;
+    effects[3] = now.sineStrength;
+    return 1;
+}
+
 void sdlFfbInit(void)
 {
+    // --agent: no device is touched, the force feedback is only journaled
+    if (agentHidden())
+    {
+        agentBoardInit();
+        return;
+    }
+
     // SDL input mode: open haptic from already-opened joysticks
     for (int i = 0; i < sdlJoysticks.joysticksCount && i < MAX_JOYSTICKS; ++i)
     {
@@ -550,6 +583,8 @@ void sdlFfbInit(void)
 
     if (!sdlJoysticks.haptics[0])
         log_warn("FFB: No haptic device found");
+    if (agentActive() && !wheelMode)
+        agentBoardInit();
 }
 
 void sdlFfbRumble(float left, float right, int duration_ms)
@@ -609,7 +644,7 @@ void sdlFfbDriveboard(const unsigned char *buffer, size_t count)
     // }
     // printf("\n");
 
-    if (wheelMode && sdlJoysticks.haptics[0])
+    if ((wheelMode && sdlJoysticks.haptics[0]) || agentBoard)
     {
         sdlFfbWheelDriveboard(buffer);
         return;

@@ -35,6 +35,7 @@
 #include "input/sdlInput.h"
 #include "mainShared.h"
 #include "gui/gui.h"
+#include "agent/agent.h"
 
 std::string g_absoluteElfPath;
 extern "C" { uint32_t partialElfCrc = 0; } // read from C (config.c)
@@ -81,7 +82,7 @@ static bool takeTestFlag()
 void segabootOnExit()
 {
     static bool done = false;
-    if (done || !s_argv)
+    if (done || !s_argv || agentActive()) // an agent drives one program: it starts the next one itself
         return;
     done = true;
 
@@ -164,6 +165,26 @@ int main(int argc, char *argv[], char *envp[])
 #endif
     logSetMinLevel(LOG_WARN);
 
+    // --agent / --agent-show: the game driven over stdin/stdout (agent/agent.c), not arguments of the game
+    static std::vector<char *> args;
+    int agentMode = 0;
+    for (int i = 0; i < argc; i++)
+    {
+        if (strcmp(argv[i], "--agent") == 0)
+            agentMode = 1;
+        else if (strcmp(argv[i], "--agent-show") == 0)
+            agentMode = 2;
+        else
+            args.push_back(argv[i]);
+    }
+    if (agentMode)
+    {
+        agentInit(agentMode == 2);
+        argc = (int)args.size();
+        args.push_back(NULL);
+        argv = args.data();
+    }
+
     // Started without a game: the game picker
     if (argc == 1)
         return guiRunPicker(argv[0]);
@@ -230,6 +251,11 @@ int main(int argc, char *argv[], char *envp[])
         partialElfCrc = getCrc32Mem(baseAddr + 10, 0x4000);
 
     initConfig(configPath);
+    if (agentHidden()) // --agent: a window never shown, frames as fast as they go
+    {
+        getConfig()->fullscreen = 0;
+        getConfig()->fpsLimiter = 0;
+    }
 
     if (partialElfCrc == PRIMEVAL_HUNT_SBPP && getConfig()->phUseZink)
     {

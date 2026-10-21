@@ -247,6 +247,18 @@ bool parseActionKey(const char *key, JVSPlayer *out_player, LogicalAction *out_a
 int getControllerID(SDL_JoystickID instance_id);
 int getJoystickID(SDL_JoystickID instance_id);
 
+// The agent mode's inputs (agent/agent.c)
+typedef enum
+{
+    AGENT_INPUT_SWITCH,
+    AGENT_INPUT_ANALOG, // 0..1, a pedal at rest at 0
+    AGENT_INPUT_AXIS    // the steering, -1..1, +1 fully left
+} AgentInputKind;
+bool sdlInputAgentFind(const char *name, int *player, int *action, AgentInputKind *kind);
+void sdlInputAgentSet(int player, int action, float value);
+void sdlInputAgentSetRaw(int player, int action, int raw);
+int sdlInputAgentGet(int player, int action);
+void sdlInputAgentList(void (*emit)(const char *name, AgentInputKind kind, void *context), void *context);
 
 #ifdef __cplusplus
 }
