@@ -60,6 +60,8 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 49 | 21/10 | Code commun aux deux chargeurs, chargeur Windows | ✅ décision : pas de sous-module commun (il compliquerait les fusions avec upstream) ; `windowsloader` (https://github.com/njz3/windowsloader.git) reste indépendant de linuxloader, projet CMake multiplateforme comme lui ; pas encore commencé |
 | 50 | 21/10 | Renommer `dev/ffbedition8` en `dev/ffbedition`, en local et sur origin | ✅ aucune PR ouverte sur l'ancienne branche ; `dev/ffbedition` suit `origin/dev/ffbedition` |
 | 51 | 21/10 | Réorganiser l'historique en commits par fonction, pour des PR vers upstream (FFB, interface...) | ✅ 9 commits par fonction + NOTES.md, poussés en force sur `dev/ffbedition` ; arbre final identique ; chaque étape compile (MinGW et MSVC) ; ancien historique dans la branche locale `backup/ffbedition-84d5d1e` ; Linux non essayé |
+| 52 | 21/10 | Lancer les jeux depuis le partage de racecab1 (question de la session « Image borne ») | ✅ possible en lecture : Dead Heat lancé depuis `\\racecab1\C\racecab\Games`, rien d'écrit sur la borne ; mais démarrage en 100 s au lieu de 11 s et démo saccadée (données lues par le réseau) |
+| 53 | 21/10 | Dossier d'écriture pour UWF : tout en lecture seule sauf un dossier, réglages, NVRAM et fichiers des jeux en overlay ; même spécification pour sm2-emu, Supermodel et Flycast | ⚠️ linuxloader : `--write-dir` / `[Paths] WRITE_DIR`, essayé avec OutRun et Dead Heat (dossiers des jeux intacts) ; spécification envoyée aux trois sessions ; sm2-emu et Supermodel l'ont faite (non commitée) ; Flycast sans réponse |
 
 ## État des jeux (build MSVC, GPU Intel, vJoy)
 
@@ -70,6 +72,34 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | Sega Race TV | ✅ | ✅ partie complète | ✅ RS422 | couple 84 jusqu'à ±26 % en course, coupé en attract (80 00 00) |
 
 ## Journal de développement
+
+### Dossier d'écriture pour UWF (demandes 52 et 53)
+- But de l'utilisateur : UWF (filtre d'écriture de Windows) sur tout C: sauf un dossier, par exemple
+  `C:\Racecab\Saves`, avec un sous-dossier par émulateur et par mode (single, link), puis un par jeu. Tout le reste
+  en lecture seule ; en overlay : réglages de l'utilisateur, NVRAM, fichiers écrits par les jeux.
+- Spécification commune envoyée aux sessions sm2-emu (« Compilation »), Supermodel (« Driveboard émulation et force
+  feedback ») et Flycast (« Multi-Board en thread et non process ») : `--write-dir=<chemin>` prioritaire, ou une clé
+  de config ; réglages à la racine (copiés la première fois, puis lus et sauvegardés là) ; `<chemin>\<jeu>` pour
+  NVRAM, sauvegardes, logs, temporaires, caches de shaders ; lecture dans le dossier d'écriture d'abord, sinon à
+  l'origine, copie avant modification ; rien d'écrit ailleurs. Le front-end choisit le chemin selon le mode.
+- linuxloader (`redirections/writeDir.c`, Windows) : `--write-dir` ou `[Paths] WRITE_DIR`.
+  - Réglages : `WRITE_DIR\linuxloader.ini` et `controls.ini`, copiés depuis leur place la première fois.
+  - Le loader passe dans `WRITE_DIR\<jeu>` (nom court du jeu : `outrun2-rev-a`, `deadheat`...) une fois le jeu
+    connu ; les lectures manquantes y sont cherchées dans le dossier du jeu.
+  - Passent par lui : fopen, fopen64, open, mkdir, remove, unlink, rename (cible remplacée, comme sous Linux),
+    creat, access, stat, opendir (les deux côtés listés), glob64, rmdir, dlopen, et les fichiers du loader (eeprom.bin,
+    sram.bin, cartes, cache de shaders).
+  - Le relais vers le menu de test passe l'option au programme suivant ; ses commandes cmd.exe tournent dans le
+    dossier d'écriture (local), donc plus de souci de dossier courant UNC.
+- Essais (mode agent) : OutRun local 2400 images et Dead Heat local 3000 images, dossiers des jeux intacts (aucun
+  fichier modifié ni ajouté) ; NVRAM copiée puis écrite dans le dossier d'écriture ; sauvegardes de Dead Heat
+  (testmode, coin, clock) là aussi.
+- Depuis le partage de racecab1 : Dead Heat lancé depuis `\\racecab1\C\racecab\Games\Dead Heat - Namco ES1`,
+  dossier d'écriture sur ce PC : aucun fichier modifié sur la borne. Prêt en 100 s (11 s en local), 3000 images en
+  147 s (50 s en local) : le jeu attend ses données sur le réseau. À mesurer sur le réseau des bornes, et à voir côté
+  loader (lectures non tamponnées ?) avant d'envisager les jeux sur un partage.
+- Restent : le picker (il ne transmet pas `--write-dir`, la clé de linuxloader.ini le fait), la compilation Linux
+  (fonctions sans effet hors Windows).
 
 ### Historique par fonction (demande 51)
 - `dev/ffbedition` a été réécrite le 21/10 : les 10 commits de travail sont devenus une suite de commits par
