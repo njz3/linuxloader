@@ -1114,6 +1114,17 @@ int SEGAAPI_Reset(void)
     return SEGA_SUCCESS;
 }
 
+// F10 settings open: the game waits, and its sound with it
+void segaapiPause(int paused)
+{
+    if (!fAudio)
+        return;
+    if (paused)
+        FAudio_StopEngine(fAudio);
+    else
+        FAudio_StartEngine(fAudio);
+}
+
 int SEGAAPI_Init(void)
 {
     pthread_mutex_init(&fAudioMutex, NULL);

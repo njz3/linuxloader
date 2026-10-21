@@ -242,6 +242,11 @@ void getLogicalActionString(const ControlBinding *binding, char *out_str, size_t
 bool needsPlayer(LogicalAction action, const char *name);
 int listSdlControllers(void);
 void addActionToDirtyList(JVSPlayer player, LogicalAction action);
+void sdlReloadBindings(const char *controlsPath);
+bool parseActionKey(const char *key, JVSPlayer *out_player, LogicalAction *out_action);
+int getControllerID(SDL_JoystickID instance_id);
+int getJoystickID(SDL_JoystickID instance_id);
+
 
 #ifdef __cplusplus
 }

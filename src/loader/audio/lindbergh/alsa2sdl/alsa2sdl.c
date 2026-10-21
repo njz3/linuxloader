@@ -54,6 +54,19 @@ typedef struct _snd_pcm_hw_params snd_pcm_hw_params_t;
 typedef struct _snd_pcm_sw_params snd_pcm_sw_params_t;
 
 static SDL_AudioDeviceID g_alsaDevice = 0;
+static bool g_alsaPaused = false; // F10 settings open: snd_pcm_start must not resume the device
+
+// F10 settings open: the game waits, and its sound with it
+void alsaPause(int paused)
+{
+    g_alsaPaused = paused != 0;
+    if (!g_alsaDevice)
+        return;
+    if (g_alsaPaused)
+        SDL_PauseAudioDevice(g_alsaDevice);
+    else
+        SDL_ResumeAudioDevice(g_alsaDevice);
+}
 
 static void EnsureAudioInit()
 {
@@ -308,7 +321,7 @@ int shared_snd_pcm_start(snd_pcm_t *pcm)
 {
     if (pcm)
     {
-        if (pcm->stream)
+        if (pcm->stream && !g_alsaPaused)
             SDL_ResumeAudioStreamDevice(pcm->stream);
         pcm->state = SND_PCM_STATE_RUNNING;
     }

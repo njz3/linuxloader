@@ -180,6 +180,13 @@ int createDefaultIni(const char *filePath)
     fprintf(file, "# Set to true if the wheel turns the wrong way: the torque then pushes the other way\n");
     fprintf(file, "FFB_INVERT = %s\n\n", defaults.ffbInvert ? "true" : "false");
 
+    // [Launcher]
+    fprintf(file, "[Launcher]\n");
+    fprintf(file, "# Folder the game picker lists when linuxloader starts without a game (empty: games next to the program)\n");
+    fprintf(file, "GAMES_DIR = %s\n\n", defaults.gamesDir);
+    fprintf(file, "# Language of the picker and of the F10 settings: auto, en or fr\n");
+    fprintf(file, "LANGUAGE = %s\n\n", defaults.language);
+
     // [Network]
     fprintf(file, "[Network]\n");
     fprintf(file, "# If true, the loader will apply the following network patches depending on the game\n");

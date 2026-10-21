@@ -27,6 +27,9 @@
 #include "../input/sdlInput.h"
 #include "../hardware/lindbergh/jvs.h"
 #include "../hardware/lindbergh/forceFeedback.h"
+#ifdef _WIN32
+#include "../gui/gui.h"
+#endif
 #include "../resources/LiberationMono-Regular.h"
 #include "../resources/icon.h"
 #include "../log/log.h"
@@ -242,6 +245,9 @@ void startSDL()
     }
 
     initBlitting();
+#ifdef _WIN32
+    guiOverlayInit(g_SdlWindow);
+#endif
 
     if (gId != PRIMEVAL_HUNT_SBPP && gGrp != GROUP_LGJ)
         SDL_SetWindowResizable(g_SdlWindow, true);
@@ -333,11 +339,32 @@ void sdlQuit()
     exit(0);
 }
 
+// ASPECT_RATIO and DISPLAY_MODE changed while the game runs (F10 settings): the picture follows them at the next
+// frame, the window here.
+void sdlApplyDisplaySettings(void)
+{
+    if (!g_SdlWindow || gameIsOutrunChihiroMode)
+        return;
+    bool fullscreen = getConfig()->fullscreen != 0;
+    if (fullscreen != isFullScreen && SDL_SetWindowFullscreen(g_SdlWindow, fullscreen))
+        isFullScreen = fullscreen;
+    if (!isFullScreen)
+    {
+        int windowW, windowH;
+        blitWindowedSize(gWidth, gHeight, &windowW, &windowH);
+        SDL_SetWindowSize(g_SdlWindow, windowW, windowH);
+    }
+}
+
 void pollEvents()
 {
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
+#ifdef _WIN32
+        if (guiOverlayProcessEvent(&event))
+            continue;
+#endif
 #ifdef __linux__
         if (event.type == SDL_WIIMOTION_EVENT)
             processSdlEvent(&event);

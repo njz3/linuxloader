@@ -183,6 +183,8 @@ void setDefaultValues(EmulatorConfig *cfg)
     cfg->outputsNetworkUdpPort = 8001;
     cfg->ffbStrength = 100;
     cfg->ffbInvert = 0;
+    strcpy(cfg->gamesDir, "");
+    strcpy(cfg->language, "auto");
     strcpy(cfg->idIpSeat1, "");
     strcpy(cfg->idIpSeat2, "");
     strcpy(cfg->nicName, "");
@@ -464,6 +466,8 @@ void applyIniConfig(EmulatorConfig *config, const IniConfig *ini)
     config->outputsNetworkUdpPort = getInt(ini, "Outputs", "OUTPUTS_NETWORK_UDP_PORT", config->outputsNetworkUdpPort);
     config->ffbStrength = getInt(ini, "ForceFeedback", "FFB_STRENGTH", config->ffbStrength);
     config->ffbInvert = getInt(ini, "ForceFeedback", "FFB_INVERT", config->ffbInvert);
+    getString(ini, "Launcher", "GAMES_DIR", config->gamesDir, MAX_PATH_LENGTH);
+    getString(ini, "Launcher", "LANGUAGE", config->language, sizeof(config->language));
     getString(ini, "Network", "ID_IP_SEAT_1", config->idIpSeat1, 16);
     getString(ini, "Network", "ID_IP_SEAT_2", config->idIpSeat2, 16);
     getString(ini, "Network", "NIC_NAME", config->nicName, 20);
@@ -588,6 +592,18 @@ int initConfig(const char *configFilePath)
 
     iniFree(ini);
 
+    return 0;
+}
+
+// The settings alone, for the game picker: no game to detect.
+int loadConfigFile(const char *configFilePath)
+{
+    setDefaultValues(&config);
+    IniConfig *ini = iniLoad(configFilePath);
+    if (ini == NULL)
+        return 1;
+    applyIniConfig(&config, ini);
+    iniFree(ini);
     return 0;
 }
 

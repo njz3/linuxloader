@@ -339,6 +339,8 @@ typedef struct
     int outputsNetworkUdpPort;
     int ffbStrength;
     int ffbInvert; // [ForceFeedback] FFB_INVERT: the drive board's torque pushes the other way
+    char gamesDir[MAX_PATH_LENGTH]; // [Launcher] GAMES_DIR: the folder the game picker lists
+    char language[8];               // [Launcher] LANGUAGE: auto, en or fr
     char idIpSeat1[16];
     char idIpSeat2[16];
     char nicName[20];
@@ -376,6 +378,7 @@ extern "C" {
 int initConfig(const char *configFilePath);
 void setDefaultValues(EmulatorConfig *cfg);
 EmulatorConfig *getConfig();
+int loadConfigFile(const char *configFilePath);
 char *getGameName();
 char *getDvpName();
 char *getGameId();

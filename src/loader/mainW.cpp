@@ -30,6 +30,7 @@
 #include "patching/patch.h"
 #include "input/sdlInput.h"
 #include "mainShared.h"
+#include "gui/gui.h"
 
 std::string g_absoluteElfPath;
 extern "C" { uint32_t partialElfCrc = 0; } // read from C (config.c)
@@ -89,6 +90,10 @@ int main(int argc, char *argv[], char *envp[])
     _set_invalid_parameter_handler(ignoreInvalidParameter);
 #endif
     logSetMinLevel(LOG_WARN);
+
+    // Started without a game: the game picker
+    if (argc == 1)
+        return guiRunPicker(argv[0]);
 
     char command[MAX_PATH_LENGTH] = {0};
     char originalDir[MAX_PATH_LENGTH] = {0};

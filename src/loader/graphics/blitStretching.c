@@ -10,6 +10,13 @@
 #include "../config/config.h"
 #include "../log/log.h"
 #include "../patching/patchResolution.h"
+#ifdef _WIN32
+#include "../gui/gui.h"
+#include "../hardware/lindbergh/forceFeedback.h"
+void pollEvents();             // sdlCalls.h, which brings GL/gl.h with it
+void segaapiPause(int paused); // libsegaapi.c
+void alsaPause(int paused);    // alsa2sdl.c
+#endif
 // #include "glInitFunctions.h"
 
 #define CHECK_GL(msg)                                                                                                                      \
@@ -270,6 +277,36 @@ static void blitPresent(void)
     CHECK_GL("second blit (GL_LINEAR scaled) to default framebuffer");
 }
 
+#ifdef _WIN32
+// F10: the game's thread waits here, inside its buffer swap, while the settings are open. The window shows the
+// game's last picture with the settings over it; its sound and the wheel's forces stop meanwhile.
+static void blitSettingsPause(void)
+{
+    sdlFfbPause(1);
+    segaapiPause(1);
+    alsaPause(1);
+    while (guiOverlayVisible())
+    {
+        Uint64 start = SDL_GetTicks();
+        SDL_GetWindowSizeInPixels(g_SdlWindow, &drawableW, &drawableH);
+        blitPresent();
+        guiOverlayRender(drawableW, drawableH);
+        SDL_GL_SwapWindow(g_SdlWindow);
+        pollEvents();
+        // About 60 frames per second, whether the swap waits for the vertical sync or not
+        Uint64 spent = SDL_GetTicks() - start;
+        if (spent < 16)
+            SDL_Delay((Uint32)(16 - spent));
+    }
+    alsaPause(0);
+    segaapiPause(0);
+    sdlFfbPause(0);
+    // The frame the game is swapping: its own picture again, without the settings
+    SDL_GetWindowSizeInPixels(g_SdlWindow, &drawableW, &drawableH);
+    blitPresent();
+}
+#endif
+
 void blitStretch()
 {
     if (!fboInitialized)
@@ -388,6 +425,10 @@ void blitStretch()
 
 
         blitPresent();
+#ifdef _WIN32
+        if (guiOverlayVisible())
+            blitSettingsPause();
+#endif
 
         // RESTORE STATE
         if (oldScissorTest)

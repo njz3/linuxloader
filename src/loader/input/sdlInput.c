@@ -34,6 +34,7 @@
 // --- GLOBAL STATE AND MAPPINGS ---
 ActionState gActionStates[MAX_ENTITIES][NUM_LOGICAL_ACTIONS];
 JVSActionMapping gJvsMap[MAX_ENTITIES][NUM_LOGICAL_ACTIONS];
+static char gLoadedControlsPath[1024] = ""; // the controls.ini the bindings came from, empty for the built-in ones
 ChangedAction gChangedActions[NUM_LOGICAL_ACTIONS * MAX_ENTITIES];
 LogicalActionProperties gActionProperties[MAX_ENTITIES][NUM_LOGICAL_ACTIONS];
 int gNumChangedActions = 0;
@@ -260,11 +261,15 @@ int initSdlInput(const char *controlsPath)
     {
         log_debug("controls config file loaded from %s\n", controlsPath);
         ini = iniLoad(controlsPath);
+        if (ini)
+            snprintf(gLoadedControlsPath, sizeof(gLoadedControlsPath), "%s", controlsPath);
     }
     else
     {
         log_debug("controls config file \"controls.ini\" loaded from current folder\n");
         ini = iniLoad("controls.ini");
+        if (ini)
+            snprintf(gLoadedControlsPath, sizeof(gLoadedControlsPath), "controls.ini");
     }
 
     if (ini)
@@ -855,6 +860,42 @@ void addBinding(ControlBinding binding)
 }
 
 /**
+ * @brief Adds an array of default bindings. Their combinations (ExitGame: JOY0_BUTTON_11 + JOY0_BUTTON_10...) number
+ * their groups locally; each gets a group of its own here, as parseAndApplyBindings does for controls.ini. Without
+ * it the group stayed empty, its action LA_Test for SYSTEM, and releasing one of its inputs pressed Test.
+ */
+static void addDefaultBindings(const ControlBinding *bindings, size_t count)
+{
+    int groups[MAX_COMBINATION_GROUPS];
+    for (int i = 0; i < MAX_COMBINATION_GROUPS; i++)
+        groups[i] = -1;
+
+    for (size_t i = 0; i < count; i++)
+    {
+        ControlBinding binding = bindings[i];
+        if (binding.comboGroupId >= 0 && binding.comboGroupId < MAX_COMBINATION_GROUPS)
+        {
+            int *group = &groups[binding.comboGroupId];
+            if (*group < 0)
+            {
+                if (gNumComboGroups >= MAX_COMBINATION_GROUPS)
+                    continue;
+                *group = gNumComboGroups++;
+                gComboGroups[*group].action = binding.action;
+                gComboGroups[*group].player = binding.player;
+                gComboGroups[*group].numInputs = 0;
+                gComboGroups[*group].activeCount = 0;
+            }
+            if (gComboGroups[*group].numInputs >= MAX_INPUTS_PER_COMBO)
+                continue;
+            binding.comboGroupId = *group;
+            binding.comboInputIndex = gComboGroups[*group].numInputs++;
+        }
+        addBinding(binding);
+    }
+}
+
+/**
  * @brief Applies the default control mappings if controls.ini is not found.
  * Iterates through the default binding arrays and adds them to the system.
  */
@@ -863,10 +904,7 @@ void setDefaultMappings()
     log_warn("Applying default mappings...\n");
 
     // Add common bindings
-    for (size_t i = 0; i < gDefaultCommonBindingsSize; i++)
-    {
-        addBinding(gDefaultCommonBindings[i]);
-    }
+    addDefaultBindings(gDefaultCommonBindings, gDefaultCommonBindingsSize);
 
     // Add game-specific bindings
     const ControlBinding *game_bindings = NULL;
@@ -900,10 +938,7 @@ void setDefaultMappings()
 
     if (game_bindings)
     {
-        for (size_t i = 0; i < bindingsCount; i++)
-        {
-            addBinding(game_bindings[i]);
-        }
+        addDefaultBindings(game_bindings, bindingsCount);
     }
 }
 
@@ -2326,18 +2361,14 @@ void saveGuidsToIni()
         return;
     }
 
-    printf("Saving updated controller GUIDs to controls.ini...\n");
-    IniConfig *ini = iniLoad("controls.ini");
+    // Into the controls.ini that was loaded. With none (the built-in bindings), nothing is written: a file holding
+    // only the GUIDs, in the game's folder, was then found by the settings' Controls page, without a binding to map.
+    if (!gLoadedControlsPath[0])
+        return;
+    printf("Saving updated controller GUIDs to %s...\n", gLoadedControlsPath);
+    IniConfig *ini = iniLoad(gLoadedControlsPath);
     if (!ini)
-    {
-        // If the file doesn't exist, create an empty config in memory to save.
-        ini = (IniConfig *)calloc(1, sizeof(IniConfig));
-        if (!ini)
-        {
-            fprintf(stderr, "ERROR: Failed to allocate memory for INI config.\n");
-            return;
-        }
-    }
+        return;
 
     // Set the GUID value for each player. iniSetValue will create the section/key if needed.
     for (int player = 1; player <= MAX_PLAYERS; player++)
@@ -2350,17 +2381,58 @@ void saveGuidsToIni()
         }
     }
 
-    if (iniSave(ini, "controls.ini") == 0)
+    if (iniSave(ini, gLoadedControlsPath) > 0) // 1 on success, -1 on failure
     {
-        printf("Successfully saved controls.ini with updated GUIDs.\n");
+        printf("Successfully saved %s with updated GUIDs.\n", gLoadedControlsPath);
     }
     else
     {
-        fprintf(stderr, "ERROR: Failed to save controls.ini.\n");
+        fprintf(stderr, "ERROR: Failed to save %s.\n", gLoadedControlsPath);
     }
 
     iniFree(ini);
     gPlayerGUIDsDirty = false;
+}
+
+/**
+ * @brief Loads the bindings again from the controls file, for a game already running (the F10 controls page).
+ * The devices stay as they were opened; only the bindings, the combinations and the [Config] settings change.
+ */
+void sdlReloadBindings(const char *controlsPath)
+{
+    memset(gKeyBindings, 0, sizeof(gKeyBindings));
+    memset(gMouseButtonBindings, 0, sizeof(gMouseButtonBindings));
+    memset(gMouseAxisBindings, 0, sizeof(gMouseAxisBindings));
+    memset(gJoyAxisBindings, 0, sizeof(gJoyAxisBindings));
+    memset(gJoyButtonBindings, 0, sizeof(gJoyButtonBindings));
+    memset(gControllerAxisBindings, 0, sizeof(gControllerAxisBindings));
+    memset(gControllerButtonBindings, 0, sizeof(gControllerButtonBindings));
+    memset(gJoyHatBindings, 0, sizeof(gJoyHatBindings));
+    memset(gComboGroups, 0, sizeof(gComboGroups));
+    gNumComboGroups = 0;
+    initActionProperties();
+
+    IniConfig *ini = iniLoad(controlsPath && controlsPath[0] ? controlsPath : "controls.ini");
+    int isProfileLoaded = 0;
+    if (ini)
+    {
+        loadGlobalConfig(ini);
+        loadProfileFromIni(iniGetSection(ini, "Common"));
+        if (gameType == DRIVING)
+            isProfileLoaded = loadProfileFromIni(iniGetSection(ini, "Driving"));
+        else if (gameType == DIGITAL)
+            isProfileLoaded = loadProfileFromIni(iniGetSection(ini, "Digital"));
+        else if (gameType == SHOOTING)
+            isProfileLoaded = loadProfileFromIni(iniGetSection(ini, "Shooting"));
+        else if (gameType == FLYING)
+            isProfileLoaded = loadProfileFromIni(iniGetSection(ini, "Flying"));
+        else if (gameType == MAHJONG)
+            isProfileLoaded = loadProfileFromIni(iniGetSection(ini, "Mahjong"));
+        iniFree(ini);
+    }
+    if (!isProfileLoaded)
+        setDefaultMappings();
+    detectCombinedAxes();
 }
 
 #endif

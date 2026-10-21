@@ -155,7 +155,14 @@ elseif(WIN32 OR MINGW OR CMAKE_C_COMPILER MATCHES "mingw")
         src/loader/elfLoader/pthread/*.cpp
         src/glad/src/gl.c
         src/icon.rc
+        src/loader/gui/*.cpp
+        src/imgui/imgui.cpp
+        src/imgui/imgui_draw.cpp
+        src/imgui/imgui_tables.cpp
+        src/imgui/imgui_widgets.cpp
+        src/imgui/backends/imgui_impl_sdl3.cpp
     )
+    include_directories(${PROJECT_SOURCE_DIR}/src/imgui)
 
 
     # Executable target
