@@ -26,6 +26,7 @@
 #include "customCursor.h"
 #include "../input/sdlInput.h"
 #include "../hardware/lindbergh/jvs.h"
+#include "../hardware/lindbergh/forceFeedback.h"
 #include "../resources/LiberationMono-Regular.h"
 #include "../resources/icon.h"
 #include "../log/log.h"
@@ -77,6 +78,9 @@ void GLAPIENTRY openglDebugCallback(GLenum source, GLenum type, GLuint id, GLenu
 
 int initSDL()
 {
+    // Keep reading joysticks when the window is not focused (cabinet frontends, feeders such as vJoy)
+    SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
+
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC | SDL_INIT_GAMEPAD))
     {
         log_error("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());

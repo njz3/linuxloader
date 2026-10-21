@@ -164,6 +164,13 @@ int createDefaultIni(const char *filePath)
     fprintf(file, "DEBUG_MSGS = %s\n\n", defaults.showDebugMessages ? "true" : "false");
     fprintf(file, "# Set the colour of the lindbergh (YELLOW, RED, BLUE, SILVER, REDEX)\nLINDBERGH_COLOUR = YELLOW\n\n");
 
+    // [ForceFeedback]
+    fprintf(file, "[ForceFeedback]\n");
+    fprintf(file, "# Strength of the drive board forces on a force feedback wheel, in percent of the board's full scale\n");
+    fprintf(file, "FFB_STRENGTH = %d\n", defaults.ffbStrength);
+    fprintf(file, "# Set to true if the wheel turns the wrong way: the torque then pushes the other way\n");
+    fprintf(file, "FFB_INVERT = %s\n\n", defaults.ffbInvert ? "true" : "false");
+
     // [Network]
     fprintf(file, "[Network]\n");
     fprintf(file, "# If true, the loader will apply the following network patches depending on the game\n");
