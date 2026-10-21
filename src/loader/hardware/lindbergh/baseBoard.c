@@ -9,6 +9,7 @@
 #include "jvs.h"
 #include "passthrough.h"
 #include "../../log/log.h"
+#include "../../redirections/writeDir.h"
 #include <time.h>
 
 #define SERIAL_STRING "FE11-X018012022X"
@@ -66,7 +67,7 @@ int initBaseboard()
 {
     char *sramPath = getConfig()->sramPath;
 
-    sram = fopen(sramPath, "a");
+    sram = writeDirFopen(sramPath, "a");
 
     // Create file if it doesn't exist
     if (sram == NULL)
@@ -75,7 +76,7 @@ int initBaseboard()
         return 1;
     }
     fclose(sram);
-    sram = fopen(sramPath, "rb+");
+    sram = writeDirFopen(sramPath, "rb+");
     fseek(sram, 0, SEEK_SET);
 
 #ifdef __linux__

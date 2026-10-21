@@ -1,5 +1,6 @@
 #if defined(_WIN32) || defined(__MINGW32__)
 #include "../redirections/filesystemShared.h"
+#include "../redirections/writeDir.h"
 #include "filesystemBridge.hpp"
 #include "libcBridge.hpp"
 #include "symbolResolver.hpp"
@@ -255,7 +256,8 @@ namespace FileSystemBridge
         }
         if (mode == 1)
             mode = 0;
-        return _access(pathname, mode);
+        char redirected[MAX_PATH];
+        return _access(writeDirForRead(pathname, redirected, sizeof(redirected)), mode);
     }
 
     int bridgeChdir(const char *path)
@@ -279,9 +281,9 @@ namespace FileSystemBridge
         if (strncmp(pathname, "/var/tmp", 8) == 0)
             pathname += 5;
 
-        char winPath[MAX_PATH];
+        char winPath[MAX_PATH], redirected[MAX_PATH];
         ConvertPath(winPath, pathname, MAX_PATH);
-        return _creat(winPath, mode);
+        return _creat(writeDirForWrite(winPath, 0, redirected, sizeof(redirected)), mode);
     }
 
     char *bridgeGetcwd(char *buf, size_t size)
@@ -328,6 +330,19 @@ extern "C"
             strcpy(winPath, ".\\tmp\\");
         }
 
+        // The write folder's side of the folder first, then the game folder's
+        std::string other;
+        char writeSide[MAX_PATH], gameSide[MAX_PATH];
+        if (writeDirSides(winPath, writeSide, gameSide, MAX_PATH))
+        {
+            DWORD inWrite = GetFileAttributesA(writeSide), inGame = GetFileAttributesA(gameSide);
+            bool writeFolder = inWrite != INVALID_FILE_ATTRIBUTES && (inWrite & FILE_ATTRIBUTE_DIRECTORY);
+            bool gameFolder = inGame != INVALID_FILE_ATTRIBUTES && (inGame & FILE_ATTRIBUTE_DIRECTORY);
+            strcpy(winPath, writeFolder || !gameFolder ? writeSide : gameSide);
+            if (writeFolder && gameFolder)
+                other = std::string(gameSide) + "\\*";
+        }
+
         std::string searchPath = winPath;
         if (searchPath.empty())
             return NULL;
@@ -344,6 +359,7 @@ extern "C"
         DIR_Impl *dir = new DIR_Impl();
         dir->path = name; // logging uses original name
         dir->searchPath = searchPath;
+        dir->otherSearchPath = other;
         dir->hFind = FindFirstFileA(searchPath.c_str(), &dir->findData);
 
         if (dir->hFind == INVALID_HANDLE_VALUE)
@@ -363,20 +379,43 @@ extern "C"
             return NULL;
         DIR_Impl *dir = (DIR_Impl *)dirp;
 
-        if (dir->finished)
-            return NULL;
-
-        if (dir->first_read)
+        for (;;)
         {
-            dir->first_read = false;
-        }
-        else
-        {
-            if (!FindNextFileA(dir->hFind, &dir->findData))
-            {
-                dir->finished = true;
+            if (dir->finished)
                 return NULL;
+
+            if (dir->first_read)
+            {
+                dir->first_read = false;
             }
+            else if (!FindNextFileA(dir->hFind, &dir->findData))
+            {
+                // The write folder's side done: the game folder's next
+                if (dir->otherSearchPath.empty() || dir->onOther)
+                {
+                    dir->finished = true;
+                    return NULL;
+                }
+                FindClose(dir->hFind);
+                dir->onOther = true;
+                dir->hFind = FindFirstFileA(dir->otherSearchPath.c_str(), &dir->findData);
+                if (dir->hFind == INVALID_HANDLE_VALUE)
+                {
+                    dir->finished = true;
+                    return NULL;
+                }
+            }
+            if (dir->otherSearchPath.empty())
+                break;
+            std::string name = dir->findData.cFileName;
+            std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c) { return (char)tolower(c); });
+            if (!dir->onOther)
+            {
+                dir->seen.push_back(name);
+                break;
+            }
+            if (std::find(dir->seen.begin(), dir->seen.end(), name) == dir->seen.end())
+                break; // in the game's folder only
         }
 
         memset(&dir->ent, 0, sizeof(linux_dirent));
@@ -440,6 +479,8 @@ extern "C"
         if (dir->hFind != INVALID_HANDLE_VALUE)
             FindClose(dir->hFind);
         dir->hFind = FindFirstFileA(dir->searchPath.c_str(), &dir->findData);
+        dir->onOther = false;
+        dir->seen.clear();
         dir->first_read = true;
         dir->finished = dir->hFind == INVALID_HANDLE_VALUE;
     }
@@ -453,6 +494,13 @@ extern "C"
         char winPath[MAX_PATH];
         ConvertPath(winPath, path, MAX_PATH);
         log_debug("rmdir: %s (as %s)", path, winPath);
+        char writeSide[MAX_PATH], gameSide[MAX_PATH];
+        if (writeDirSides(winPath, writeSide, gameSide, MAX_PATH))
+        {
+            if (GetFileAttributesA(writeSide) != INVALID_FILE_ATTRIBUTES)
+                return _rmdir(writeSide);
+            return GetFileAttributesA(gameSide) != INVALID_FILE_ATTRIBUTES ? 0 : -1;
+        }
         return _rmdir(winPath);
     }
 
@@ -473,11 +521,18 @@ extern "C"
         char winPattern[MAX_PATH];
         ConvertPath(winPattern, mapped, MAX_PATH);
 
+        std::vector<std::string> patterns = {winPattern};
+        char writeSide[MAX_PATH], gameSide[MAX_PATH];
+        if (writeDirSides(winPattern, writeSide, gameSide, MAX_PATH))
+            patterns = {writeSide, gameSide}; // the write folder's first, then the game folder's
+
         std::vector<std::string> found;
         WIN32_FIND_DATAA data;
-        HANDLE find = FindFirstFileA(winPattern, &data);
-        if (find != INVALID_HANDLE_VALUE)
+        for (const std::string &searched : patterns)
         {
+            HANDLE find = FindFirstFileA(searched.c_str(), &data);
+            if (find == INVALID_HANDLE_VALUE)
+                continue;
             do
             {
                 if (strcmp(data.cFileName, ".") == 0 || strcmp(data.cFileName, "..") == 0)
@@ -485,7 +540,8 @@ extern "C"
                 std::string path = directory + data.cFileName;
                 if ((flags & GLOB_MARK) && (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
                     path += "/";
-                found.push_back(path);
+                if (std::find(found.begin(), found.end(), path) == found.end())
+                    found.push_back(path);
             } while (FindNextFileA(find, &data));
             FindClose(find);
         }
@@ -532,7 +588,7 @@ extern "C"
         {
             pathname += 1;
         }
-        return _unlink(pathname);
+        return writeDirActive() ? writeDirRemove(pathname) : _unlink(pathname);
     }
 
     int bridgeRename(const char *oldpath, const char *newpath)
@@ -542,7 +598,7 @@ extern "C"
         char winNew[MAX_PATH];
         ConvertPath(winOld, oldpath, MAX_PATH);
         ConvertPath(winNew, newpath, MAX_PATH);
-        return rename(winOld, winNew);
+        return writeDirActive() ? writeDirRename(winOld, winNew) : rename(winOld, winNew);
     }
 
     static void CopyStatVer3(const struct _stat64 &src, void *dst_ptr)
@@ -654,10 +710,10 @@ extern "C"
         }
 
         struct _stat64 win_stat;
-        char winPath[MAX_PATH];
+        char winPath[MAX_PATH], redirected[MAX_PATH];
         ConvertPath(winPath, path, MAX_PATH);
         log_debug("stat: %s (as %s)", path, winPath);
-        if (_stat64(winPath, &win_stat) != 0)
+        if (_stat64(writeDirForRead(winPath, redirected, sizeof(redirected)), &win_stat) != 0)
         {
             log_debug("stat failed: %s", path);
             errno = ENOENT;

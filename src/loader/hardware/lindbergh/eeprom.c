@@ -2,6 +2,7 @@
 
 #include "../../config/config.h"
 #include "eepromSettings.h"
+#include "../../redirections/writeDir.h"
 
 #define I2C_SMBUS_BLOCK_MAX 32
 #define I2C_GET_FUNCTIONS 0x705
@@ -34,7 +35,7 @@ int initEeprom()
 {
     char *eepromPath = getConfig()->eepromPath;
 
-    eeprom = fopen(eepromPath, "a");
+    eeprom = writeDirFopen(eepromPath, "a");
 
     // Create file if it doesn't exist
     if (eeprom == NULL)
@@ -45,7 +46,7 @@ int initEeprom()
 
     fclose(eeprom);
 
-    eeprom = fopen(eepromPath, "rb+");
+    eeprom = writeDirFopen(eepromPath, "rb+");
 
     if (eepromSettingsInit(eeprom) != 0)
     {

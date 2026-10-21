@@ -9,6 +9,7 @@
 #include "../../patching/flowControl.h"
 #include "../../log/log.h"
 #include "../../mainShared.h"
+#include "../../redirections/writeDir.h"
 
 #define BLOCKSIZE 8
 
@@ -153,7 +154,7 @@ void buildOutputBuffer(int fdIdx, uint8_t cmd)
             uint16_t blocksToRead = (writeCmd[fdIdx].recBuffer[8] << 8) | writeCmd[fdIdx].recBuffer[9];
             packetLen = (BLOCKSIZE * blocksToRead) + 2;
             readCmd[fdIdx].sendBuffer[3] = packetLen;
-            FILE *crdFile = fopen(serialFD[fdIdx].cardFilename, "rb");
+            FILE *crdFile = writeDirFopen(serialFD[fdIdx].cardFilename, "rb");
             fseek(crdFile, BLOCKSIZE * blockStart, SEEK_SET);
             fread(readCmd[fdIdx].sendBuffer + 6, 1, packetLen - 2, crdFile);
             fclose(crdFile);
@@ -165,7 +166,7 @@ void buildOutputBuffer(int fdIdx, uint8_t cmd)
             uint16_t blockStart = (writeCmd[fdIdx].recBuffer[6] << 8) | writeCmd[fdIdx].recBuffer[7];
             uint16_t blocksToWrite = (writeCmd[fdIdx].recBuffer[8] << 8) | writeCmd[fdIdx].recBuffer[9];
             packetLen = BLOCKSIZE * blocksToWrite;
-            FILE *crdFile = fopen(serialFD[fdIdx].cardFilename, "rb+");
+            FILE *crdFile = writeDirFopen(serialFD[fdIdx].cardFilename, "rb+");
             fseek(crdFile, BLOCKSIZE * blockStart, SEEK_SET);
             fwrite(writeCmd[fdIdx].recBuffer + 10, 1, packetLen, crdFile);
             fclose(crdFile);
@@ -250,7 +251,7 @@ void cardReaderSetFd(int serial, int fd, char *fName)
 
     if (access(fName, F_OK) != 0)
     {
-        FILE *crdFile = fopen(fName, "wb+");
+        FILE *crdFile = writeDirFopen(fName, "wb+");
         if (getConfig()->crc32 == R_TUNED_SBQW)
         {
             cardHeader[0x22] = 0x02;

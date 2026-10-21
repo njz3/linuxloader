@@ -37,6 +37,7 @@
 #include "mainShared.h"
 #include "gui/gui.h"
 #include "agent/agent.h"
+#include "redirections/writeDir.h"
 
 std::string g_absoluteElfPath;
 extern "C" { uint32_t partialElfCrc = 0; } // read from C (config.c)
@@ -54,6 +55,7 @@ static int s_argc = 0;
 static char **s_argv = NULL;
 static char s_startDir[MAX_PATH_LENGTH] = "";
 static time_t s_startTime = 0;
+static const char *s_writeDir = NULL; // --write-dir, given on to the next program too
 
 static bool isTestModeArg(const char *arg)
 {
@@ -99,6 +101,8 @@ void segabootOnExit()
     std::string command = "\"" + std::string(exe) + "\"";
     if (!testMode)
         command += " -t";
+    if (s_writeDir)
+        command += " --write-dir \"" + std::string(s_writeDir) + "\"";
     for (int i = 1; i < s_argc; i++)
         if (!isTestModeArg(s_argv[i]))
             command += " \"" + std::string(s_argv[i]) + "\"";
@@ -167,7 +171,8 @@ int main(int argc, char *argv[], char *envp[])
 #endif
     logSetMinLevel(LOG_WARN);
 
-    // --agent / --agent-show: the game driven over stdin/stdout (agent/agent.c), not arguments of the game
+    // --agent / --agent-show: the game driven over stdin/stdout (agent/agent.c); --write-dir PATH: the folder
+    // everything is written to (redirections/writeDir.c). Not arguments of the game.
     static std::vector<char *> args;
     int agentMode = 0;
     for (int i = 0; i < argc; i++)
@@ -176,16 +181,18 @@ int main(int argc, char *argv[], char *envp[])
             agentMode = 1;
         else if (strcmp(argv[i], "--agent-show") == 0)
             agentMode = 2;
+        else if (strncmp(argv[i], "--write-dir=", 12) == 0)
+            s_writeDir = argv[i] + 12;
+        else if (strcmp(argv[i], "--write-dir") == 0 && i + 1 < argc)
+            s_writeDir = argv[++i];
         else
             args.push_back(argv[i]);
     }
     if (agentMode)
-    {
         agentInit(agentMode == 2);
-        argc = (int)args.size();
-        args.push_back(NULL);
-        argv = args.data();
-    }
+    argc = (int)args.size();
+    args.push_back(NULL);
+    argv = args.data();
 
     // Started without a game: the game picker
     if (argc == 1)
@@ -234,10 +241,8 @@ int main(int argc, char *argv[], char *envp[])
     log_info("Initializing bridges...\n");
     initBridges();
 
-    if (!std::filesystem::exists("tmp"))
-        std::filesystem::create_directory("tmp");
-    if (!std::filesystem::exists("tmp\\segaboot"))
-        std::filesystem::create_directory("tmp\\segaboot");
+    // The settings, and what the game writes, in the write folder when there is one
+    writeDirSettings(s_writeDir, &configPath, &controlsPath);
 
     log_info("Loading ELF file: %s\n", elfPath);
     ElfLoader loader;
@@ -253,6 +258,13 @@ int main(int argc, char *argv[], char *envp[])
         partialElfCrc = getCrc32Mem(baseAddr + 10, 0x4000);
 
     initConfig(configPath);
+    writeDirEnterGame(getConfig()->gameShortTitle); // from now on the current folder
+
+    if (!std::filesystem::exists("tmp"))
+        std::filesystem::create_directory("tmp");
+    if (!std::filesystem::exists("tmp\\segaboot"))
+        std::filesystem::create_directory("tmp\\segaboot");
+
     if (agentHidden()) // --agent: a window never shown, frames as fast as they go
     {
         getConfig()->fullscreen = 0;

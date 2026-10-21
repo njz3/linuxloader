@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <stdint.h>
 #include <string>
+#include <vector>
 #include <windows.h>
 
 #ifndef _DIRENT_H
@@ -28,6 +29,11 @@ struct DIR_Impl
     bool finished;
     std::string path;
     std::string searchPath; // the FindFirstFile pattern, for rewinddir
+    // A folder in both the write folder and the game's (redirections/writeDir.c): the game folder's side listed next,
+    // without the names already given
+    std::string otherSearchPath;
+    bool onOther = false;
+    std::vector<std::string> seen;
 };
 
 // glibc's struct dirent64 on i386

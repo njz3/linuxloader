@@ -30,6 +30,7 @@
 #include "../resources/lindberghLogo.h"
 #include "../log/log.h"
 #include "filesystemShared.h"
+#include "writeDir.h"
 
 #ifdef __linux__
 #include <dlfcn.h>
@@ -90,7 +91,11 @@ static int (*_remove)(const char *path) = NULL;
 int sharedRemove(const char *path)
 {
     if (_remove == NULL)
+#ifdef _WIN32
+        _remove = writeDirRemove;
+#else
         _remove = REAL_FUNC(remove);
+#endif
 
     if (strncmp(path, "/home/disk1/rankingdata/", 24) == 0 && (gGrp == GROUP_OUTRUN || gGrp == GROUP_OUTRUN_TEST))
     {
@@ -138,7 +143,7 @@ int sharedMkdir(const char *path, mode_t mode)
 #ifdef __linux__
         return _mkdir("./rankingdata", mode);
 #else
-        return _mkdir(".\\rankingdata");
+        return writeDirMkdir(".\\rankingdata");
 #endif
     }
 #ifdef __linux__
@@ -148,7 +153,7 @@ int sharedMkdir(const char *path, mode_t mode)
     char winPath[MAX_PATH];
     ConvertPath(winPath, path, MAX_PATH);
     log_debug("Creating directory: %s", winPath);
-    return _mkdir(winPath);
+    return writeDirMkdir(winPath);
 #endif
 }
 
@@ -284,7 +289,7 @@ int sharedOpen(const char *pathname, int flags, ...)
     log_debug("Translating open flags: 0x%X -> 0x%X, mode: 0x%X -> 0x%X", flags, winFlags, mode, winMode);
 
     log_debug("Opening %s", winPath);
-    return _open(winPath, winFlags, winMode);
+    return writeDirOpen(winPath, winFlags, winMode);
 #endif
 
     log_debug("Opening %s", pathname);
@@ -317,7 +322,11 @@ const char *sharedBinaryMode(const char *mode, char *buffer, size_t size)
 FILE *sharedFopen(const char *restrict pathname, const char *restrict mode)
 {
     if (_fopen == NULL)
+#ifdef _WIN32
+        _fopen = writeDirFopen; // through the write folder, when there is one
+#else
         _fopen = REAL_FUNC(fopen);
+#endif
 #ifdef _WIN32
     char binary[16];
     mode = sharedBinaryMode(mode, binary, sizeof(binary));
@@ -545,7 +554,11 @@ static FILE *(*_fopen64)(const char *restrict pathname, const char *restrict mod
 FILE *sharedFopen64(const char *pathname, const char *mode)
 {
     if (_fopen64 == NULL)
+#ifdef _WIN32
+        _fopen64 = writeDirFopen;
+#else
         _fopen64 = REAL_FUNC(fopen64);
+#endif
 #ifdef _WIN32
     char binary[16];
     mode = sharedBinaryMode(mode, binary, sizeof(binary));

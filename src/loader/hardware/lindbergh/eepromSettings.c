@@ -7,6 +7,7 @@
 #endif
 
 #include "eepromSettings.h"
+#include "../../redirections/writeDir.h"
 
 uint32_t crc32Table[256];
 
@@ -248,11 +249,11 @@ int eepromSettingsInit( FILE *eeprom)
 {
     buildCrc32Table();
 
-    eeprom = fopen("eeprom.bin", "r+b");
+    eeprom = writeDirFopen("eeprom.bin", "r+b");
     if (eeprom == NULL)
     {
         printf("eeprom.bin cannot be opened, let's create a new one.\n");
-        eeprom = fopen("eeprom.bin", "w+b");
+        eeprom = writeDirFopen("eeprom.bin", "w+b");
     }
     fseek(eeprom, 0, SEEK_END);
     int size = ftell(eeprom);

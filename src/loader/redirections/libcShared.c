@@ -7,6 +7,7 @@
 #include "libcShared.h"
 #include "../config/config.h"
 #include "loader/elfLoader/symbolResolver.hpp"
+#include "writeDir.h"
 
 #ifdef __linux__
 #include <dlfcn.h>
@@ -175,7 +176,8 @@ void *sharedDlopen(const char *filename, int flags)
     if (!filename)
         return (void *)-1; // RTLD_DEFAULT handle
 
-    bridgeLoadNeededLibrary(filename);
+    char redirected[MAX_PATH];
+    bridgeLoadNeededLibrary(writeDirForRead(filename, redirected, sizeof(redirected)));
 
     return (void *)0xDEADBEEF;
 #else

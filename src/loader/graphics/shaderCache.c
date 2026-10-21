@@ -31,6 +31,7 @@
 #include "shaderWork/primeval.h"
 #include "shaderWork/rambo.h"
 #include "shaderWork/vt3.h"
+#include "../redirections/writeDir.h"
 
 extern uint32_t gId;
 extern int gGrp;
@@ -481,7 +482,8 @@ int loadShader(char *path, char *buffer)
 {
     int fd;
 #ifdef _WIN32
-    if ((fd = open(path, O_RDONLY | O_BINARY)) == -1)
+    char redirected[1024];
+    if ((fd = open(writeDirForRead(path, redirected, sizeof(redirected)), O_RDONLY | O_BINARY)) == -1)
 #else
     if ((fd = open(path, O_RDONLY)) == -1)
 #endif
@@ -510,7 +512,8 @@ int xdlt_load_mmfile(char const *path, mmfile_t *mf)
         exit(1);
     }
 #ifdef _WIN32
-    if ((fd = open(path, O_RDONLY | O_BINARY)) == -1)
+    char redirected[1024];
+    if ((fd = open(writeDirForRead(path, redirected, sizeof(redirected)), O_RDONLY | O_BINARY)) == -1)
 #else
     if ((fd = open(path, O_RDONLY)) == -1)
 #endif
@@ -864,7 +867,7 @@ void cacheModedShaderFiles()
             shaderFilesToPatch[x].shaderBufferSize = patchedFile.fsize;
             shaderFilesToPatch[x].shaderBuffer = malloc(patchedFile.fsize);
             memcpy((void *)shaderFilesToPatch[x].shaderBuffer, buff, patchedFile.fsize);
-            FILE *f = fopen(shaderFilesToPatch[x].fileName, "wb");
+            FILE *f = writeDirFopen(shaderFilesToPatch[x].fileName, "wb");
             fwrite(shaderFilesToPatch[x].shaderBuffer, shaderFilesToPatch[x].shaderBufferSize, 1, f);
             fclose(f);
             free(buff);
