@@ -5,6 +5,18 @@
 #include <sys/types.h>
 
 #define MAX_PATH_LENGTH 1024
+
+// ASPECT_RATIO: the shape the picture is shown with
+#define ASPECT_ORIGINAL 0 // the game's render resolution
+#define ASPECT_4_3 1
+#define ASPECT_16_9 2
+#define ASPECT_4_3_LETTERBOX 3 // a 4:3 frame, the picture whole inside at its own shape (black bars)
+
+// DISPLAY_MODE
+#define DISPLAY_WINDOW 0             // a window at the aspect ratio, square pixels
+#define DISPLAY_WINDOW_STRETCH 1     // the picture fills the window
+#define DISPLAY_FULLSCREEN 2         // full screen at the aspect ratio
+#define DISPLAY_FULLSCREEN_STRETCH 3 // the picture fills the screen
 #define INPUT_STRING_LENGTH 256
 
 #define AFTER_BURNER_CLIMAX_SBLR 0xa3c246e2                       // DVP-0009
@@ -265,6 +277,10 @@ typedef struct
     char idCardFolder[MAX_PATH_LENGTH];
     int emulateJVS;
     int fullscreen;
+    int aspectRatio; // ASPECT_*
+    int internalWidth;  // WIDTH as the ini gives it, the game's render width; 0 for AUTO, the game's native one
+    int internalHeight; // HEIGHT, likewise
+    int displayMode; // DISPLAY_*, -1 when only FULLSCREEN was given
     char eepromPath[MAX_PATH_LENGTH];
     char sramPath[MAX_PATH_LENGTH];
     char libCgPath[MAX_PATH_LENGTH];

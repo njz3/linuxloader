@@ -129,6 +129,8 @@ void setDefaultValues(EmulatorConfig *cfg)
     strcpy(cfg->idCardFolder, "");
     cfg->emulateJVS = 1;
     cfg->fullscreen = 0;
+    cfg->aspectRatio = ASPECT_ORIGINAL;
+    cfg->displayMode = -1;
     cfg->lindberghColour = YELLOW;
     strcpy(cfg->eepromPath, "eeprom.bin");
     strcpy(cfg->sramPath, "sram.bin");
@@ -315,8 +317,34 @@ void applyIniConfig(EmulatorConfig *config, const IniConfig *ini)
     // [Display]
     config->width = getInt(ini, "Display", "WIDTH", config->width);
     config->height = getInt(ini, "Display", "HEIGHT", config->height);
+    config->internalWidth = getInt(ini, "Display", "WIDTH", 0); // AUTO stays 0
+    config->internalHeight = getInt(ini, "Display", "HEIGHT", 0);
     config->boostRenderRes = getInt(ini, "Display", "BOOST_RENDER_RES", config->boostRenderRes);
     config->fullscreen = getInt(ini, "Display", "FULLSCREEN", config->fullscreen);
+    char displayValue[32] = "";
+    getString(ini, "Display", "ASPECT_RATIO", displayValue, sizeof(displayValue));
+    toLowerCase(displayValue);
+    if (strcmp(displayValue, "4:3") == 0)
+        config->aspectRatio = ASPECT_4_3;
+    else if (strcmp(displayValue, "4:3_letterbox") == 0 || strcmp(displayValue, "4:3 letterbox") == 0)
+        config->aspectRatio = ASPECT_4_3_LETTERBOX;
+    else if (strcmp(displayValue, "16:9") == 0)
+        config->aspectRatio = ASPECT_16_9;
+    else if (strcmp(displayValue, "original") == 0)
+        config->aspectRatio = ASPECT_ORIGINAL;
+    displayValue[0] = '\0';
+    getString(ini, "Display", "DISPLAY_MODE", displayValue, sizeof(displayValue));
+    toLowerCase(displayValue);
+    if (strcmp(displayValue, "window") == 0)
+        config->displayMode = DISPLAY_WINDOW;
+    else if (strcmp(displayValue, "window_stretch") == 0)
+        config->displayMode = DISPLAY_WINDOW_STRETCH;
+    else if (strcmp(displayValue, "fullscreen") == 0)
+        config->displayMode = DISPLAY_FULLSCREEN;
+    else if (strcmp(displayValue, "fullscreen_stretch") == 0)
+        config->displayMode = DISPLAY_FULLSCREEN_STRETCH;
+    if (config->displayMode >= 0) // DISPLAY_MODE takes over FULLSCREEN
+        config->fullscreen = config->displayMode >= DISPLAY_FULLSCREEN;
     config->borderEnabled = getInt(ini, "Display", "BORDER_ENABLED", config->borderEnabled);
 	config->whiteBorderPercentage = getFloat(ini, "Display", "WHITE_BORDER_PERCENTAGE", config->whiteBorderPercentage * 100.0f) / 100.0f;
 	config->blackBorderPercentage = getFloat(ini, "Display", "BLACK_BORDER_PERCENTAGE", config->blackBorderPercentage * 100.0f) / 100.0f;

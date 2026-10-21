@@ -5,6 +5,7 @@
 #include "../graphics/shaderPatches.h"
 #include "../patching/patchResolution.h"
 #include "../graphics/crossHair.h"
+#include "../graphics/blitStretching.h"
 
 
 extern "C" void __attribute__((cdecl)) wrap_glBegin(GLenum mode)
@@ -635,6 +636,7 @@ extern "C" void __attribute__((cdecl)) wrap_glGenFramebuffersEXT(GLsizei n, GLui
 
 extern "C" void __attribute__((cdecl)) wrap_glBindFramebufferEXT(GLenum target, GLuint framebuffer)
 {
+    framebuffer = blitRedirectFramebuffer(framebuffer); // offscreen: the window is the loader's framebuffer
     if (glad_glBindFramebufferEXT)
         glad_glBindFramebufferEXT(target, framebuffer);
 }
@@ -746,6 +748,7 @@ extern "C" void __attribute__((cdecl)) wrap_glGenFramebuffers(GLsizei n, GLuint 
 
 extern "C" void __attribute__((cdecl)) wrap_glBindFramebuffer(GLenum target, GLuint framebuffer)
 {
+    framebuffer = blitRedirectFramebuffer(framebuffer); // offscreen: the window is the loader's framebuffer
     if (glad_glBindFramebuffer)
         glad_glBindFramebuffer(target, framebuffer);
 }
@@ -1132,6 +1135,7 @@ extern "C" void __attribute__((cdecl)) wrap_glProgramEnvParameter4fARB(GLenum ta
 
 extern "C" void __attribute__((cdecl)) wrap_glReadBuffer(GLenum mode)
 {
+    mode = blitRedirectBuffer(mode, 1); // offscreen: GL_BACK is the loader's framebuffer's colour
     if (glad_glReadBuffer)
         glad_glReadBuffer(mode);
 }
@@ -1174,6 +1178,7 @@ extern "C" void __attribute__((cdecl)) wrap_glLoadMatrixf(const GLfloat *m)
 
 extern "C" void __attribute__((cdecl)) wrap_glDrawBuffer(GLenum mode)
 {
+    mode = blitRedirectBuffer(mode, 0); // offscreen: GL_BACK is the loader's framebuffer's colour
     if (glad_glDrawBuffer)
         glad_glDrawBuffer(mode);
 }

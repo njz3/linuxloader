@@ -117,6 +117,7 @@ void bridgeGlutSwapBuffers(void)
     overlayRender();
 
     SDL_GL_SwapWindow(g_SdlWindow);
+    blitAfterSwap();
 
     if (config->fpsLimiter)
         frameTiming();

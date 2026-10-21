@@ -210,11 +210,25 @@ void startSDL()
     else if (gGrp != GROUP_LGJ)
         SDL_SetWindowMaximumSize(g_SdlWindow, displayMode->w, displayMode->h);
 
+#ifdef _WIN32
+    // A window smaller than the render resolution is drawn offscreen and scaled down (blitStretching.c): it can be
+    // made as small as 320x240, 512x384 for a 1024x768 game.
+    SDL_SetWindowMinimumSize(g_SdlWindow, windowWidth < 320 ? windowWidth : 320, gHeight < 240 ? gHeight : 240);
+#else
     SDL_SetWindowMinimumSize(g_SdlWindow, windowWidth, gHeight);
+#endif
 
     // Hacky way to make AxA games render the characters properly
     if (gId == QUIZ_AXA_SBMS || gId == QUIZ_AXA_SBUR_LIVE)
         SDL_SetWindowPosition(g_SdlWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+
+    if (!getConfig()->fullscreen && !gameIsOutrunChihiroMode)
+    {
+        int aspectW, aspectH;
+        blitWindowedSize(windowWidth, gHeight, &aspectW, &aspectH);
+        if (aspectW != windowWidth || aspectH != gHeight)
+            SDL_SetWindowSize(g_SdlWindow, aspectW, aspectH);
+    }
 
     if (getConfig()->fullscreen)
     {
@@ -341,7 +355,11 @@ void pollEvents()
                             }
                             else
                             {
-                                if ((long long)gWidth * 3 == (long long)gHeight * 4)
+                                int windowW, windowH;
+                                blitWindowedSize(gWidth, gHeight, &windowW, &windowH);
+                                if (windowW != gWidth || windowH != gHeight)
+                                    SDL_SetWindowSize(g_SdlWindow, windowW, windowH);
+                                else if ((long long)gWidth * 3 == (long long)gHeight * 4)
                                     SDL_SetWindowSize(g_SdlWindow, gWidth + 1, gHeight);
                                 else
                                     SDL_SetWindowSize(g_SdlWindow, gWidth, gHeight + 1);
@@ -388,7 +406,11 @@ void pollEvents()
                 break;
             case SDL_EVENT_WINDOW_RESTORED:
             {
-                if (((long long)gWidth * 3 == (long long)gHeight * 4) || gGrp == GROUP_HUMMER)
+                int windowW, windowH;
+                blitWindowedSize(gWidth, gHeight, &windowW, &windowH);
+                if (windowW != gWidth || windowH != gHeight)
+                    SDL_SetWindowSize(g_SdlWindow, windowW, windowH);
+                else if (((long long)gWidth * 3 == (long long)gHeight * 4) || gGrp == GROUP_HUMMER)
                     SDL_SetWindowSize(g_SdlWindow, gWidth + 1, gHeight);
                 else
                     SDL_SetWindowSize(g_SdlWindow, gWidth, gHeight + 1);

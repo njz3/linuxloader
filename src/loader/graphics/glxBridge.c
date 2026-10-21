@@ -450,6 +450,7 @@ void bridgeGlxSwapBuffers(Display *dpy, GLXDrawable drawable)
     pollEvents();
 
     SDL_GL_SwapWindow(getSDLWindow());
+    blitAfterSwap();
 
     if (config->fpsLimiter)
         frameTiming();

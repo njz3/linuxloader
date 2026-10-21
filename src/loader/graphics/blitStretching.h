@@ -1,6 +1,11 @@
 #pragma once
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 typedef struct
 {
     int W;
@@ -24,3 +29,16 @@ void initBlitting();
 void blitSetWidthandHeightSize();
 int blitInitializeFbo();
 void blitStretch();
+// Window size for a game rendering renderW x renderH, in the windowed display mode at the configured aspect ratio
+void blitWindowedSize(int renderW, int renderH, int *w, int *h);
+
+// Offscreen rendering (Windows): when the game's picture does not fit the window, the game draws in fboId at its own
+// size; glHooks redirect its framebuffer 0 and window buffers there, and the swap gives it its binding back.
+extern int blitOffscreen;
+unsigned int blitRedirectFramebuffer(unsigned int framebuffer);
+unsigned int blitRedirectBuffer(unsigned int mode, int read);
+void blitAfterSwap(void);
+
+#ifdef __cplusplus
+}
+#endif
