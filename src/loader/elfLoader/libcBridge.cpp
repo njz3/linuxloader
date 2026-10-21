@@ -42,6 +42,8 @@ extern "C"
     unsigned long int __strtoul_internal(const char *nptr, char **endptr, int base, int group);
 }
 
+void segabootOnExit(); // mainW.cpp
+
 namespace LibcBridge
 {
     char bridgeLibcSingleThreaded = 1; // 1 = true (skip pthread locks), 0 = false
@@ -306,6 +308,7 @@ namespace LibcBridge
         void *caller = __builtin_return_address(0);
 #endif
         log_fatal("exit(%d) called by ELF! (from %p)", status, caller);
+        segabootOnExit(); // Test pressed: the test menu next
         ::exit(status);
     }
 

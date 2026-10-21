@@ -1,5 +1,6 @@
 #include <math.h>
 #include <pthread.h> /* POSIX threads API to create and manage threads in the program */
+#include <time.h>
 
 #include "jvs.h"
 #include "../../config/config.h"
@@ -662,10 +663,15 @@ int getSenseLine()
     return senseLine;
 }
 
+static time_t testPressedAt = 0;
+
 int setSwitch(JVSPlayer player, JVSInput switchNumber, int value)
 {
     if (player > io.capabilities.players)
         return 0;
+
+    if (player == SYSTEM && (switchNumber & BUTTON_TEST) && value)
+        testPressedAt = time(NULL);
 
     if (value)
     {
@@ -676,6 +682,13 @@ int setSwitch(JVSPlayer player, JVSInput switchNumber, int value)
         io.state.inputSwitch[player] &= ~switchNumber;
     }
     return 1;
+}
+
+// Test pressed in the last seconds: a game leaves when it is, for the boot program to start the test menu (Initial D 4
+// after 7 seconds)
+int jvsTestPressedRecently()
+{
+    return testPressedAt != 0 && time(NULL) - testPressedAt <= 15;
 }
 
 int incrementCoin(JVSPlayer player, int amount)

@@ -1,7 +1,11 @@
 #if defined(_WIN32) || defined(__MINGW32__)
 #include <cstdlib>
+#include <ctime>
+#include <sys/stat.h>
 
 #include <filesystem>
+#include <string>
+#include <vector>
 #include <winsock2.h>
 #include <windows.h>
 #include <libgen.h>
@@ -40,6 +44,75 @@ extern SDLControllers sdlJoysticks;
 extern int gGrp;
 
 extern "C" { HMODULE hGlDLL = NULL; } // read from C (gpuVendor.c)
+
+extern "C" int jvsTestPressedRecently();
+
+// The command line and the folder the loader was started from, to start the next program of segabootOnExit
+static int s_argc = 0;
+static char **s_argv = NULL;
+static char s_startDir[MAX_PATH_LENGTH] = "";
+static time_t s_startTime = 0;
+
+static bool isTestModeArg(const char *arg)
+{
+    return strcmp(arg, "-t") == 0 || strcmp(arg, "--test") == 0;
+}
+
+// The flag a game leaves for the boot program when Test is pressed, in its folder (/tmp/segaboot is redirected there):
+// "test", "testmode" for OutRun. Only one written during this run counts, and it is removed, as the boot program does.
+static bool takeTestFlag()
+{
+    bool found = false;
+    for (const char *flag : {"tmp/segaboot/test", "tmp/segaboot/testmode"})
+    {
+        struct _stat64 info;
+        if (_stat64(flag, &info) == 0 && info.st_mtime >= s_startTime)
+        {
+            found = true;
+            remove(flag);
+        }
+    }
+    return found;
+}
+
+// What Sega's boot program does on a cabinet: a game leaves when Test is pressed, and the test menu starts; leaving
+// the test menu starts the game again. Called when the game's program ends by itself (exit, or back from main), not
+// for ExitGame or a closed window. The next program runs in a process of its own; the picker waits for all of them.
+void segabootOnExit()
+{
+    static bool done = false;
+    if (done || !s_argv)
+        return;
+    done = true;
+
+    bool testMode = false;
+    for (int i = 1; i < s_argc; i++)
+        testMode = testMode || isTestModeArg(s_argv[i]);
+    const bool testFlag = !testMode && takeTestFlag(); // the flag, or Test pressed just before
+    if (!testMode && !testFlag && !jvsTestPressedRecently())
+        return;
+
+    char exe[MAX_PATH];
+    GetModuleFileNameA(NULL, exe, MAX_PATH);
+    std::string command = "\"" + std::string(exe) + "\"";
+    if (!testMode)
+        command += " -t";
+    for (int i = 1; i < s_argc; i++)
+        if (!isTestModeArg(s_argv[i]))
+            command += " \"" + std::string(s_argv[i]) + "\"";
+
+    STARTUPINFOA startup = {};
+    startup.cb = sizeof(startup);
+    PROCESS_INFORMATION process = {};
+    std::vector<char> commandLine(command.begin(), command.end());
+    commandLine.push_back('\0');
+    if (CreateProcessA(exe, commandLine.data(), NULL, NULL, FALSE, 0, NULL, s_startDir, &startup, &process))
+    {
+        log_info("%s: %s", testMode ? "Leaving the test menu, the game again" : "Test pressed, the test menu", command.c_str());
+        CloseHandle(process.hThread);
+        CloseHandle(process.hProcess);
+    }
+}
 
 LONG CALLBACK myVectoredHandler(PEXCEPTION_POINTERS ExceptionInfo)
 {
@@ -104,6 +177,10 @@ int main(int argc, char *argv[], char *envp[])
     log_info("Parsing arguments...\n");
     if (parseArgs(argc, argv, command, originalDir, gameELF, libraryPath) != PARSE_ARGS_SUCCESS)
         return EXIT_SUCCESS;
+    s_argc = argc;
+    s_argv = argv;
+    s_startTime = time(NULL);
+    snprintf(s_startDir, sizeof(s_startDir), "%s", originalDir);
 
     char elfPath[MAX_PATH_LENGTH];
     char elfArgs[MAX_PATH_LENGTH] = "";
