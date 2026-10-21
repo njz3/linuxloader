@@ -164,6 +164,15 @@ int createDefaultIni(const char *filePath)
     fprintf(file, "DEBUG_MSGS = %s\n\n", defaults.showDebugMessages ? "true" : "false");
     fprintf(file, "# Set the colour of the lindbergh (YELLOW, RED, BLUE, SILVER, REDEX)\nLINDBERGH_COLOUR = YELLOW\n\n");
 
+    // [Outputs]
+    fprintf(file, "[Outputs]\n");
+    fprintf(file, "# Set to true to send lamps and drive board data over the network, MAME style (BackForceFeeder, MAMEHooker...)\n");
+    fprintf(file, "OUTPUTS_NETWORK = %s\n\n", defaults.outputsNetwork ? "true" : "false");
+    fprintf(file, "# TCP port the outputs server listens on\n");
+    fprintf(file, "OUTPUTS_NETWORK_PORT = %d\n\n", defaults.outputsNetworkPort);
+    fprintf(file, "# UDP port on 127.0.0.1 that gets a start announcement (0 to disable)\n");
+    fprintf(file, "OUTPUTS_NETWORK_UDP_PORT = %d\n\n", defaults.outputsNetworkUdpPort);
+
     // [ForceFeedback]
     fprintf(file, "[ForceFeedback]\n");
     fprintf(file, "# Strength of the drive board forces on a force feedback wheel, in percent of the board's full scale\n");

@@ -8,6 +8,7 @@
 #include "graphics/fpsLimiter.h"
 #include "graphics/gpuVendor.h"
 #include "hardware/lindbergh/jvs.h"
+#include "hardware/lindbergh/netOutputs.h"
 #include "patching/patch.h"
 #include "patching/patchResolution.h"
 #include "hardware/lindbergh/rideBoard.h"
@@ -138,6 +139,9 @@ void initMain(char *configPath, char *controlsPath)
     // EVDEV mode: initSdlInput() skips sdlFfbInit(), so init FFB here
     if (getConfig()->inputMode == 2)
         sdlFfbInit();
+
+    netOutputsInit();
+    atexit(netOutputsShutdown);
 
     securityBoardSetDipResolution(getConfig()->width, getConfig()->height);
     log_info("Security board dip resolution set");

@@ -334,6 +334,9 @@ typedef struct
     int touchCursorHeight;
     int mj4EnabledAtT;
     int enableNetworkPatches;
+    int outputsNetwork;
+    int outputsNetworkPort;
+    int outputsNetworkUdpPort;
     int ffbStrength;
     int ffbInvert; // [ForceFeedback] FFB_INVERT: the drive board's torque pushes the other way
     char idIpSeat1[16];

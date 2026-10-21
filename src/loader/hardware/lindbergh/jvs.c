@@ -4,6 +4,7 @@
 #include "jvs.h"
 #include "../../config/config.h"
 #include "output.h"
+#include "netOutputs.h"
 
 /* The in and out packets used to read and write to and from*/
 JVSPacket inputPacket, outputPacket;
@@ -409,6 +410,7 @@ JVSStatus processPacket(int *packetSize)
             {
                 // setGeneralPurposeOutputByte(i, inputPacket.data[index + 2 + i]);
                 processGPOpacket(inputPacket.data[index + 2 + i]);
+                netOutputsSetGpo(i, inputPacket.data[index + 2 + i]);
             }
             outputPacket.data[outputPacket.length] = REPORT_SUCCESS;
             outputPacket.length += 1;
@@ -419,6 +421,7 @@ JVSStatus processPacket(int *packetSize)
         {
             ////printf("CMD_WRITE_GPO_BYTE\n");
             size = 3;
+            netOutputsSetGpo(inputPacket.data[index + 1], inputPacket.data[index + 2]);
             outputPacket.data[outputPacket.length++] = REPORT_SUCCESS;
         }
         break;
