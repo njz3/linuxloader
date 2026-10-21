@@ -59,6 +59,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 48 | 21/10 | Nom de cette session | ✅ « MSVC compilation » |
 | 49 | 21/10 | Code commun aux deux chargeurs, chargeur Windows | ✅ décision : pas de sous-module commun (il compliquerait les fusions avec upstream) ; `windowsloader` (https://github.com/njz3/windowsloader.git) reste indépendant de linuxloader, projet CMake multiplateforme comme lui ; pas encore commencé |
 | 50 | 21/10 | Renommer `dev/ffbedition8` en `dev/ffbedition`, en local et sur origin | ✅ aucune PR ouverte sur l'ancienne branche ; `dev/ffbedition` suit `origin/dev/ffbedition` |
+| 51 | 21/10 | Réorganiser l'historique en commits par fonction, pour des PR vers upstream (FFB, interface...) | ✅ 9 commits par fonction + NOTES.md, poussés en force sur `dev/ffbedition` ; arbre final identique ; chaque étape compile (MinGW et MSVC) ; ancien historique dans la branche locale `backup/ffbedition-84d5d1e` ; Linux non essayé |
 
 ## État des jeux (build MSVC, GPU Intel, vJoy)
 
@@ -69,6 +70,29 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | Sega Race TV | ✅ | ✅ partie complète | ✅ RS422 | couple 84 jusqu'à ±26 % en course, coupé en attract (80 00 00) |
 
 ## Journal de développement
+
+### Historique par fonction (demande 51)
+- `dev/ffbedition` a été réécrite le 21/10 : les 10 commits de travail sont devenus une suite de commits par
+  fonction, dans l'ordre où ils s'appuient les uns sur les autres (une PR possible par commit, empilées) :
+  1. `d85bf98` feat(windows) : build MSVC et correctifs des ponts Windows ;
+  2. `bd89ff5` feat(display) : rapport d'aspect, modes d'affichage, rendu hors écran, résolution interne ;
+  3. `ad6c9e5` fix(games) : Sega Race TV, Initial D 4, R-Tuned, Hummer, OutRun ;
+  4. `9a1e653` feat(ffb) : retour de force de la carte servo Sega ;
+  5. `cd06bbd` feat(outputs) : sorties réseau façon MAME ;
+  6. `6bd4346` feat(gui) : picker, paramètres F10, page de contrôles façon Flycast ;
+  7. `3540d19` feat(service) : menus de test par le relais de segaboot ;
+  8. `509d65b` feat(agent) : mode agent ;
+  9. `36d0fe7` feat(deadheat) : Dead Heat ;
+  puis `b9cdff5` docs : ce fichier, à ne pas proposer à upstream.
+- Seuls 1, 2 et 4 s'appliquent seuls sur le `main` d'upstream (sans compilation vérifiée dans cet état) ; les autres
+  demandent les précédents.
+- Les hashes cités plus haut et plus bas (`09bc3fd`, `77d8a79`, `e0bfd80`, `ae3fe66`, `9b84019`, `29259be`,
+  `5414af7`, `9dc766d`, `06b9a1b`, `84d5d1e`) sont ceux de l'ancien historique, gardé dans la branche locale
+  `backup/ffbedition-84d5d1e` (non poussée). La release du 20/10 correspond à `9b84019` de cet historique.
+- Méthode : chaque bloc du diff `main..84d5d1e` étiqueté par fonction (découpe à la ligne quand un bloc en mêle
+  plusieurs, substitution pour trois lignes mixtes), l'arbre de chaque étape reconstruit et compilé avec MinGW et
+  MSVC avant son commit ; l'étape finale comparée à l'ancien arbre (identique) et l'étape 0 à `main`.
+
 
 ### Build MSVC (demande 1)
 - `CMakePresets.json`, `vcpkg.json`, branche `if(MSVC)` dans `CMakeLists.txt`, en-têtes de compatibilité
