@@ -4,6 +4,7 @@
 #undef __x86_64__
 #include <glad/gl.h>
 #include <SDL3/SDL.h>
+#include <math.h>
 #include <stdbool.h>
 
 #include "blitStretching.h"
@@ -74,15 +75,20 @@ static bool blitStretched(void)
     return mode == DISPLAY_WINDOW_STRETCH || mode == DISPLAY_FULLSCREEN_STRETCH;
 }
 
-// The shape the picture is shown with, for a game rendering renderW x renderH
+// The frame's shape, for a game rendering renderW x renderH: the picture keeps its own shape inside it, fills it
+// deformed or fills it cut, as the aspect ratio says (blitPresent)
 static float blitDisplayAspect(int renderW, int renderH)
 {
     switch (getConfig()->aspectRatio)
     {
         case ASPECT_4_3:
-        case ASPECT_4_3_LETTERBOX: // the frame; the picture keeps its shape inside it (blitPresent)
+        case ASPECT_4_3_LETTERBOX:
+        case ASPECT_4_3_STRETCH:
+        case ASPECT_4_3_CROP:
             return 4.0f / 3.0f;
         case ASPECT_16_9:
+        case ASPECT_16_9_STRETCH:
+        case ASPECT_16_9_CROP:
             return 16.0f / 9.0f;
         default:
             if (gameIsOutrunChihiroMode)
@@ -200,6 +206,158 @@ int blitInitializeFbo()
     return 1;
 }
 
+// CROP_BARREL: the cropped aspect ratios keep the frame's middle (BARREL_CENTER of it) as the crop shows it, and bend
+// the parts the crop would cut onto the frame's edges, as on a cylinder seen from the front: a point at the arc s
+// from the middle's edge shows at sin(s / R), R the cylinder's radius (BARREL_RADIUS), scaled so that the picture's
+// edge lands on the frame's; a quarter turn at most. Along the cropped axis, in frames: the crop keeps a share k of
+// the picture, which is 1 / k frames long; d, a point of the frame from 0 to 1, shows the picture at barrelSource(d)
+typedef struct
+{
+    double k;          // the share of the picture the crop keeps
+    double edge;       // each edge's width, in frames
+    double startLeft;  // where the middle starts in the picture, from 0 to 1 (left or top)
+    double startRight; // where it ends
+    double arcLeft;    // the picture beyond the middle on each side, in frames
+    double arcRight;
+    double angleLeft;  // the turn of the cylinder each side's picture takes, in radians
+    double angleRight;
+} Barrel;
+
+static Barrel barrelSetup(double k, double kept)
+{
+    Barrel b;
+    double center = getConfig()->barrelCenter / 100.0, radius = getConfig()->barrelRadius / 100.0;
+    double start = (1.0 - k) * kept; // the crop's window in the picture
+    b.k = k;
+    b.edge = (1.0 - center) / 2.0;
+    b.startLeft = start + k * (1.0 - center) / 2.0;
+    b.startRight = start + k * (1.0 + center) / 2.0;
+    b.arcLeft = b.startLeft / k;
+    b.arcRight = (1.0 - b.startRight) / k;
+    // An edge with more picture than room bends; with less it only stretches
+    b.angleLeft = b.arcLeft > b.edge ? fmin(b.arcLeft / radius, M_PI / 2.0) : 0.0;
+    b.angleRight = b.arcRight > b.edge ? fmin(b.arcRight / radius, M_PI / 2.0) : 0.0;
+    return b;
+}
+
+// x from the middle's edge outward, 0 to the edge's width: the arc of picture shown there
+static double barrelArc(double x, double edge, double arc, double angle)
+{
+    if (edge <= 0.0)
+        return 0.0;
+    if (angle < 1e-4)
+        return arc * x / edge;
+    return arc * asin(sin(angle) * x / edge) / angle;
+}
+
+static double barrelSource(const Barrel *b, double d)
+{
+    if (d < b->edge)
+        return b->startLeft - b->k * barrelArc(b->edge - d, b->edge, b->arcLeft, b->angleLeft);
+    if (d > 1.0 - b->edge)
+        return b->startRight + b->k * barrelArc(d - (1.0 - b->edge), b->edge, b->arcRight, b->angleRight);
+    return b->startLeft + b->k * (d - b->edge);
+}
+
+// The picture drawn in a strip of textured quads, finer on the edges, into dest; the game's GL state kept around it
+// (its programs, ARB and NV ones included, would otherwise draw the strip)
+static void blitPresentBarrel(const Barrel *b, bool horizontal, GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1)
+{
+    GLint program = 0, activeTexture = GL_TEXTURE0;
+    if (glad_glUseProgram)
+        glad_glGetIntegerv(GL_CURRENT_PROGRAM, &program);
+    glad_glGetIntegerv(GL_ACTIVE_TEXTURE, &activeTexture);
+    glad_glPushAttrib(GL_ALL_ATTRIB_BITS);
+    glad_glPushClientAttrib(GL_CLIENT_ALL_ATTRIB_BITS);
+    glad_glMatrixMode(GL_TEXTURE);
+    glad_glPushMatrix();
+    glad_glLoadIdentity();
+    glad_glMatrixMode(GL_PROJECTION);
+    glad_glPushMatrix();
+    glad_glLoadIdentity();
+    glad_glOrtho(0.0, drawableW, 0.0, drawableH, -1.0, 1.0);
+    glad_glMatrixMode(GL_MODELVIEW);
+    glad_glPushMatrix();
+    glad_glLoadIdentity();
+
+    if (glad_glUseProgram)
+        glad_glUseProgram(0);
+    glad_glActiveTexture(GL_TEXTURE0);
+    const GLenum off[] = {GL_DEPTH_TEST, GL_STENCIL_TEST, GL_BLEND, GL_ALPHA_TEST, GL_CULL_FACE, GL_SCISSOR_TEST, GL_LIGHTING,
+                          GL_FOG, GL_TEXTURE_GEN_S, GL_TEXTURE_GEN_T, GL_TEXTURE_GEN_R, GL_TEXTURE_GEN_Q, GL_COLOR_LOGIC_OP};
+    for (size_t i = 0; i < sizeof(off) / sizeof(off[0]); i++)
+        glad_glDisable(off[i]);
+    if (GLAD_GL_ARB_vertex_program)
+        glad_glDisable(GL_VERTEX_PROGRAM_ARB);
+    if (GLAD_GL_ARB_fragment_program)
+        glad_glDisable(GL_FRAGMENT_PROGRAM_ARB);
+    if (GLAD_GL_NV_register_combiners)
+        glad_glDisable(GL_REGISTER_COMBINERS_NV);
+    if (GLAD_GL_NV_texture_shader)
+        glad_glDisable(GL_TEXTURE_SHADER_NV);
+    if (GLAD_GL_NV_vertex_program)
+        glad_glDisable(GL_VERTEX_PROGRAM_NV);
+    glad_glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glad_glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    glad_glViewport(0, 0, drawableW, drawableH);
+    glad_glEnable(GL_TEXTURE_2D);
+    glad_glBindTexture(GL_TEXTURE_2D, fboTextureId);
+    glad_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glad_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glad_glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+    glad_glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+    // The frame's points: each edge in 64 steps, the middle straight
+    enum
+    {
+        STEPS = 64
+    };
+    double points[2 * (STEPS + 1)];
+    int count = 0;
+    for (int i = 0; i <= STEPS; i++)
+        points[count++] = b->edge * i / STEPS;
+    for (int i = 0; i <= STEPS; i++)
+        points[count++] = 1.0 - b->edge + b->edge * i / STEPS;
+    double u0 = (double)srcX0 / blitWidth, u1 = (double)srcX1 / blitWidth;
+    double v0 = (double)srcY0 / blitHeight, v1 = (double)srcY1 / blitHeight;
+    glad_glBegin(GL_QUAD_STRIP);
+    for (int i = 0; i < count; i++)
+    {
+        double source = barrelSource(b, points[i]);
+        if (horizontal) // left to right
+        {
+            double u = u0 + source * (u1 - u0), x = dest.X + points[i] * dest.W;
+            glad_glTexCoord2d(u, v0);
+            glad_glVertex2d(x, dest.Y);
+            glad_glTexCoord2d(u, v1);
+            glad_glVertex2d(x, dest.Y + dest.H);
+        }
+        else // top to bottom, the framebuffer's rows bottom up
+        {
+            double v = v1 - source * (v1 - v0), y = dest.Y + dest.H - points[i] * dest.H;
+            glad_glTexCoord2d(u0, v);
+            glad_glVertex2d(dest.X, y);
+            glad_glTexCoord2d(u1, v);
+            glad_glVertex2d(dest.X + dest.W, y);
+        }
+    }
+    glad_glEnd();
+
+    glad_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glad_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glad_glMatrixMode(GL_MODELVIEW);
+    glad_glPopMatrix();
+    glad_glMatrixMode(GL_PROJECTION);
+    glad_glPopMatrix();
+    glad_glMatrixMode(GL_TEXTURE);
+    glad_glPopMatrix();
+    glad_glPopClientAttrib();
+    glad_glPopAttrib();
+    if (glad_glUseProgram)
+        glad_glUseProgram(program);
+    glad_glActiveTexture(activeTexture);
+}
+
 // Second blit: the game's picture, kept in fboId, scaled into the window's back buffer
 static void blitPresent(void)
 {
@@ -227,13 +385,19 @@ static void blitPresent(void)
         dest.Y = (drawableH - dest.H) / 2;
     }
 
-    // 4:3 with black bars: the 4:3 frame is placed above, fitted or stretched as the mode wants; the picture takes
-    // its share of it at its own shape. Shares of the frame rather than pixels, so that a frame stretched onto a 4:3
-    // screen (a 16:9 signal on a 4:3 monitor) shows the picture at its true shape.
-    if (getConfig()->aspectRatio == ASPECT_4_3_LETTERBOX)
+    // The picture in the frame (the frame placed above, fitted or stretched as the display mode wants; only the
+    // *_STRETCH modes stretch it). 4:3 and 16:9, as in windowsloader: the picture takes its share of the frame at its
+    // own shape, with black bars where the shapes differ; shares of the frame rather than pixels, so that a frame
+    // stretched onto a 4:3 screen (a 16:9 signal on a 4:3 monitor) shows the picture at its true shape (4:3_LETTERBOX
+    // is 4:3). 4:3_STRETCH and 16:9_STRETCH: the picture fills the frame, deformed. 4:3_CROP and 16:9_CROP: it fills
+    // the frame at its shape, the part that overflows cut, the part kept placed by CROP_POSITION.
+    int aspectRatio = getConfig()->aspectRatio;
+    GLint srcX0 = gameIsOutrunChihiroMode ? 80 : 0, srcY0 = 0; // Chihiro's 640 px in the middle of its 800
+    GLint srcX1 = gameIsOutrunChihiroMode ? 720 : blitWidth, srcY1 = blitHeight;
+    float frameAspect = blitDisplayAspect(blitWidth, blitHeight);
+    float pictureAspect = (float)(srcX1 - srcX0) / (float)(srcY1 - srcY0);
+    if (aspectRatio == ASPECT_4_3 || aspectRatio == ASPECT_4_3_LETTERBOX || aspectRatio == ASPECT_16_9)
     {
-        float frameAspect = 4.0f / 3.0f;
-        float pictureAspect = gameIsOutrunChihiroMode ? 640.0f / 480.0f : (float)blitWidth / (float)blitHeight;
         if (pictureAspect > frameAspect)
         {
             GLsizei h = (GLsizei)((float)dest.H * frameAspect / pictureAspect + 0.5f);
@@ -245,6 +409,33 @@ static void blitPresent(void)
             GLsizei w = (GLsizei)((float)dest.W * pictureAspect / frameAspect + 0.5f);
             dest.X += (dest.W - w) / 2;
             dest.W = w;
+        }
+    }
+    bool barrel = false, barrelHorizontal = true;
+    Barrel bend;
+    if ((aspectRatio == ASPECT_4_3_CROP || aspectRatio == ASPECT_16_9_CROP) && getConfig()->cropBarrel &&
+        pictureAspect != frameAspect)
+    {
+        // The whole picture, its cut parts bent onto the edges (blitPresentBarrel)
+        double kept = (getConfig()->cropPosition + 100) / 200.0;
+        barrel = true;
+        barrelHorizontal = pictureAspect > frameAspect;
+        bend = barrelSetup(barrelHorizontal ? frameAspect / pictureAspect : pictureAspect / frameAspect, kept);
+    }
+    else if (aspectRatio == ASPECT_4_3_CROP || aspectRatio == ASPECT_16_9_CROP)
+    {
+        float kept = (getConfig()->cropPosition + 100) / 200.0f; // 0 left or top, 1 right or bottom
+        if (pictureAspect > frameAspect)                           // too wide: the sides go
+        {
+            GLint w = (GLint)((float)(srcY1 - srcY0) * frameAspect + 0.5f);
+            srcX0 += (GLint)((float)(srcX1 - srcX0 - w) * kept + 0.5f);
+            srcX1 = srcX0 + w;
+        }
+        else if (pictureAspect < frameAspect) // too tall: above and below go (the framebuffer's rows bottom up)
+        {
+            GLint h = (GLint)((float)(srcX1 - srcX0) / frameAspect + 0.5f);
+            srcY0 += (GLint)((float)(srcY1 - srcY0 - h) * (1.0f - kept) + 0.5f);
+            srcY1 = srcY0 + h;
         }
     }
 
@@ -264,17 +455,14 @@ static void blitPresent(void)
     glad_glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // We want to draw to 0
     CHECK_GL("bind DRAW 0 second blit");
 
-    if (gameIsOutrunChihiroMode)
+    if (barrel)
     {
-        // Crop center 640px from 800-wide FBO: remove 80px left, 80px right
-        glad_glBlitFramebuffer(80, 0, 720, blitHeight, dest.X, dest.Y, dest.X + dest.W, dest.Y + dest.H, GL_COLOR_BUFFER_BIT,
-                               GL_LINEAR);
+        blitPresentBarrel(&bend, barrelHorizontal, srcX0, srcY0, srcX1, srcY1);
+        CHECK_GL("bent picture to default framebuffer");
+        return;
     }
-    else
-    {
-        glad_glBlitFramebuffer(0, 0, blitWidth, blitHeight, dest.X, dest.Y, dest.X + dest.W, dest.Y + dest.H, GL_COLOR_BUFFER_BIT,
-                               GL_LINEAR);
-    }
+    glad_glBlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dest.X, dest.Y, dest.X + dest.W, dest.Y + dest.H, GL_COLOR_BUFFER_BIT,
+                           GL_LINEAR);
     CHECK_GL("second blit (GL_LINEAR scaled) to default framebuffer");
 }
 

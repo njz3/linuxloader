@@ -45,6 +45,7 @@ extern "C" {
     void bridgeXSendEvent(Display *dpy, Window w, bool propagate, long event_mask, XEvent *event_send);
     
     int bridgeXCheckTypedEvent(Display *dpy, int type, XEvent *event_return);
+    int bridgeXIfEvent(Display *dpy, XEvent *event_return, int (*predicate)(Display *, XEvent *, char *), char *arg);
     int bridgeXSelectInput(Display *dpy, Window win, long event_mask);
     int bridgeXSetCloseDownMode(Display *dpy, int close_mode);
     int bridgeXSetInputFocus(Display *dpy, Window win, int revert_to, Time time);
@@ -100,6 +101,26 @@ extern "C" {
     void bridgeXUndefineCursor(Display *dpy, Window w);
     Cursor bridgeXCreateFontCursor(Display *dpy, int shape);
     Pixmap bridgeXCreateBitmapFromData(Display *dpy, Drawable drawable, char *data, unsigned int width, unsigned int height);
+    void *bridgeXCreateImage(Display *dpy, Visual *visual, unsigned int depth, int format, int offset, char *data, unsigned int width,
+                             unsigned int height, int bitmap_pad, int bytes_per_line);
+    int bridgeXPutImage(Display *dpy, Drawable d, void *gc, void *image, int src_x, int src_y, int dest_x, int dest_y, unsigned int width,
+                        unsigned int height);
+    Pixmap bridgeXCreatePixmap(Display *dpy, Drawable d, unsigned int width, unsigned int height, unsigned int depth);
+    void *bridgeXCreateGC(Display *dpy, Drawable d, unsigned long valuemask, void *values);
+    int bridgeXFreeGC(Display *dpy, void *gc);
+
+    // --- Window operations, screensaver, DPMS, keysyms ---
+    int bridgeXWindowNoOp(Display *dpy, Window w);
+    int bridgeXMoveResizeWindow(Display *dpy, Window w, int x, int y, unsigned int width, unsigned int height);
+    int bridgeXReparentWindow(Display *dpy, Window w, Window parent, int x, int y);
+    int bridgeXSetWindowBackground(Display *dpy, Window w, unsigned long background_pixel);
+    int bridgeXGetScreenSaver(Display *dpy, int *timeout, int *interval, int *prefer_blanking, int *allow_exposures);
+    int bridgeXSetScreenSaver(Display *dpy, int timeout, int interval, int prefer_blanking, int allow_exposures);
+    int bridgeDPMSQueryExtension(Display *dpy, int *event_base, int *error_base);
+    int bridgeDPMSDisable(Display *dpy);
+    unsigned long bridgeXKeycodeToKeysym(Display *dpy, unsigned int keycode, int index);
+    unsigned long bridgeXStringToKeysym(const char *string);
+    int bridgeXQueryKeymap(Display *dpy, char keys[32]);
 
     // --- XF86VidMode Extension (Stubs) ---
     int bridgeXF86VidModeQueryExtension(Display *dpy, int *event_base_return, int *error_base_return);
@@ -117,6 +138,7 @@ extern "C" {
     int bridgeXReply(Display *dpy, int *rep, int size, int expect_reply);
 
     XWMHints *bridgeXAllocWMHints();
+    XSizeHints *bridgeXAllocSizeHints();
 #ifdef __cplusplus
 }
 #endif

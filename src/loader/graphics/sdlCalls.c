@@ -154,7 +154,9 @@ void startSDL()
 
     uint32_t windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN;
 
-    g_SdlWindow = SDL_CreateWindow(getGameName(), windowWidth, gHeight, windowFlags);
+    char title[256];
+    formatWindowTitle(title, sizeof(title), -1.0);
+    g_SdlWindow = SDL_CreateWindow(title, windowWidth, gHeight, windowFlags);
 
     if (g_SdlWindow)
     {

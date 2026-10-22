@@ -1,0 +1,194 @@
+# Bilan des jeux Linux de racecab1 sur le loader Windows
+
+Rempli au fur et à mesure, jeu par jeu (demande du 22/10). Chaque jeu est copié seul depuis racecab1, débarrassé des
+fichiers TeknoParrot et FFB Plugin, essayé, puis mis à la Corbeille. Build MinGW ; essais en mode agent (fenêtre
+cachée, entrées injectées, retour de force lu dans le modèle de la carte servo), puis à travers vJoy (fenêtre visible).
+Depuis le 22/10 au matin, le loader demande le GPU dédié des portables à deux GPU (`NvOptimusEnablement`) : ce PC a une
+GeForce RTX 3050 Laptop à côté de l'Intel UHD, et les essais tournent sur la GeForce.
+
+Légende : ✅ vérifié · ⚠️ partiel ou non vérifié · ❌ ne marche pas · ⏳ pas encore essayé · — sans objet
+
+## Synthèse par jeu et par fonction
+
+| Jeu | Démarrage | Affichage | Contrôles | vJoy | Retour de force | Menu de service | Remarques |
+|:--|:--|:--|:--|:--|:--|:--|:--|
+| Initial D 4 Export FR (Rev D) | ✅ | ✅ 1360×768 plein cadre | ✅ pièces, Start, volant, gaz, frein | ✅ partie menée par vJoy, retour de force reçu | ✅ couple 84, amortisseur 86, vibrations 85 | ✅ menu complet, navigation, test des sorties | menus et démo en français |
+| Maximum Heat 3D | ✅ contrôle du link passé (borne seule) | ✅ 1360×768 | ✅ pièces, menus à l'accélérateur, volant, frein, vue | ✅ partie menée par vJoy, retour de force reçu | ✅ ressort, amortisseur, couple (carte Kickback) | ✅ menu de test, test des E/S, retour au jeu | caméra coupée (pas de /dev/video0) |
+| Dead Heat Riders | ⛔ s'arrête sur « DONGLE ERROR 1, E193 » | ✅ (écran de démarrage) | ⏳ | ⏳ | ⏳ | ⏳ | clé HASP USB exigée (`clHASP::Check` par libusb) : non contournée, décision à prendre |
+| Ring Riders | ✅ | ✅ sur GPU NVIDIA (blanc sur Intel : register combiners) | ✅ pièces, Start, guidon (sens corrigé), poignée, frein | ✅ course menée par vJoy (pièce, Start, Service, guidon, poignée, frein), retour de force reçu | ✅ moteur du guidon (rappel au centre, sens corrigé) et vibreur | ✅ menu TEST, Input/Output, mire | son émulé (carte son Gaelco) ; plateforme de mouvement absente (« MOTION SYSTEM ERROR LOG ») |
+| Tokyo Cop | ✅ | ✅ sur GPU NVIDIA | ✅ pièces, klaxon (Start), volant (sens corrigé), accélérateur, frein (contact, nouveau), sirène, vue | ✅ poursuite menée par vJoy (pièce, klaxon, volant, accélérateur, sirène, frein), retour de force reçu | ✅ moteur du volant (rappel au centre, sens corrigé) | ✅ menu TEST (code de touche 0x14), Controls Test, mire | son émulé ; « MOTION SYSTEM ERROR! » (siège mobile absent) |
+| Gaelco Championship Tuning Race | ✅ (dérouleur C++ du jeu) | ✅ 720×540 natif | ✅ pièces, Start, volant, accélérateur, frein, vue, palettes (boîte manuelle) | ✅ course menée par vJoy (pièce, Start, volant, accélérateur, frein, vue), retour de force reçu | ✅ moteur du volant (rappel au centre) | ✅ menu Test, Controls Test (toutes les commandes affichées justes) | son émulé ; plateforme de mouvement absente ; « Control de produccion » (écran d'usine) fait quitter le jeu |
+| Dead Heat (non-régression) | ✅ | ✅ sur GPU NVIDIA | ✅ course | — | ✅ ressort, amortisseur, couple | — | revérifié après les changements communs ; patch du PCB ID retiré |
+
+## Bilan par fonction (22/10)
+
+- **Démarrage** : 6 jeux sur 7 démarrent et se jouent (ID4 FR, Maximum Heat 3D, Dead Heat, Ring Riders, Tokyo Cop,
+  Gaelco Tuning). Dead Heat Riders s'arrête sur sa clé HASP USB : la contourner est une décision à prendre.
+- **Affichage** : chaque jeu à sa résolution native (1360×768 pour Namco et ID4, 640×480 Ring Riders et Tokyo Cop,
+  720×540 Gaelco Tuning), mise à l'échelle par le loader ; ASPECT_RATIO aligné sur windowsloader ; GPU dédié demandé
+  (indispensable aux jeux Gaelco, qui dessinent avec les register combiners NVIDIA).
+- **Contrôles** : tous vérifiés en mode agent (pièces, Start, volant, pédales, boutons propres à chaque jeu) et, pour
+  les jeux Gaelco, dans leur propre écran de test des commandes. Corrigé en route : le sens du volant des trois jeux
+  Gaelco, le frein de Tokyo Cop (un contact), ses boutons sirène et vue, la touche fantôme du port 0x42.
+- **Retour de force** : chaque carte du jeu est convertie en trames de la carte servo Sega pour le modèle FFB du
+  loader (ID4 : `_sSCI::send` ; Namco : carte Kickback ; Gaelco : sorties moteur 4 et 5 et vibreur). Le sens du rappel
+  est vérifié par le signe du couple pour les jeux Gaelco.
+- **vJoy** : les cinq jeux qui démarrent sont joués de bout en bout par vJoy, le retour de force reçu par vJoy (Ring
+  Riders 3 574 forces constantes et 71 vibrations en course, Tokyo Cop 900, Tuning 1 909).
+- **Menu de service** : ouvert et parcouru pour ID4 FR, Maximum Heat 3D, Ring Riders, Tokyo Cop (depuis aujourd'hui)
+  et Gaelco Tuning ; Dead Heat (non-régression) ne l'a pas été.
+- **Son** : non vérifié pour ID4 et les jeux Namco (essais sans écoute). Jeux Gaelco : leur carte son est émulée
+  (`hardware/gaelco/gaelcoSound.c`, ci-dessous) ; la musique de Tuning capturée est identique à son échantillon
+  (corrélation 1,000, niveau attendu), Ring Riders et Tokyo Cop jouent du début à la fin.
+- **Mouvement** : les plateformes et sièges mobiles Gaelco sont absents (messages « MOTION SYSTEM ERROR », sans gêne
+  pour le jeu).
+
+## Détail par jeu
+
+### Initial D 4 Export FR (Rev D, SBNK)
+- **Démarrage** : l'écran « Card Stocker Cleaning » venait du `sram.bin` neuf (compteur du stocker à 0) : les
+  vérifications de nettoyage renvoient 0, comme pour ID5.
+- **Affichage** : `initialD.ini` de TeknoParrot (1920×1080, hors des limites du jeu) donnait une image de 800×1080
+  coupée ; la résolution est maintenant imposée, en jeu (taille de la fenêtre) et dans le programme de test
+  (1360×768).
+- **Contrôles** (mode agent) : pièces, Start, menus (licence, constructeur, modèle, couleur, boîte, mode, circuit,
+  rival), course : départ, accélération jusqu'à 174 km/h, volant à gauche et à droite, frein.
+- **Retour de force** : la carte de retour de force d'ID4 (`cFeedbackSCI`) parle le protocole de la carte servo
+  Sega sur un port série ; ses trames de 4 octets (`_sSCI::send`) vont maintenant au modèle FFB du loader, à l'agent
+  et aux network outputs. En course : 3 641 trames de couple (84), 55 vibrations (85), l'amortisseur (86).
+- **Menu de service** : programme de test (`-t`) : « GAME TEST MODE », navigation avec Service, Test pour entrer et
+  sortir (test des sorties vu).
+- **vJoy** : partie menée entièrement par vJoy (pièces, Start dans les menus, accélérateur, volant) dans une fenêtre
+  visible ; vJoy reçoit 48 forces constantes (non nulles dès le départ de la course), 6 conditions, 2 vibrations.
+- `id4.elf` est l'ELF anglais ; les textes français viennent des données ; `id4.elf originallllll` (traduit) non
+  essayé.
+
+### Maximum Heat 3D (Namco ES1, US DRIVE rév. 8807)
+- Le moteur de Dead Heat (rév. 6273) : entrée de jeu (CRC partiel 0xF932E88E) et groupe commun avec Dead Heat ;
+  mêmes patches à ses adresses (dongle HASP, groupe du link, destructeurs) ; cartes N2 et Kickback émulées par une
+  table d'adresses par jeu.
+- **Démarrage** : ses shaders commencent par `#version 120` (la déclaration de `gl_TexCoord` va après) ; la caméra
+  (`USE_CAMERA_DEVICE`) est coupée ; le contrôle du link au démarrage passe maintenant comme sur une borne seule :
+  - le jeu règle lui-même son adresse (`sudo ifconfig eth0 192.168.32.115`) et la relit (`ifconfig.pl`, ioctl) :
+    le loader garde l'adresse réglée ;
+  - ce PC répond pour cette adresse : ses propres paquets multicast reviennent de 192.168.32.115, ses connexions
+    TCP vers elle vont à 127.0.0.1, `getpeername`/`getsockname`/`accept` rendent son adresse ;
+  - au passage : options de socket Linux traduites, `write`/`read` sur les sockets, `shutdown` en cdecl.
+- **Contrôles** (mode agent) : pièces, accélérateur pour choisir (voiture, couleur, ville, cadre photo), course :
+  départ, jusqu'à 211 km/h, boîte, volant, frein, changement de vue.
+- **Retour de force** : 287 ressorts, 17 amortisseurs, 178 forces constantes en course (carte Kickback → trames
+  servo).
+- **Menu de service** : interrupteur Test (qui reste enclenché) : menu, curseur, test des E/S ; Test relâché, le jeu
+  redémarre.
+- **vJoy** : partie menée par vJoy ; vJoy reçoit 50 conditions et des forces constantes en course.
+- Dead Heat à revérifier (code commun modifié) : à recopier quand le partage sera libre.
+
+### Changements pour tous les jeux (22/10)
+- **GPU dédié** : `NvOptimusEnablement` et `AmdPowerXpressRequestHighPerformance` exportés par le loader (les jeux
+  visent NVIDIA ; Gaelco dessine avec les register combiners que l'Intel n'a pas).
+- **Titre de fenêtre** : « titre [nom court] - FPS: n » (`[id4-exp-rev-d]`, `[deadheat]`...) pour l'autodétection de
+  BackForceFeeder, comme windowsloader (demande de l'utilisateur relayée par windowsloader).
+- **ASPECT_RATIO** aligné sur windowsloader : 4:3 et 16:9 sont la forme du cadre, l'image garde la sienne dedans avec
+  des bandes noires ; seuls les modes étirés étirent ; 4:3_LETTERBOX = 4:3.
+- Mode agent sans manette : le modèle de la carte servo démarre quand même (le journal `ffb` de l'agent marche avec
+  vJoy caché).
+
+### Dead Heat Riders (Namco, DH RIDERS rév. 1247)
+- Le moteur de Dead Heat : entrée de jeu (CRC partiel 0x5D3DF1CD), groupe Dead Heat (shaders, entrées).
+- libstdc++ plus récente (GLIBCXX_3.4.14) : le loader choisit maintenant `libstdc++.so.6.0.N` selon ce que le jeu
+  demande ; `libstdc++.so.6.0.14` ajoutée aux dépendances (reprise de `ElfLdr2\libs` de TeknoParrot) ; `fgetpos`,
+  `fsetpos`, `strtof`, `strtold`, `strtoul`, `frexpl`, libusb sans périphérique.
+- Démarre jusqu'à « DEADHEAT RIDERS PCB BOOT UP », puis **« DONGLE ERROR 1, E193 »** : il cherche sa clé HASP sur USB
+  (`clHASP::Check`). La contourner, c'est un contournement de protection par rétro-ingénierie : pas fait, à décider
+  (comme pour Cruis'n Blast).
+
+- **C++ des programmes à dérouleur propre** : un programme qui lie son propre dérouleur d'exceptions (le runtime C++
+  d'Intel, Gaelco Tuning) enregistre son `.eh_frame` par son propre `__register_frame_info`, appelé par la PLT ; le
+  loader branchait ces relocations sur son pont (libgcc de MinGW) : la liste du jeu restait vide et toute exception
+  finissait en abort. Comme ld.so, la définition du programme gagne maintenant pour ces quatre fonctions.
+- **Volant des trois jeux Gaelco** : la carte Gaelco lit la gauche en valeur haute ; Ring Riders et Tokyo Cop
+  tournaient à l'envers (et leur moteur poussait dans le sens du braquage). Vérifié dans les trois écrans de test des
+  commandes, dans les menus (sélection à droite avec le volant à droite) et par le signe du couple.
+- **`findStaticFnAddr` sous Windows** ne rend plus que les fonctions définies par le jeu (comme la lecture de
+  `.symtab` sous Linux) ; il passait par la résolution générale et rendait le pont du loader pour un nom que le jeu
+  importe : le remplacement posait alors un saut du pont vers lui-même. Sur MSVC (qui fusionne les fonctions
+  identiques), les trois jeux Gaelco tournaient en rond à la création de leur fenêtre.
+- **Fichiers pris pour des sockets** : `read`, `write` et `close` passaient à Winsock tout descripteur dont la valeur
+  était aussi celle d'une socket ouverte ; Ring Riders a ainsi attendu dans `recv` en lisant ses modèles (selon les
+  valeurs des handles, d'où un défaut intermittent). Un descripteur ouvert de la libc est maintenant toujours un
+  fichier.
+- **Build MSVC** : Ring Riders, Tokyo Cop et Gaelco Tuning démarrent aussi sur MSVC (démos ; Tuning jusqu'en course).
+- **vJoy des jeux Gaelco (22/10, après le bilan)** : la boîte du pare-feu n'y était pour rien. Deux causes : les jeux
+  Gaelco chargent 45 à 60 s en lancement normal (la pièce envoyée avant est perdue), et vJoy n'expose plus que 4 axes
+  (X, Y, Z, Rz) : SDL voit l'accélérateur sur l'axe 3, le `controls.ini` de test l'attendait sur l'axe 5 (réglage d'un
+  vJoy à 6 axes) ; corrigé dans `build-mingw/controls.ini`. Service se tient environ une seconde.
+
+### Son des jeux Gaelco (22/10, après le bilan)
+- La carte son Gaelco est un échantillonneur de 16 voies à 48 kHz. Au démarrage, le jeu lui envoie toute sa banque
+  (`roms.new` : 14 à 22 Mo, une table d'en-têtes de 32 octets puis les échantillons), décrite par le `sound.h` livré
+  avec Tuning : début, longueur, pas de phase à 48 kHz (2730 = 32 kHz, 3763 = 44,1 kHz), gain (0x4000 = 1), type
+  (16 bits, 8 bits, IMA ADPCM 4 bits, quartet haut d'abord : le seul ordre où les deux voies d'une musique stéréo se
+  ressemblent, 0,82 contre 0,11).
+- Commandes (`add_comm`) : préparer une voie (échantillon, boucle), la lancer, fréquence (0x0FFF = hauteur
+  d'origine), panoramique sur 4 sorties (0 gauche, 1 droite ; 2 et 3 non entendues), volume et vitesse de rampe,
+  keyoff (fondu), stop ; commandes d'interface : volume général (le réglage du jeu au carré, 0,25 par défaut), balance,
+  voies en cours, `sound_start`, tampon prêt.
+- `gaelcoSound.c` mixe en stéréo sur le périphérique audio du loader : mis en pause par F10, muet en mode agent caché.
+  `LL_SOUND_WAV=<fichier>` enregistre ce que joue la carte (vérification sans écouter).
+- Vérifié par captures (MinGW et MSVC) : Tuning, la musique de la démo à la hauteur et au niveau exacts, puis menus et
+  course ; Ring Riders et Tokyo Cop, démo et partie. Pas encore écouté sur les haut-parleurs.
+
+### Ring Riders (Gaelco PC, 2004)
+- Image disque Linux complète : chemins absolus pris dans l'image (`/home/joc2001/...`, `/home/save0/...`).
+- La carte d'interface Gaelco émulée (`hardware/gaelco/gaelcoIo.c`) : le jeu l'appelle par des appels système du
+  noyau Gaelco (`iogaelco_*`, int 0x80 n° 229 à 236), remplacés par leurs symboles :
+  - commande 8 : les registres des commandes (0 et 1 les contacts, actifs bas sauf le bouton d'urgence ; 4 à 8 les
+    voies analogiques) ; commandes 6 et 7 : les compteurs des monnayeurs ; port 0x41 bit 1 : le bouton Test ;
+  - commande 9 : les sorties (4 et 5 le moteur du guidon, 6 et 7 les vibreurs) → trames de la carte servo ;
+  - Ring Riders : registre 0 bit 5 Start, bit 1 Service ; voie 4 le guidon, 5 la poignée (inversée), 6 le frein
+    (plage fixe) ; le jeu calibre lui-même ses voies : le loader les balaie aux deux bouts au démarrage.
+- Rendu correct sur la GeForce (register combiners NVIDIA) ; blanc sur l'Intel.
+- Course jouée en mode agent (jusqu'à 138 km/h, dépassements, frein) ; retour de force : 1 146 trames de couple,
+  26 vibrations ; menu TEST (Service), navigation (Start descend, gauche monte), mire.
+- Guidon corrigé le 22/10 : l'écran Input/Output affichait 230 (+0,85) guidon à gauche, et le moteur poussait du côté
+  du braquage ; inversé, la moto penche et tourne du bon côté et le couple ramène au centre (gauche −0,29, droite
+  +0,60 en course).
+- Manque : la plateforme de mouvement.
+
+### Tokyo Cop (Gaelco PC, 2003)
+- GCC 2.95 : ses méthodes `iolinux` font les appels système elles-mêmes, remplacées aussi ; son ancienne interface lit
+  les commandes sur des ports (0x40, 0x41, 0x44 à 0x47) et écrit le couple du moteur sur les ports 0x44 et 0x45.
+- Voies : 4 le volant, 5 l'accélérateur, 6 le frein (non inversés).
+- Démo, menus (mode, agent, quartier, mission, garage), poursuite jusqu'à 113 km/h ; retour de force : 217 trames
+  de couple.
+- Menu de test (22/10) : `readDirectTest` (le port 0x41) n'est jamais appelée ; la boucle principale entre en test sur
+  le bit 0x800, le code de touche 0x14 du port 0x42 (0x10 le crédit de service), comme Tuning. Le loader y renvoyait
+  0xFF : la touche 0x1F du pavé numérique enfoncée en permanence. Menu : vue monte, sirène descend, klaxon entre ;
+  Controls Test : volant 25 à gauche, 230 à droite, accélérateur 255, frein, sirène, vue justes.
+- Son câblage (`test_io`) : port 0x40 bit 4 le frein (un contact : il ne freinait pas jusqu'ici ; le loader le lève
+  au-delà du quart de la voie de frein), bit 5 le klaxon (confirme les menus : Start) ; port 0x41 bit 0 la vue, bit 1
+  la sirène. En poursuite, freinage de 111 à 48 km/h, puis de 106 à 0 km/h.
+- Volant corrigé comme Ring Riders (la sélection du garage partait à droite volant à gauche).
+- Son : il n'envoyait aucune commande tant que la carte ne disait pas son tampon prêt (commande d'interface 11 chez
+  lui, 13 chez les deux autres).
+- Manque : le siège mobile.
+
+### Gaelco Championship Tuning Race (Gaelco PC, 2005)
+- Ajouts : `scandir`/`alphasort`, `XQueryKeymap`, la bibliothèque XF86VidMode liée en statique remplacée (modes par
+  le pont X11, gamma en identité), socket Ethernet brute laissée en échec.
+- L'abandon après 40 s n'était pas dans les données : la démo cherche « Retrovisor01 » dans chaque vue, aussi dans
+  m_exhvp02a qui n'a que RETROVISOR02 ; `findMaterial` lance une exception que `iniEfecObjectSpotViewPort` attrape. Sous
+  le loader, le dérouleur d'Intel lié au jeu ne trouvait aucune FDE (`_Unwind_Find_Fde` → abort) : voir « C++ des
+  programmes à dérouleur propre » plus haut.
+- Résolution native 720×540 (codée en dur dans le jeu) : l'entrée disait 640×480, l'image était coupée.
+- Commandes (`Mandos::readControls`) : registre 0 bit 2 Start, bit 3 la vue, bits 4 et 5 les palettes ; registre 2 le
+  code d'une touche (0x10 crédit de service, 0x14 menu de test) ; voies 4, 5 et 6 le volant, l'accélérateur et le
+  frein, que le jeu calibre lui-même (balayées au démarrage). Parties en mode agent : pièce, menus (mode, voiture,
+  boîte, circuit), course jusqu'à 215 km/h, boîte manuelle N-1-2-3 puis 3-2-1 aux palettes, changement de vue (le
+  rétroviseur s'affiche).
+- Retour de force : sorties 4 et 5 comme Ring Riders ; volant tenu à gauche, le couple pousse à droite (−0,39 en
+  moyenne), et l'inverse.
+- Menu Test : Adjust Screen, Controls, Sound, Motion System, Settings... ; Controls Test : Start, accélérateur 1,00,
+  frein 1,00, volant −0,82 à gauche et +0,82 à droite. « Control de produccion » (numéro de série, adresse MAC) fait
+  quitter le jeu au deuxième Start : écran d'usine, non creusé.
+- vJoy : course menée par vJoy (pièce, Start, volant, accélérateur, frein, vue), 1 909 forces constantes reçues.

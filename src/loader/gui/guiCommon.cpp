@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <filesystem>
 #include <cstring>
 #include <fstream>
 #include <sstream>
@@ -81,9 +82,21 @@ const std::unordered_map<std::string, const char *> &frenchTexts()
         {"Full screen", "Plein écran"},
         {"Full screen, stretched", "Plein écran étiré"},
         {"Original: the shape of the game's render resolution.", "Original : la forme de la résolution de rendu du jeu."},
-        {"4:3 with black bars", "4:3 avec bandes noires"},
-        {"4:3 with black bars: a 4:3 frame with the whole picture inside at its own shape, bars above and below a 16:9 one, for a 4:3 monitor.",
-         "4:3 avec bandes noires : un cadre 4:3 avec l'image entière dedans, à ses propres proportions, des bandes en haut et en bas d'une image 16:9, pour un écran 4:3."},
+        {"4:3, black bars", "4:3, bandes noires"},
+        {"16:9, black bars", "16:9, bandes noires"},
+        {"4:3, stretched", "4:3, étiré"},
+        {"16:9, stretched", "16:9, étiré"},
+        {"4:3, cropped", "4:3, recadré"},
+        {"16:9, cropped", "16:9, recadré"},
+        {"Crop position", "Position du recadrage"},
+        {"Black bars: the frame's shape, with the whole picture inside at its own shape and black bars where the shapes differ. Stretched: the picture fills the frame, deformed. Cropped: the picture fills the frame at its own shape, cut on the sides (or above and below); the crop position moves the part kept. The display mode then fits the frame to the window or the screen, or stretches it.",
+         "Bandes noires : la forme du cadre, avec l'image entière dedans à ses propres proportions et des bandes noires là où les formes diffèrent. Étiré : l'image remplit le cadre, déformée. Recadré : l'image remplit le cadre à ses proportions, coupée sur les côtés (ou en haut et en bas) ; la position du recadrage déplace la partie gardée. Le mode d'affichage ajuste ensuite le cadre à la fenêtre ou à l'écran, ou l'étire."},
+        {"-100: left or top, 0: the middle, 100: right or bottom.", "-100 : à gauche ou en haut, 0 : au milieu, 100 : à droite ou en bas."},
+        {"Bend the cut parts onto the edges", "Courber les parties coupées sur les bords"},
+        {"Undistorted middle", "Milieu non déformé"},
+        {"Curvature radius", "Rayon de courbure"},
+        {"The whole picture stays visible: the middle (in % of the frame) as cropped, the parts the crop would cut squeezed onto the edges as on a cylinder seen from the front. A small radius bends hard at the edge, a large one squeezes evenly.",
+         "L'image reste entière : le milieu (en % du cadre) comme recadré, les parties que le recadrage couperait comprimées sur les bords comme sur un cylindre vu de face. Un petit rayon courbe fort au bord, un grand comprime uniformément."},
         {"Internal resolution", "Résolution interne"},
         {"Native (AUTO)", "Native (AUTO)"},
         {"%d x %d (custom)", "%d x %d (personnalisée)"},
@@ -132,6 +145,8 @@ const std::unordered_map<std::string, const char *> &frenchTexts()
         {"Save", "Sauvegarder"},
         {"Close", "Fermer"},
         {"Saved to %s", "Sauvegardé dans %s"},
+        {"Save for this game", "Sauvegarder pour ce jeu"},
+        {"Saved to %s (this game only)", "Sauvegardé dans %s (ce jeu seulement)"},
         {"Cannot write %s", "Impossible d'écrire %s"},
         {"Takes effect at the next start.", "Prend effet au prochain démarrage."},
         {"Interface based on sm2-emu's, by Daniel Martin (dmanlfc) and the sm2-emu contributors, modified for the "
@@ -326,7 +341,10 @@ void iniSet(std::vector<std::string> &lines, const char *section, const char *ke
     lines.insert(lines.begin() + at, newLine);
 }
 
-const char *aspectNames[] = {"ORIGINAL", "4:3", "16:9", "4:3_LETTERBOX"};
+// ASPECT_RATIO's names, in ASPECT_* order, and the list F10 offers (4:3_LETTERBOX shown as 4:3)
+const char *aspectNames[] = {"ORIGINAL", "4:3", "16:9", "4:3_LETTERBOX", "4:3_STRETCH", "16:9_STRETCH", "4:3_CROP", "16:9_CROP"};
+const int aspectChoices[] = {ASPECT_ORIGINAL,     ASPECT_4_3,      ASPECT_16_9,     ASPECT_4_3_STRETCH,
+                             ASPECT_16_9_STRETCH, ASPECT_4_3_CROP, ASPECT_16_9_CROP};
 
 // The internal resolutions offered: the game computes and draws its frame at this size when it can be patched to
 struct Resolution
@@ -492,7 +510,7 @@ void renderFrame(int width, int height)
     ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
 }
 
-void drawSettings(bool *open, const std::string &configFile, bool inGame)
+void drawSettings(bool *open, std::string &configFile, bool inGame)
 {
     EmulatorConfig *cfg = getConfig();
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
@@ -554,17 +572,38 @@ void drawSettings(bool *open, const std::string &configFile, bool inGame)
                 ImGui::PopTextWrapPos();
             }
 
-            const char *aspectLabels[] = {tr("Original"), "4:3", "16:9", tr("4:3 with black bars")};
-            int aspect = std::clamp(cfg->aspectRatio, 0, 3);
-            if (ImGui::Combo(tr("Aspect ratio"), &aspect, aspectLabels, 4))
+            const char *aspectLabels[] = {tr("Original"),        tr("4:3, black bars"), tr("16:9, black bars"), tr("4:3, stretched"),
+                                          tr("16:9, stretched"), tr("4:3, cropped"),    tr("16:9, cropped")};
+            int aspect = 0;
+            for (int i = 0; i < IM_ARRAYSIZE(aspectChoices); i++)
+                if (aspectChoices[i] == (cfg->aspectRatio == ASPECT_4_3_LETTERBOX ? ASPECT_4_3 : cfg->aspectRatio))
+                    aspect = i;
+            if (ImGui::Combo(tr("Aspect ratio"), &aspect, aspectLabels, IM_ARRAYSIZE(aspectLabels)))
             {
-                cfg->aspectRatio = aspect;
+                cfg->aspectRatio = aspectChoices[aspect];
                 if (inGame)
                     sdlApplyDisplaySettings();
             }
+            if (cfg->aspectRatio == ASPECT_4_3_CROP || cfg->aspectRatio == ASPECT_16_9_CROP)
+            {
+                // Read at each frame (blitPresent): the picture follows the sliders
+                ImGui::SliderInt(tr("Crop position"), &cfg->cropPosition, -100, 100);
+                ImGui::TextDisabled("%s", tr("-100: left or top, 0: the middle, 100: right or bottom."));
+                bool barrel = cfg->cropBarrel != 0;
+                if (ImGui::Checkbox(tr("Bend the cut parts onto the edges"), &barrel))
+                    cfg->cropBarrel = barrel;
+                if (barrel)
+                {
+                    ImGui::SliderInt(tr("Undistorted middle"), &cfg->barrelCenter, 0, 100, "%d %%");
+                    ImGui::SliderInt(tr("Curvature radius"), &cfg->barrelRadius, 10, 300, "%d %%");
+                    ImGui::PushTextWrapPos(0.0f);
+                    ImGui::TextDisabled("%s", tr("The whole picture stays visible: the middle (in % of the frame) as cropped, the parts the crop would cut squeezed onto the edges as on a cylinder seen from the front. A small radius bends hard at the edge, a large one squeezes evenly."));
+                    ImGui::PopTextWrapPos();
+                }
+            }
             ImGui::TextDisabled("%s", tr("Original: the shape of the game's render resolution."));
             ImGui::PushTextWrapPos(0.0f);
-            ImGui::TextDisabled("%s", tr("4:3 with black bars: a 4:3 frame with the whole picture inside at its own shape, bars above and below a 16:9 one, for a 4:3 monitor."));
+            ImGui::TextDisabled("%s", tr("Black bars: the frame's shape, with the whole picture inside at its own shape and black bars where the shapes differ. Stretched: the picture fills the frame, deformed. Cropped: the picture fills the frame at its own shape, cut on the sides (or above and below); the crop position moves the part kept. The display mode then fits the frame to the window or the screen, or stretches it."));
             ImGui::PopTextWrapPos();
 
             const char *modeLabels[] = {tr("Window, square pixels"), tr("Window, stretched"), tr("Full screen"), tr("Full screen, stretched")};
@@ -671,6 +710,32 @@ void drawSettings(bool *open, const std::string &configFile, bool inGame)
             snprintf(message, sizeof(message), controlsWritten ? tr("Saved to %s and controls.ini") : tr("Saved to %s"), configFile.c_str());
         g_status = message;
     }
+    // The game's own file, <short name>.ini beside the settings file: a copy of it the first time (its other settings
+    // kept), then read in its place at the next start (config.c) and by the picker
+    const char *shortTitle = getConfig()->gameShortTitle;
+    if (inGame && shortTitle && shortTitle[0])
+    {
+        ImGui::SameLine();
+        if (ImGui::Button(tr("Save for this game")))
+        {
+            namespace fs = std::filesystem;
+            fs::path own = fs::path(configFile).parent_path() / (std::string(shortTitle) + ".ini");
+            std::error_code error;
+            if (!fs::exists(own, error) && fs::exists(configFile, error))
+                fs::copy_file(configFile, own, error);
+            char message[1200];
+            bool controlsWritten = false;
+            if (error || !saveSettings(own.string()))
+                snprintf(message, sizeof(message), tr("Cannot write %s"), own.string().c_str());
+            else
+            {
+                configFile = own.string(); // the next saves go there too
+                controlsSave(inGame, &controlsWritten);
+                snprintf(message, sizeof(message), tr("Saved to %s (this game only)"), configFile.c_str());
+            }
+            g_status = message;
+        }
+    }
     ImGui::SameLine();
     if (ImGui::Button(tr("Close")))
         *open = false;
@@ -689,7 +754,11 @@ bool saveSettings(const std::string &configFile)
     int mode = currentDisplayMode();
     snprintf(number, sizeof(number), "%.1f", cfg->fpsTarget);
     return iniUpdate(configFile, {
-                                     {"Display", "ASPECT_RATIO", aspectNames[std::clamp(cfg->aspectRatio, 0, 3)]},
+                                     {"Display", "ASPECT_RATIO", aspectNames[std::clamp(cfg->aspectRatio, 0, IM_ARRAYSIZE(aspectNames) - 1)]},
+                                     {"Display", "CROP_POSITION", std::to_string(cfg->cropPosition)},
+                                     {"Display", "CROP_BARREL", cfg->cropBarrel ? "true" : "false"},
+                                     {"Display", "BARREL_CENTER", std::to_string(cfg->barrelCenter)},
+                                     {"Display", "BARREL_RADIUS", std::to_string(cfg->barrelRadius)},
                                      {"Display", "WIDTH", cfg->internalWidth > 0 ? std::to_string(cfg->internalWidth) : "AUTO"},
                                      {"Display", "HEIGHT", cfg->internalHeight > 0 ? std::to_string(cfg->internalHeight) : "AUTO"},
                                      {"Display", "DISPLAY_MODE", displayModeNames[std::clamp(mode, 0, 3)]},

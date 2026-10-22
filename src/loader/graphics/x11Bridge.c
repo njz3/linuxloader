@@ -182,8 +182,35 @@ XWMHints *bridgeXAllocWMHints()
     return (XWMHints *)calloc(1, sizeof(XWMHints));
 }
 
+XSizeHints *bridgeXAllocSizeHints()
+{
+    return (XSizeHints *)calloc(1, sizeof(XSizeHints));
+}
+
 int bridgeXCheckTypedEvent(Display *dpy, int type, XEvent *event_return)
 {
+    return 0;
+}
+
+// XIfEvent waits for an event the predicate accepts: the games wait so for their window's MapNotify after XMapWindow.
+// No X server sends it here: an Expose then a MapNotify of the window are offered, and the MapNotify is returned when
+// the predicate takes neither, rather than waiting forever
+int bridgeXIfEvent(Display *dpy, XEvent *event_return, int (*predicate)(Display *, XEvent *, char *), char *arg)
+{
+    static const int types[] = {Expose, MapNotify}; // MapNotify last: the one left when neither is taken
+    Window win = (Window)getSDLWindow();
+    for (int i = 0; i < 2; i++)
+    {
+        memset(event_return, 0, sizeof(XEvent));
+        event_return->xany.type = types[i];
+        event_return->xany.display = dpy;
+        event_return->xany.window = win;
+        if (types[i] == MapNotify)
+            event_return->pad[5] = (long)win; // XMapEvent's window, after its event window
+        if (predicate(dpy, event_return, arg))
+            return 0;
+    }
+    log_warn("XIfEvent: the game's predicate takes no MapNotify nor Expose, a MapNotify returned");
     return 0;
 }
 
@@ -363,9 +390,12 @@ int bridgeXLookupString(XKeyEvent *key_event, char *buffer_return, int buffer_si
 
 int bridgeXStoreName(Display *dpy, Window win, const char *name)
 {
+    // the loader's title kept, with the game's short name for BackForceFeeder (formatWindowTitle)
     SDL_Window *sdlWin = getSDLWindow();
+    char title[256];
+    formatWindowTitle(title, sizeof(title), -1.0);
     if (sdlWin && name)
-        SDL_SetWindowTitle(sdlWin, name);
+        SDL_SetWindowTitle(sdlWin, title);
     return 0;
 }
 
@@ -450,6 +480,137 @@ Cursor bridgeXCreateFontCursor(Display *dpy, int shape)
 Pixmap bridgeXCreateBitmapFromData(Display *dpy, Drawable drawable, char *data, unsigned int width, unsigned int height)
 {
     return 2002;
+}
+
+// --- Images, pixmaps and GCs: Namco's games draw their blank cursor so (an 8x8 bitmap put in a pixmap), nothing
+// shown here. XImage as Linux's i386 Xlib lays it out: the game writes its fields and calls its functions
+typedef struct LinuxXImage
+{
+    int width, height, xoffset, format;
+    char *data;
+    int byte_order, bitmap_unit, bitmap_bit_order, bitmap_pad, depth, bytes_per_line, bits_per_pixel;
+    unsigned long red_mask, green_mask, blue_mask;
+    char *obdata;
+    struct
+    {
+        void *create_image;
+        int (*destroy_image)(struct LinuxXImage *);
+        void *get_pixel, *put_pixel, *sub_image, *add_pixel;
+    } f;
+} LinuxXImage;
+
+static int destroyXImage(LinuxXImage *image)
+{
+    free(image); // its data is the caller's (on its stack for the cursor)
+    return 1;
+}
+
+void *bridgeXCreateImage(Display *dpy, Visual *visual, unsigned int depth, int format, int offset, char *data, unsigned int width,
+                         unsigned int height, int bitmap_pad, int bytes_per_line)
+{
+    LinuxXImage *image = (LinuxXImage *)calloc(1, sizeof(LinuxXImage));
+    image->width = (int)width;
+    image->height = (int)height;
+    image->xoffset = offset;
+    image->format = format;
+    image->data = data;
+    image->bitmap_unit = image->bitmap_pad = bitmap_pad;
+    image->depth = (int)depth;
+    image->bits_per_pixel = depth == 1 ? 1 : 32;
+    image->bytes_per_line = bytes_per_line ? bytes_per_line : (int)((width * image->bits_per_pixel + bitmap_pad - 1) / bitmap_pad * bitmap_pad / 8);
+    image->f.destroy_image = destroyXImage;
+    return image;
+}
+
+int bridgeXPutImage(Display *dpy, Drawable d, void *gc, void *image, int src_x, int src_y, int dest_x, int dest_y, unsigned int width,
+                    unsigned int height)
+{
+    return 0;
+}
+
+Pixmap bridgeXCreatePixmap(Display *dpy, Drawable d, unsigned int width, unsigned int height, unsigned int depth)
+{
+    return 2003;
+}
+
+static char s_dummyGC[64];
+void *bridgeXCreateGC(Display *dpy, Drawable d, unsigned long valuemask, void *values)
+{
+    return s_dummyGC;
+}
+
+int bridgeXFreeGC(Display *dpy, void *gc)
+{
+    return 1;
+}
+
+// --- Window operations on the loader's single window: nothing to do
+int bridgeXWindowNoOp(Display *dpy, Window w)
+{
+    return 1;
+}
+
+int bridgeXMoveResizeWindow(Display *dpy, Window w, int x, int y, unsigned int width, unsigned int height)
+{
+    return 1;
+}
+
+int bridgeXReparentWindow(Display *dpy, Window w, Window parent, int x, int y)
+{
+    return 1;
+}
+
+int bridgeXSetWindowBackground(Display *dpy, Window w, unsigned long background_pixel)
+{
+    return 1;
+}
+
+// --- The screensaver and DPMS: none
+int bridgeXGetScreenSaver(Display *dpy, int *timeout, int *interval, int *prefer_blanking, int *allow_exposures)
+{
+    if (timeout)
+        *timeout = 0;
+    if (interval)
+        *interval = 0;
+    if (prefer_blanking)
+        *prefer_blanking = 0;
+    if (allow_exposures)
+        *allow_exposures = 0;
+    return 1;
+}
+
+int bridgeXSetScreenSaver(Display *dpy, int timeout, int interval, int prefer_blanking, int allow_exposures)
+{
+    return 1;
+}
+
+int bridgeDPMSQueryExtension(Display *dpy, int *event_base, int *error_base)
+{
+    return 0;
+}
+
+int bridgeDPMSDisable(Display *dpy)
+{
+    return 1;
+}
+
+// The keyboard's state: all keys up (Gaelco Championship Tuning Race asks)
+int bridgeXQueryKeymap(Display *dpy, char keys[32])
+{
+    if (keys)
+        memset(keys, 0, 32);
+    return 1;
+}
+
+// --- Keysyms: the games' controls come through their I/O board, not the keyboard
+unsigned long bridgeXKeycodeToKeysym(Display *dpy, unsigned int keycode, int index)
+{
+    return 0; // NoSymbol
+}
+
+unsigned long bridgeXStringToKeysym(const char *string)
+{
+    return 0; // NoSymbol
 }
 
 int bridgeXF86VidModeQueryExtension(Display *dpy, int *event_base_return, int *error_base_return)

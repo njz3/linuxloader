@@ -6,11 +6,15 @@
 
 #define MAX_PATH_LENGTH 1024
 
-// ASPECT_RATIO: the shape the picture is shown with
-#define ASPECT_ORIGINAL 0 // the game's render resolution
-#define ASPECT_4_3 1
-#define ASPECT_16_9 2
-#define ASPECT_4_3_LETTERBOX 3 // a 4:3 frame, the picture whole inside at its own shape (black bars)
+// ASPECT_RATIO: the frame the picture is shown in, and how the picture fills it
+#define ASPECT_ORIGINAL 0      // the game's render resolution
+#define ASPECT_4_3 1           // a 4:3 frame, the picture whole inside at its own shape (black bars)
+#define ASPECT_16_9 2          // a 16:9 frame, likewise
+#define ASPECT_4_3_LETTERBOX 3 // 4:3 (the older name)
+#define ASPECT_4_3_STRETCH 4   // a 4:3 frame the picture fills, deformed (a 16:9 game squeezed)
+#define ASPECT_16_9_STRETCH 5  // a 16:9 frame the picture fills, deformed (a 4:3 game widened)
+#define ASPECT_4_3_CROP 6      // a 4:3 frame the picture fills, cut on the sides (CROP_POSITION)
+#define ASPECT_16_9_CROP 7     // a 16:9 frame the picture fills, cut above and below (CROP_POSITION)
 
 // DISPLAY_MODE
 #define DISPLAY_WINDOW 0             // a window at the aspect ratio, square pixels
@@ -26,7 +30,9 @@
 #define AFTER_BURNER_CLIMAX_SDX_SBMN_REVA 0xcb768831              // DVP-0018A
 #define AFTER_BURNER_CLIMAX_SE_SBLR 0x86df4e64                    // DVP-0031
 #define AFTER_BURNER_CLIMAX_SE_SBLR_REVA 0x684352f4               // DVP-0031A
+#define DEAD_HEAT_RIDERS 0x5d3df1cd                               // Namco, DH RIDERS rev. 1247
 #define DEAD_HEAT_US 0x7a3a5554                                   // Namco ES1, US DRIVE rev. 6273
+#define GAELCO_TUNING_RACE 0x66c6a2e5                             // Gaelco PC, Championship Tuning Race
 #define GHOST_SQUAD_EVOLUTION_SBNJ 0x455edaec                     // DVP-0029A
 #define HARLEY_DAVIDSON_SBRG 0xb1dd1c12                           // DVP-5007
 #define HUMMER_SBQN 0xf3778f44                                    // DVP-0057
@@ -53,6 +59,7 @@
 #define LETS_GO_JUNGLE_SBLU 0xb1c8c901                            // DVP-0011
 #define LETS_GO_JUNGLE_SBLU_REVA 0xc697c4fb                       // DVP-0011A
 #define LETS_GO_JUNGLE_SBNR_SPECIAL 0x240beedc                    // DVP-0036A
+#define MAXIMUM_HEAT_3D 0xf932e88e                                // Namco ES1, US DRIVE rev. 8807
 #define MJ4_SBPN_REVG 0x57813a7                                   // DVP-0049G
 #define MJ4_EVO_SBTA 0xb785a0e9                                   // DVP-0081
 #define OUTRUN_2_SP_SDX_SBMB 0x92c196d5                           // DVP-0015
@@ -65,12 +72,14 @@
 #define QUIZ_AXA_SBUR_LIVE 0x7103fafc                             // DVP-0087D
 #define RAMBO_SBQL 0x48f49dd                                      // DVP-0069
 #define RAMBO_SBSS_CHINA 0xad864fec                               // DVP-0078
+#define RING_RIDERS 0xeb10f0c5                                    // Gaelco PC, Ring Riders
 #define R_TUNED_SBQW 0xa68d053d                                   // DVP-0060
 #define SEGABOOT 0x0027                                           // DVP-????
 #define SEGABOOT_2_4 0x38d56318                                   // DVP-????
 #define SEGABOOT_2_4_SYM 0xa518b18b                               // DVP-????
 #define SEGABOOT_2_6 0x0030                                       // DVP-????
 #define SEGA_RACE_TV_SBPF 0xb30ab16a                              // DVP-0044
+#define TOKYO_COP 0x0bbe26aa                                      // Gaelco PC, Tokyo Cop
 #define THE_HOUSE_OF_THE_DEAD_4_SBLC_REVA 0x226281ad              // DVP-0003A
 #define THE_HOUSE_OF_THE_DEAD_4_SBLC_REVA_TEST 0x1d1160aa         // DVP-0003A
 #define THE_HOUSE_OF_THE_DEAD_4_SBLC_REVB 0xad652b5               // DVP-0003B
@@ -142,6 +151,8 @@ typedef enum
 {
     GROUP_UNKNOWN,
     GROUP_ABC,
+    GROUP_DEAD_HEAT, // Namco: Dead Heat, Maximum Heat 3D, Dead Heat Riders
+    GROUP_GAELCO,    // Gaelco PC: Ring Riders, Tokyo Cop, Championship Tuning Race
     GROUP_HOD4,
     GROUP_HOD4_TEST,
     GROUP_HOD4_SP,
@@ -279,6 +290,13 @@ typedef struct
     int emulateJVS;
     int fullscreen;
     int aspectRatio; // ASPECT_*
+    int cropPosition; // CROP_POSITION, the part kept by the cropped aspect ratios: -100 left or top, 0 the middle, 100
+                      // right or bottom
+    int cropBarrel;   // CROP_BARREL: the cropped aspect ratios bend the parts they would cut onto the frame's edges, as
+                      // on a cylinder seen from the front, instead of cutting them
+    int barrelCenter; // BARREL_CENTER, the frame's middle shown undistorted, in % of the frame (0 to 100)
+    int barrelRadius; // BARREL_RADIUS, the cylinder's radius in % of the frame: small bends hard at the edge, large
+                      // compresses evenly
     int internalWidth;  // WIDTH as the ini gives it, the game's render width; 0 for AUTO, the game's native one
     int internalHeight; // HEIGHT, likewise
     int displayMode; // DISPLAY_*, -1 when only FULLSCREEN was given
@@ -377,11 +395,16 @@ extern "C" {
 #endif
 
 int initConfig(const char *configFilePath);
+// --set SECTION.KEY=VALUE on the command line: applied over the ini file's values (initConfig)
+void configAddOverride(const char *assignment);
+// The ini file the game's settings came from: the one given, or <short name>.ini beside linuxloader.ini for this game
+const char *getConfigFilePath(void);
 void setDefaultValues(EmulatorConfig *cfg);
 EmulatorConfig *getConfig();
 int loadConfigFile(const char *configFilePath);
 char *getGameName();
 char *getDvpName();
+void formatWindowTitle(char *buffer, size_t size, double fps);
 char *getGameId();
 int getGameLindberghColour();
 char *getGameReleaseYear();

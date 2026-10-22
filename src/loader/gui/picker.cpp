@@ -499,7 +499,7 @@ extern "C" int guiRunPicker(const char *programPath)
 {
     const fs::path program = fs::absolute(programPath);
     const fs::path programDir = program.parent_path();
-    const std::string configFile = (programDir / "linuxloader.ini").string();
+    std::string configFile = (programDir / "linuxloader.ini").string();
     loadConfigFile(configFile.c_str());
 
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD))

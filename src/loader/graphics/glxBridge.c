@@ -298,6 +298,17 @@ void bridgeGlxDestroyPbuffer(Display *dpy, GLXPbuffer pbuf)
         SDL_DestroyWindow((SDL_Window *)pbuf);
 }
 
+// NV_vertex_array_range's memory (Gaelco's games): plain memory, the range itself ignored (glHooks.cpp)
+void *bridgeGlxAllocateMemoryNV(int size, float readFrequency, float writeFrequency, float priority)
+{
+    return calloc(1, (size_t)size);
+}
+
+void bridgeGlxFreeMemoryNV(void *pointer)
+{
+    free(pointer);
+}
+
 void bridgeGlxDestroyGLXPbufferSGIX(Display *dpy, GLXPbuffer pbuf)
 {
     bridgeGlxDestroyPbuffer(dpy, pbuf);
@@ -414,6 +425,15 @@ const unsigned char *bridgegluErrorString(unsigned int error)
     }
 }
 
+// Gaelco Championship Tuning Race: the driver builds the mipmaps, and takes the sizes that are not powers of two
+int bridgegluBuild2DMipmaps(unsigned int target, int internalFormat, int width, int height, unsigned int format, unsigned int type,
+                            const void *data)
+{
+    glad_glTexParameteri(target, GL_GENERATE_MIPMAP, GL_TRUE);
+    glad_glTexImage2D(target, 0, internalFormat, width, height, 0, format, type, data);
+    return 0;
+}
+
 int bridgegluProject(double objX, double objY, double objZ, const double *model, const double *proj, const int *view, double* winX, double* winY, double* winZ)
 {
     log_trace("gluProject(objX=%f, objY=%f, objZ=%f) - STUB", objX, objY, objZ);
@@ -458,7 +478,7 @@ void bridgeGlxSwapBuffers(Display *dpy, GLXDrawable drawable)
     static double localFps = 0.0;
     static char windowTitle[256] = {0};
     localFps = calculateFps();
-    sprintf(windowTitle, "%s - FPS: %.2f", getGameName(), localFps);
+    formatWindowTitle(windowTitle, sizeof(windowTitle), localFps);
     SDL_SetWindowTitle(getSDLWindow(), windowTitle);
     fpsOverlayUpdateFps(localFps);
 

@@ -21,6 +21,11 @@
 #include "../config/config.h"
 #include "../hardware/lindbergh/securityBoard.h"
 #include "../hardware/namco/deadHeatIo.h"
+#include "../hardware/gaelco/gaelcoIo.h"
+#include "../hardware/lindbergh/forceFeedback.h"
+#include "../hardware/lindbergh/netOutputs.h"
+#include "../agent/agent.h"
+#include "../log/log.h"
 #include "../graphics/shaderCache.h"
 #include "../graphics/shaderPatches.h"
 #include "../graphics/customCursor.h"
@@ -41,7 +46,9 @@ extern void *blankCursor;
 extern void (*idWriteFileHeader)(void *);
 
 // Namco's Dead Heat (US DRIVE rev. 6273): its HASP dongle answered as Team HackItUp's dh_emu.c does (logged in, a
-// serial in what is read or decrypted) and its link IDs fixed: PCB 1 (DH_PCB_ID for another) of group 1
+// serial in what is read or decrypted) and its link group fixed to 1. Its PCB ID is the test menu's: dh_emu.c's fixed
+// one (1, where clNet counts from 0) made a cabinet alone on its link see a duplicate since this PC answers for the
+// game's own address (networkBridge.cpp)
 static void dhSerial(unsigned char *buffer, int length)
 {
     static const char serial[] = "HACKITUP";
@@ -74,18 +81,36 @@ static int dhHaspDecrypt(int handle, unsigned char *buffer, int length)
     return 0;
 }
 
-static int dhPcbId(int object)
-{
-    (void)object;
-    const char *id = getenv("DH_PCB_ID");
-    return id ? atoi(id) : 1;
-}
-
 static int dhLinkGroupId(int object, int other)
 {
     (void)object;
     (void)other;
     return 1;
+}
+
+// Initial D 4's feedback board (cFeedbackSCI): the Sega servo board's 4-byte frames (84 torque, 85 vibration, 86
+// viscosity...), written to its serial port by _sSCI::send, which only that board uses. The port is never opened
+// (its initPolling is skipped): the frames go to the loader's FFB model, the agent and the network outputs, as the
+// emulated drive board's do
+static int idFeedbackSend(void *sci, const unsigned char *buffer, unsigned int length)
+{
+    (void)sci;
+    if (buffer && length == 4)
+    {
+        netOutputsDrive(buffer, 4);
+        agentDriveboard(buffer, 4);
+        sdlFfbDriveboard(buffer, 4);
+    }
+    return (int)length;
+}
+
+static void idFeedbackInstall(void)
+{
+    void *send = findStaticFnAddr("_ZN5_sSCI4sendEPvj");
+    if (send)
+        detourFunction((size_t)send, idFeedbackSend);
+    else
+        log_warn("Initial D: _sSCI::send not found, no force feedback");
 }
 
 int amDongleInit()
@@ -1053,6 +1078,9 @@ int initPatch()
             detourFunction(0x0821b3ea, stubRetOne);          // Skip Kickback initialization
             setVariable(0x08580979, 0x000126e9);             // Avoid Full Screen set from Game
             patchMemoryFromString(0x087beb6c, "5b");         // Skips initialization
+            detourFunction(0x0833601c, stubRetZero);         // doesNeedRollerCleaning
+            detourFunction(0x08336038, stubRetZero);         // doesNeedStockerCleaning
+            idFeedbackInstall();                             // the feedback board's frames to the FFB model
 
             if (GPUVendor != NVIDIA_GPU)
             {
@@ -2711,15 +2739,34 @@ int initPatch()
         break;
         case DEAD_HEAT_US:
         {
-            // As dh_emu.c: the dongle, the link IDs, and two objects the game tears down badly when it quits
+            // As dh_emu.c: the dongle, the link group, and two objects the game tears down badly when it quits
             detourFunction(0x084B9FD0, dhHaspLogin);
             detourFunction(0x084BADC8, dhHaspRead);
             detourFunction(0x084BA248, dhHaspDecrypt);
-            detourFunction(0x08452890, dhPcbId);
             detourFunction(0x08458500, dhLinkGroupId);
             patchMemoryFromString(0x0845D9D0, "c3"); // the network object's teardown
             patchMemoryFromString(0x08465C70, "c3"); // the audio object's teardown
             deadHeatIoInstall();                     // the cabinet's I/O and wheel boards
+        }
+        break;
+        case RING_RIDERS:
+        case TOKYO_COP:
+        case GAELCO_TUNING_RACE:
+        {
+            gaelcoIoInstall(); // their interface board, reached through Gaelco's system calls
+        }
+        break;
+        case MAXIMUM_HEAT_3D:
+        {
+            // Dead Heat's engine (US DRIVE rev. 8807): the same patches, at its addresses, but its PCB ID: clNet's is
+            // 0-based here (the test menu's minus one), and the one of the test menu is kept, as on a cabinet
+            detourFunction(0x08592BF0, dhHaspLogin);
+            detourFunction(0x085939E8, dhHaspRead);
+            detourFunction(0x08592E68, dhHaspDecrypt);
+            detourFunction(0x08530EF0, dhLinkGroupId);
+            patchMemoryFromString(0x08536480, "c3"); // the network object's teardown
+            patchMemoryFromString(0x0853E830, "c3"); // the audio object's teardown
+            deadHeatIoInstall();
         }
         break;
         case R_TUNED_SBQW:

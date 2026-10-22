@@ -53,4 +53,17 @@ namespace MathBridge
     extern "C" float bridge_frexpf(float x, int *exp);
     extern "C" float bridge_ldexpf(float x, int exp);
     extern "C" float bridge_fabsf(float x);
+    extern "C" double bridge_ceil(double x);
+    extern "C" double bridge_floor(double x);
+    extern "C" float bridge_log2f(float x);
+    extern "C" void bridge_sincos(double x, double *s, double *c);
+    extern "C" void bridge_sincosf(float x, float *s, float *c);
+    extern "C" float bridge_strtof(const char *text, char **end);
+    extern "C" double bridge_strtold(const char *text, char **end);
+    extern "C" unsigned long bridge_strtoul(const char *text, char **end, int base);
+    struct LinuxLongDouble
+    {
+        unsigned char bytes[12]; // x87's 80 bits, padded: Linux i386's long double, which MSVC does not have
+    };
+    extern "C" double bridge_frexpl(LinuxLongDouble x, int *exponent);
 }

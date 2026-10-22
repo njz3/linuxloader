@@ -43,6 +43,42 @@ namespace GraphicsBridge
         MAP("SDL_JoystickNumAxes", sdl12JoystickNumAxes);
         MAP("SDL_JoystickNumButtons", sdl12JoystickNumButtons);
         MAP("SDL_JoystickGetAxis", sdl12JoystickGetAxis);
+        MAP("SDL_PushEvent", sdl12PushEvent);
+        // Raw Thrills' Cruis'n Blast
+        MAP("SDL_GetVideoInfo", sdl12GetVideoInfo);
+        MAP("SDL_GetVideoSurface", sdl12GetVideoSurface);
+        MAP("SDL_Flip", sdl12Flip);
+        MAP("SDL_FreeSurface", sdl12FreeSurface);
+        MAP("SDL_WasInit", sdl12WasInit);
+        MAP("SDL_EnableKeyRepeat", sdl12EnableKeyRepeat);
+        MAP("SDL_SetError", sdl12SetError);
+        MAP("SDL_Error", sdl12Error);
+        MAP("SDL_GL_GetAttribute", sdl12GLGetAttribute);
+        MAP("SDL_WM_SetCaption", sdl12WMSetCaption);
+        MAP("SDL_WM_GrabInput", sdl12WMGrabInput);
+        MAP("SDL_WarpMouse", sdl12WarpMouse);
+        MAP("SDL_GetRelativeMouseState", sdl12GetRelativeMouseState);
+        MAP("SDL_GetTicks", sdl12GetTicks);
+        MAP("SDL_Delay", sdl12Delay);
+        MAP("SDL_ThreadID", sdl12ThreadID);
+        MAP("SDL_OpenAudio", sdl12OpenAudio);
+        MAP("SDL_CloseAudio", sdl12AudioNothing);
+        MAP("SDL_LockAudio", sdl12AudioNothing);
+        MAP("SDL_UnlockAudio", sdl12AudioNothing);
+        MAP("SDL_PauseAudio", sdl12PauseAudio);
+        MAP("SDL_MixAudio", sdl12MixAudio);
+        MAP("SDL_BuildAudioCVT", sdl12Unavailable);
+        MAP("SDL_ConvertAudio", sdl12Unavailable);
+        MAP("SDL_LoadWAV_RW", sdl12Null);
+        MAP("SDL_FreeWAV", sdl12Free);
+        MAP("SDL_RWFromFile", sdl12Null);
+        MAP("SDL_FreeRW", sdl12Free);
+        MAP("SDL_ReadBE16", sdl12ReadZero);
+        MAP("SDL_ReadBE32", sdl12ReadZero);
+        MAP("SDL_ReadLE32", sdl12ReadZero);
+        MAP("SDL_LoadObject", sdl12Null);
+        MAP("SDL_LoadFunction", sdl12Null);
+        MAP("SDL_UnloadObject", sdl12Free);
 
         // ============================================================
         // GLUT / GLU
@@ -101,6 +137,7 @@ namespace GraphicsBridge
         MAP("gluErrorString", bridgegluErrorString);
         MAP("gluProject", bridgegluProject);
         MAP("gluUnProject", bridgegluUnProject);
+        MAP("gluBuild2DMipmaps", bridgegluBuild2DMipmaps);
 
         // XF86VidMode
         MAP("XF86VidModeQueryExtension", bridgeXF86VidModeQueryExtension);
@@ -135,6 +172,7 @@ namespace GraphicsBridge
         MAP("XResizeWindow", bridgeXResizeWindow);
         MAP("XPending", bridgeXPending);
         MAP("XNextEvent", bridgeXNextEvent);
+        MAP("XIfEvent", bridgeXIfEvent);
         MAP("XTranslateCoordinates", bridgeXTranslateCoordinates);
         MAP("XQueryPointer", bridgeXQueryPointer);
         MAP("XWarpPointer", bridgeXWarpPointer);
@@ -185,6 +223,27 @@ namespace GraphicsBridge
         MAP("XSendEvent", bridgeXSendEvent);
 
         MAP("XAllocWMHints", bridgeXAllocWMHints);
+        MAP("XAllocSizeHints", bridgeXAllocSizeHints);
+
+        // Maximum Heat 3D and Dead Heat Riders
+        MAP("XCreateImage", bridgeXCreateImage);
+        MAP("XPutImage", bridgeXPutImage);
+        MAP("XCreatePixmap", bridgeXCreatePixmap);
+        MAP("XCreateGC", bridgeXCreateGC);
+        MAP("XFreeGC", bridgeXFreeGC);
+        MAP("XClearWindow", bridgeXWindowNoOp);
+        MAP("XRaiseWindow", bridgeXWindowNoOp);
+        MAP("XUnmapWindow", bridgeXWindowNoOp);
+        MAP("XMoveResizeWindow", bridgeXMoveResizeWindow);
+        MAP("XReparentWindow", bridgeXReparentWindow);
+        MAP("XSetWindowBackground", bridgeXSetWindowBackground);
+        MAP("XGetScreenSaver", bridgeXGetScreenSaver);
+        MAP("XSetScreenSaver", bridgeXSetScreenSaver);
+        MAP("DPMSQueryExtension", bridgeDPMSQueryExtension);
+        MAP("DPMSDisable", bridgeDPMSDisable);
+        MAP("XKeycodeToKeysym", bridgeXKeycodeToKeysym);
+        MAP("XStringToKeysym", bridgeXStringToKeysym);
+        MAP("XQueryKeymap", bridgeXQueryKeymap);
 
         // ============================================================
         // GLX Functions
@@ -194,6 +253,8 @@ namespace GraphicsBridge
         MAP("glXMakeCurrent", bridgeGlxMakeCurrent);
         MAP("glXCreateNewContext", bridgeGlxCreateNewContext);
         MAP("glXDestroyPbuffer", bridgeGlxDestroyPbuffer);
+        MAP("glXAllocateMemoryNV", bridgeGlxAllocateMemoryNV);
+        MAP("glXFreeMemoryNV", bridgeGlxFreeMemoryNV);
         MAP("glXCreatePbuffer", bridgeGlxCreatePbuffer);
         MAP("glXSwapBuffers", bridgeGlxSwapBuffers);
         MAP("glXDestroyContext", bridgeGlxDestroyContext);

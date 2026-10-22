@@ -199,6 +199,8 @@ namespace FileSystemBridge
     FILE *bridgeFdopen(int fd, const char *mode);
     int bridgeSetvbuf(FILE *stream, char *buf, int mode, size_t size);
     size_t bridgeWritev(int fd, const struct iovec *iov, int iovcnt);
+    int bridgeFgetpos(FILE *stream, void *position);
+    int bridgeFsetpos(FILE *stream, const void *position);
     ssize_t bridgeReadv(int fd, const struct iovec *iov, int iovcnt);
     int bridgeDup(int fd);
     extern "C" int bridgeFsync(int fd);
@@ -223,6 +225,9 @@ extern "C"
     int bridgeReaddir64R(void *dirp, struct linux_dirent64 *entry, struct linux_dirent64 **result);
     void bridgeRewinddir(void *dirp);
     int bridgeClosedir(void *dirp);
+    int bridgeScandir(const char *path, struct linux_dirent ***list, int (*filter)(const struct linux_dirent *),
+                      int (*compare)(const struct linux_dirent **, const struct linux_dirent **));
+    int bridgeAlphasort(const struct linux_dirent **a, const struct linux_dirent **b);
     int bridgeRmdir(const char *path);
     int bridgeGlob64(const char *pattern, int flags, void *errfunc, struct linux_glob64 *pglob);
     void bridgeGlobfree64(struct linux_glob64 *pglob);

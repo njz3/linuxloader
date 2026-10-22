@@ -3,6 +3,7 @@
 // (hardware/namco). The structures are written by their i386 layout, keys numbered as SDL 1.2's SDLKey.
 
 #include <SDL3/SDL.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -112,7 +113,7 @@ void sdl12GLSwapBuffers(void)
 
     static char title[256];
     double fps = calculateFps();
-    snprintf(title, sizeof(title), "%s - FPS: %.2f", getGameName(), fps);
+    formatWindowTitle(title, sizeof(title), fps);
     SDL_SetWindowTitle(g_SdlWindow, title);
     fpsOverlayUpdateFps(fps);
 }
@@ -262,5 +263,177 @@ int sdl12PollEvent(void *event)
 {
     (void)event;
     pollEvents();
+    return 0;
+}
+
+int sdl12PushEvent(void *event)
+{
+    (void)event; // the game reads no event (sdl12PollEvent)
+    return 0;
+}
+
+// --- what Raw Thrills' Cruis'n Blast asks more: the video information, the window manager, time, threads
+
+// SDL_VideoInfo: the capability bits, the video memory, the format, the size of the screen
+typedef struct
+{
+    uint32_t bits;
+    uint32_t videoMem;
+    PixelFormat12 *format;
+    int currentW, currentH;
+} VideoInfo12;
+
+const void *sdl12GetVideoInfo(void)
+{
+    static VideoInfo12 info;
+    info.bits = 0x3; // hw_available, wm_available
+    info.videoMem = 512 * 1024;
+    info.format = &screenFormat;
+    info.currentW = gWidth;
+    info.currentH = gHeight;
+    return &info;
+}
+
+void *sdl12GetVideoSurface(void)
+{
+    return screen.format ? &screen : NULL;
+}
+
+int sdl12Flip(void *surface)
+{
+    (void)surface;
+    return 0; // a GL game swaps by SDL_GL_SwapBuffers
+}
+
+void sdl12FreeSurface(void *surface)
+{
+    (void)surface;
+}
+
+uint32_t sdl12WasInit(uint32_t flags)
+{
+    return flags;
+}
+
+int sdl12EnableKeyRepeat(int delay, int interval)
+{
+    (void)delay;
+    (void)interval;
+    return 0;
+}
+
+void sdl12SetError(const char *format, ...)
+{
+    char message[512];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(message, sizeof(message), format, args);
+    va_end(args);
+    SDL_SetError("%s", message);
+}
+
+void sdl12Error(int code)
+{
+    (void)code;
+}
+
+// SDL 1.2's attributes are numbered as SDL 3's up to SDL_GL_ACCUM_ALPHA_SIZE: the loader's context is made with its
+// own, those are what it asks
+int sdl12GLGetAttribute(int attribute, int *value)
+{
+    static const int values[] = {8, 8, 8, 8, 32, 1, 24, 8, 0, 0, 0, 0};
+    if (value)
+        *value = (attribute >= 0 && attribute < (int)(sizeof(values) / sizeof(values[0]))) ? values[attribute] : 0;
+    return 0;
+}
+
+void sdl12WMSetCaption(const char *title, const char *icon)
+{
+    (void)title; // the loader titles its window
+    (void)icon;
+}
+
+int sdl12WMGrabInput(int mode)
+{
+    (void)mode;
+    return 0; // SDL_GRAB_OFF
+}
+
+void sdl12WarpMouse(uint16_t x, uint16_t y)
+{
+    (void)x;
+    (void)y;
+}
+
+uint8_t sdl12GetRelativeMouseState(int *x, int *y)
+{
+    if (x)
+        *x = 0;
+    if (y)
+        *y = 0;
+    return 0;
+}
+
+uint32_t sdl12GetTicks(void)
+{
+    return (uint32_t)SDL_GetTicks();
+}
+
+void sdl12Delay(uint32_t ms)
+{
+    SDL_Delay(ms);
+}
+
+uint32_t sdl12ThreadID(void)
+{
+    return (uint32_t)SDL_GetCurrentThreadID();
+}
+
+// --- audio, files and shared objects: none. The game's sound goes through FMOD; without SDL audio it plays no
+// sample of its own, without SDL_RWops it loads no WAV that way.
+
+int sdl12OpenAudio(void *desired, void *obtained)
+{
+    (void)desired;
+    (void)obtained;
+    SDL_SetError("SDL 1.2 audio is not available: the sound goes through FMOD");
+    return -1;
+}
+
+void sdl12AudioNothing(void)
+{
+}
+
+void sdl12PauseAudio(int pause)
+{
+    (void)pause;
+}
+
+void sdl12MixAudio(uint8_t *dst, const uint8_t *src, uint32_t len, int volume)
+{
+    (void)dst;
+    (void)src;
+    (void)len;
+    (void)volume;
+}
+
+int sdl12Unavailable(void)
+{
+    return -1;
+}
+
+void *sdl12Null(void)
+{
+    return NULL;
+}
+
+void sdl12Free(void *object)
+{
+    (void)object;
+}
+
+uint32_t sdl12ReadZero(void *rw)
+{
+    (void)rw;
     return 0;
 }

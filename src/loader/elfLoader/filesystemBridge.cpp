@@ -4,6 +4,7 @@
 #include "filesystemBridge.hpp"
 #include "libcBridge.hpp"
 #include "symbolResolver.hpp"
+#include "memoryManager.hpp"
 #include "../log/log.h"
 #include <algorithm>
 #include <string>
@@ -36,6 +37,8 @@ namespace FileSystemBridge
         MAP("fwrite", bridgeFwrite);
         MAP("fseek", sharedFseek);
         MAP("ftell", sharedFtell);
+        MAP("fgetpos", bridgeFgetpos);
+        MAP("fsetpos", bridgeFsetpos);
         MAP("fclose", sharedFclose);
         MAP("ferror", bridgeFerror);
         MAP("rewind", sharedRewind);
@@ -93,6 +96,8 @@ namespace FileSystemBridge
         MAP("readdir64_r", bridgeReaddir64R);
         MAP("rewinddir", bridgeRewinddir);
         MAP("closedir", bridgeClosedir);
+        MAP("scandir", bridgeScandir);
+        MAP("alphasort", bridgeAlphasort);
         MAP("rmdir", bridgeRmdir);
         MAP("glob64", bridgeGlob64);
         MAP("globfree64", bridgeGlobfree64);
@@ -185,6 +190,22 @@ namespace FileSystemBridge
     {
         log_trace("Intercepted setvbuf");
         return setvbuf(stream, buf, mode, size);
+    }
+
+    // Linux i386's fpos_t: the offset (32 bits) then the multibyte state, 12 bytes (Dead Heat Riders)
+    int bridgeFgetpos(FILE *stream, void *position)
+    {
+        long offset = sharedFtell(stream);
+        if (offset < 0)
+            return -1;
+        memset(position, 0, 12);
+        *(int32_t *)position = (int32_t)offset;
+        return 0;
+    }
+
+    int bridgeFsetpos(FILE *stream, const void *position)
+    {
+        return sharedFseek(stream, *(const int32_t *)position, SEEK_SET);
     }
 
     size_t bridgeWritev(int fd, const struct iovec *iov, int iovcnt)
@@ -448,6 +469,46 @@ extern "C"
         }
         delete dir;
         return 0;
+    }
+
+    // scandir and alphasort (Gaelco Championship Tuning Race): the entries as readdir gives them, those the filter
+    // keeps copied into the game's heap (it frees them and the list with its free), sorted by its comparison
+    int bridgeScandir(const char *path, struct linux_dirent ***list, int (*filter)(const struct linux_dirent *),
+                      int (*compare)(const struct linux_dirent **, const struct linux_dirent **))
+    {
+        void *dir = bridgeOpendir(path);
+        if (!dir)
+        {
+            log_info("scandir(\"%s\"): cannot open", path);
+            return -1;
+        }
+        std::vector<struct linux_dirent *> kept;
+        while (struct linux_dirent *ent = bridgeReaddir(dir))
+        {
+            if (filter && !filter(ent))
+                continue;
+            struct linux_dirent *copy = (struct linux_dirent *)MemoryManager::customMalloc(sizeof(struct linux_dirent));
+            memcpy(copy, ent, sizeof(*copy));
+            kept.push_back(copy);
+        }
+        bridgeClosedir(dir);
+        if (compare)
+            std::stable_sort(kept.begin(), kept.end(), [compare](struct linux_dirent *a, struct linux_dirent *b) {
+                const struct linux_dirent *left = a, *right = b;
+                return compare(&left, &right) < 0;
+            });
+        struct linux_dirent **array =
+            (struct linux_dirent **)MemoryManager::customMalloc(sizeof(struct linux_dirent *) * (kept.empty() ? 1 : kept.size()));
+        for (size_t i = 0; i < kept.size(); i++)
+            array[i] = kept[i];
+        *list = array;
+        log_info("scandir(\"%s\"): %zu entries", path, kept.size());
+        return (int)kept.size();
+    }
+
+    int bridgeAlphasort(const struct linux_dirent **a, const struct linux_dirent **b)
+    {
+        return strcoll((*a)->d_name, (*b)->d_name);
     }
 
     // readdir64_r: the next entry copied into the caller's struct dirent64; *result is NULL at the end

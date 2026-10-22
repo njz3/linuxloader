@@ -117,6 +117,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "Linux" AND NOT MINGW AND NOT CMAKE_C_COMPILER MATC
         src/loader/graphics/*.c
         src/loader/hardware/lindbergh/*.c
         src/loader/hardware/namco/*.c
+        src/loader/hardware/gaelco/*.c
         src/loader/input/*.c
         src/loader/log/*.c
         src/loader/patching/*.c
@@ -149,6 +150,7 @@ elseif(WIN32 OR MINGW OR CMAKE_C_COMPILER MATCHES "mingw")
         src/loader/graphics/*.c
         src/loader/hardware/lindbergh/*.c
         src/loader/hardware/namco/*.c
+        src/loader/hardware/gaelco/*.c
         src/loader/input/*.c
         src/loader/log/*.c
         src/loader/patching/*.c

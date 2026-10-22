@@ -92,6 +92,14 @@ static void EnsureAudioInit()
     }
 }
 
+// The playback device, shared with Gaelco's sound board (hardware/gaelco/gaelcoSound.c): paused by F10 and silent in
+// --agent with the ALSA streams
+unsigned int alsaSharedDevice(void)
+{
+    EnsureAudioInit();
+    return g_alsaDevice;
+}
+
 int shared_snd_pcm_open(snd_pcm_t **pcm, const char *name, int stream, int mode)
 {
     log_info("snd_pcm_open('%s', stream=%d, mode=%d)", name, stream, mode);

@@ -247,6 +247,11 @@ void SymbolResolver::InitSearchPaths(const std::string &libraryPathParam, const 
             m_LibrarySearchPaths.push_back(phLibDir);
             log_info("Added library search path (Primeval Hunt lib dir): %s", phLibDir.c_str());
 
+            // Raw Thrills' games (Cruis'n Blast) keep FMOD's libraries in utils, beside the program
+            std::string utilsDir = gameDir.substr(0, lastSlash) + "\\utils";
+            m_LibrarySearchPaths.push_back(utilsDir);
+            log_info("Added library search path (Raw Thrills utils dir): %s", utilsDir.c_str());
+
         }
     }
 
@@ -257,7 +262,8 @@ void SymbolResolver::InitSearchPaths(const std::string &libraryPathParam, const 
     {
         m_LibrarySearchPaths.push_back(gameElfPath);
         m_LibrarySearchPaths.push_back(gameElfPath + "\\lib");
-        log_info("Added library search paths (ELF dir): %s and its lib folder", gameElfPath.c_str());
+        m_LibrarySearchPaths.push_back(gameElfPath + "\\utils"); // Raw Thrills' FMOD (Cruis'n Blast)
+        log_info("Added library search paths (ELF dir): %s and its lib and utils folders", gameElfPath.c_str());
     }
     log_info("Initialized %zu library search paths", m_LibrarySearchPaths.size());
     log_info("DLL search base set to: %s", m_DllSearchBase.c_str());
@@ -364,8 +370,30 @@ void SymbolResolver::LoadNeededLibrary(const std::string &linuxName)
     std::string fullPath = targetName;
     bool found = false;
 
+    if (targetName == "libstdc++.so.6" && m_RequiredGlibcxx > 7) // see SetRequiredGlibcxx
+    {
+        for (int minor = m_RequiredGlibcxx; minor <= 30 && !found; minor++)
+            for (const auto &searchPath : m_LibrarySearchPaths)
+            {
+                std::string candidatePath = searchPath + "\\libstdc++.so.6.0." + std::to_string(minor);
+                if (GetFileAttributesA(candidatePath.c_str()) != INVALID_FILE_ATTRIBUTES)
+                {
+                    found = true;
+                    fullPath = candidatePath;
+                    log_info("libstdc++.so.6: the game needs GLIBCXX_3.4.%d, %s taken", m_RequiredGlibcxx,
+                             candidatePath.c_str());
+                    break;
+                }
+            }
+        if (!found)
+            log_warn("libstdc++.so.6: the game needs GLIBCXX_3.4.%d, no libstdc++.so.6.0.%d or later found",
+                     m_RequiredGlibcxx, m_RequiredGlibcxx);
+    }
+
     for (const auto &searchPath : m_LibrarySearchPaths)
     {
+        if (found)
+            break;
         std::string candidatePath = searchPath + "\\" + targetName;
         std::ifstream testFile(candidatePath.c_str());
         if (testFile.good())
@@ -428,6 +456,12 @@ void SymbolResolver::RegisterNativeSymbol(const std::string &symbolName, void *s
         m_NativeSymbols[symbolName] = symbolPtr;
         log_trace("Exported native symbol: %s at %p", symbolName.c_str(), symbolPtr);
     }
+}
+
+void *SymbolResolver::FindNativeSymbol(const std::string &symbolName) const
+{
+    auto it = m_NativeSymbols.find(symbolName);
+    return it != m_NativeSymbols.end() ? it->second : nullptr;
 }
 
 extern "C" void HandleUnresolvedSymbol(const char *symbolName, void *callerAddress)

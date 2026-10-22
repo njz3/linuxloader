@@ -67,6 +67,8 @@ extern "C"
     int bridgeGlxSwapIntervalSGI(int interval);
     GLXPbuffer bridgeGlxCreatePbuffer(Display *dpy, GLXFBConfig config, const int *attrib_list);
     void bridgeGlxDestroyPbuffer(Display *dpy, GLXPbuffer pbuf);
+    void *bridgeGlxAllocateMemoryNV(int size, float readFrequency, float writeFrequency, float priority);
+    void bridgeGlxFreeMemoryNV(void *pointer);
     GLXPbuffer bridgeGlxCreateGLXPbufferSGIX(Display *dpy, GLXFBConfig config, int width, int height, int *attrib_list);
     void bridgeGlxDestroyGLXPbufferSGIX(Display *dpy, GLXPbuffer pbuf);
     GLXContext bridgeGlxCreateNewContext(Display *dpy, GLXFBConfig config, int render_type, GLXContext share_list, bool direct);
@@ -80,6 +82,8 @@ extern "C"
     const unsigned char *bridgegluErrorString(unsigned int error);
     int bridgegluProject(double objX, double objY, double objZ, const double *model, const double *proj, const int *view, double* winX, double* winY, double* winZ);
     int bridgegluUnProject(double winX, double winY, double winZ, const double *model, const double *proj, const int *view, double* objX, double* objY, double* objZ);
+    int bridgegluBuild2DMipmaps(unsigned int target, int internalFormat, int width, int height, unsigned int format, unsigned int type,
+                                const void *data);
 
 #ifdef __cplusplus
 }

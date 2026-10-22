@@ -124,7 +124,7 @@ void bridgeGlutSwapBuffers(void)
 
     double fps_val = calculateFps();
     static char windowTitle[256] = {0};
-    sprintf(windowTitle, "%s - FPS: %.2f", getGameName(), fps_val);
+    formatWindowTitle(windowTitle, sizeof(windowTitle), fps_val);
     SDL_SetWindowTitle(g_SdlWindow, windowTitle);
     fpsOverlayUpdateFps(fps_val);
 

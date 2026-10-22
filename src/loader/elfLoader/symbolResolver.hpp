@@ -37,6 +37,10 @@ class SymbolResolver
     // Load a library mapped by RegisterLibrary
     void LoadNeededLibrary(const std::string &linuxName);
 
+    // The highest GLIBCXX_3.4.N the main program needs: libstdc++.so.6 is then taken as the first libstdc++.so.6.0.M
+    // with M >= N found in the search paths (the one in ll-deps is 3.4.7; Dead Heat Riders needs 3.4.14)
+    void SetRequiredGlibcxx(int minor) { m_RequiredGlibcxx = minor; }
+
     // Resolve a function/symbol from the loaded chain of libraries or internal bridges
     void *ResolveSymbol(const std::string &symbolName, std::string *outModuleName);
 
@@ -50,6 +54,8 @@ class SymbolResolver
 
     // Register a symbol exported by a dynamically loaded Linux ELF
     void RegisterNativeSymbol(const std::string &symbolName, void *symbolPtr);
+    // A symbol defined by a loaded ELF only, never a bridge of the loader (findStaticFnAddr)
+    void *FindNativeSymbol(const std::string &symbolName) const;
 
     // Global relocation and initialization passes
     bool ProcessAllRelocations();
@@ -69,6 +75,7 @@ class SymbolResolver
     std::vector<void *> m_LoadedLibraries;        // Stores handles to loaded DLLs
     std::vector<ElfLoader *> m_NativeLoaders;     // Stores loaders for purely native Linux shared objects
     std::vector<std::string> m_LoadedNativeNames; // Tracks already loaded Linux SO file paths
+    int m_RequiredGlibcxx = 0;
     std::vector<std::pair<uintptr_t, std::string>> m_PendingSOPatches; // Deferred SO patches (base, path)
 
     // Library search paths

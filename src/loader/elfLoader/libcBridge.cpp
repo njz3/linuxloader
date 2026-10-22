@@ -85,6 +85,8 @@ namespace LibcBridge
         MAP("gettimeofday", bridgeGettimeofday);
         MAP("settimeofday", bridgeSettimeofday);
         MAP("localtime", bridgeLocaltime);
+        MAP("ctime", bridgeCtime);
+        MAP("stime", bridgeStime);
         MAP("utime", bridgeUtime);
         MAP("usleep", bridgeUsleep);
         MAP("sleep", bridgeSleep);
@@ -174,6 +176,7 @@ namespace LibcBridge
         MAP("raise", bridgeRaise);
         MAP("sigfillset", bridgeSigfillset);
         MAP("sigemptyset", bridgeSigemptyset);
+        MAP("sigaddset", bridgeSigaddset);
         MAP("sigaction", bridgeSigaction);
         MAP("alarm", bridgeStubSuccess);
         // R-Tuned mounts its media and traces its allocations: nothing to do here
@@ -296,7 +299,12 @@ namespace LibcBridge
 
     void bridgeAbort()
     {
-        log_fatal("abort() called by ELF!");
+#ifdef _MSC_VER
+        void *caller = _ReturnAddress();
+#else
+        void *caller = __builtin_return_address(0);
+#endif
+        log_fatal("abort() called by ELF! (from %p)", caller);
         ::abort();
     }
 
@@ -891,6 +899,18 @@ namespace LibcBridge
         return nullptr;
     }
 
+    char *bridgeCtime(const int32_t *timer)
+    {
+        time_t t = (time_t)*timer;
+        return ctime(&t);
+    }
+
+    // Gaelco's games set the clock from their board's: the PC's is left as it is
+    int bridgeStime(const int32_t *t)
+    {
+        return 0;
+    }
+
     int bridgeClockGettime(int clk_id, struct timespec *tp)
     {
         log_trace("Intercepted clock_gettime");
@@ -1006,8 +1026,17 @@ namespace LibcBridge
 
         if (strcmp(command, "cd /tmp/segaboot > /dev/null") == 0)
             return -1;
+        // eth0's address: Windows' own is kept, and answered as set
         if (strncmp(command, "ifconfig eth0", 11) == 0)
             return 0;
+        if (strncmp(command, "sudo ifconfig eth0 ", 19) == 0) // Namco's: the address it sets is the one it reads
+        {
+            sharedEth0Set(command + 19);
+            return 0;
+        }
+        static const char ifconfigPl[] = "perl ./data/ifconfig.pl > ";
+        if (const char *redirect = strstr(command, ifconfigPl))
+            return sharedNamcoIfconfig(redirect + sizeof(ifconfigPl) - 1);
 
         const char *windows = NULL;
         for (size_t i = 0; i < sizeof(translations) / sizeof(translations[0]); i++)
@@ -1227,6 +1256,14 @@ namespace LibcBridge
     {
         log_debug("sigemptyset() called");
         memset(set, 0, sizeof(uint32_t));
+        return 0;
+    }
+
+    int bridgeSigaddset(void *set, int signum)
+    {
+        if (signum < 1 || signum > 64)
+            return -1;
+        ((uint32_t *)set)[(signum - 1) / 32] |= 1u << ((signum - 1) % 32);
         return 0;
     }
 

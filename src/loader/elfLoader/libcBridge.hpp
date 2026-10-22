@@ -76,6 +76,8 @@ namespace LibcBridge
     int bridgeGettimeofday(struct timeval *tv, void *tz);
     int bridgeSettimeofday(const struct timeval *tv, const void *tz);
     tm32 *bridgeLocaltime(const int32_t *timer);
+    char *bridgeCtime(const int32_t *timer);
+    int bridgeStime(const int32_t *t);
     int bridgeUtime(const char *filename, const struct linux_utimbuf *times);
     int bridgeUsleep(uint32_t microseconds);
     int bridgeSleep(uint32_t seconds);
@@ -153,6 +155,7 @@ namespace LibcBridge
     void (*bridgeSignal(int signum, void (*handler)(int)))(int);
     int bridgeSigfillset(void *set);
     int bridgeSigemptyset(void *set);
+    int bridgeSigaddset(void *set, int signum);
     int bridgeSigaction(int signum, const struct linux_sigaction *act, struct linux_sigaction *oldact);
 #ifdef _MSC_VER
     void bridgeQsort(void *base, size_t count, size_t size, int (*compare)(const void *, const void *));

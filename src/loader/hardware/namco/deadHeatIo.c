@@ -23,6 +23,7 @@
 #include <stdint.h>
 
 #include "deadHeatIo.h"
+#include "../../config/config.h"
 #include "../lindbergh/forceFeedback.h"
 #include "../lindbergh/jvs.h"
 #include "../lindbergh/netOutputs.h"
@@ -30,28 +31,54 @@
 #include "../../log/log.h"
 #include "../../patching/flowControl.h"
 
+// The game's addresses. Maximum Heat 3D (US DRIVE rev. 8807) is Dead Heat's engine: the same functions, blocks and
+// fields, elsewhere (its symbols give them)
+typedef struct
+{
+    // clSystemN2's init, exec, execSystemN2, execSystemN2Step2, execFirstStep and final, n2JvioTxPl,
+    // clSerialN2::open, and clKickback::setTRQPowerType's read of the type
+    uintptr_t init, exec, execSystemN2, execStep2, execFirstStep, final, jvioTxPl, serialOpen, torqueTypeRead;
+    // clSystemN2's flags and error count, n2jvio (the board's state block), clInputDeviceJamma::sm_handle_center
+    // (the calibration's first field), and the clConfig and clKickback instances
+    uintptr_t initFlag, jammaFlag, jvsError, errorCount, n2jvio, calibration, config, kickback;
+} DeadHeatAddresses;
+
+static const DeadHeatAddresses deadHeatUs = {
+    0x0808BF50, 0x0808B5F0, 0x0808B8F0, 0x0808B7B0, 0x0808B790, 0x0808B5C0, 0x08092360, 0x0808C060, 0x0809FC64,
+    0x0902BB04, 0x0902BB08, 0x0902BAFC, 0x0902BAE8, 0x09033340, 0x087E5ABC, 0x087E5588, 0x09035980,
+};
+
+static const DeadHeatAddresses maximumHeat3d = {
+    0x080AFC40, 0x080AEF50, 0x080AF4A0, 0x080AF240, 0x080AF220, 0x080AEF20, 0x080B4110, 0x080AFD50, 0x080BDEF7,
+    0x0917083C, 0x09170840, 0x09170830, 0x0917081C, 0x09178080, 0x0891E120, 0x0891DBC8, 0x0917A6C0,
+};
+
+static const DeadHeatAddresses *game = &deadHeatUs;
+extern uint32_t gId;
+
 // clSystemN2 and its state block
-#define N2_INIT_FLAG ((volatile uint8_t *)0x0902BB04)
-#define N2_JAMMA_FLAG ((volatile uint8_t *)0x0902BB08)
-#define N2_JVS_ERROR ((volatile uint8_t *)0x0902BAFC)
-#define N2_ERROR_COUNT ((volatile int32_t *)0x0902BAE8)
-#define N2_SYSTEM_SWITCHES ((volatile uint8_t *)0x0903347C)
-#define N2_PLAYER_SWITCHES ((volatile uint16_t *)0x09033480)
-#define N2_COIN_SLOT(slot) ((volatile uint8_t *)(0x090334A0 + (slot) * 0x1C)) // count, two errors, condition
-#define N2_ANALOGUE ((volatile uint16_t *)0x09033540)                      // wheel, accelerator, brake
+#define N2_INIT_FLAG ((volatile uint8_t *)game->initFlag)
+#define N2_JAMMA_FLAG ((volatile uint8_t *)game->jammaFlag)
+#define N2_JVS_ERROR ((volatile uint8_t *)game->jvsError)
+#define N2_ERROR_COUNT ((volatile int32_t *)game->errorCount)
+#define N2_SYSTEM_SWITCHES ((volatile uint8_t *)(game->n2jvio + 0x13C))
+#define N2_PLAYER_SWITCHES ((volatile uint16_t *)(game->n2jvio + 0x140))
+#define N2_COIN_SLOT(slot) ((volatile uint8_t *)(game->n2jvio + 0x160 + (slot) * 0x1C)) // count, two errors, condition
+#define N2_ANALOGUE ((volatile uint16_t *)(game->n2jvio + 0x200))                      // wheel, accelerator, brake
 
 // clInputDeviceJamma's calibration, set by the test menu: the counts of the wheel's centre and ends, the accelerator
 // at rest and floored, the brake at rest and its travel
-#define CAL_WHEEL_CENTRE (*(volatile int32_t *)0x087E5ABC)
-#define CAL_WHEEL_LEFT (*(volatile int32_t *)0x087E5AC0)
-#define CAL_WHEEL_RIGHT (*(volatile int32_t *)0x087E5AC4)
-#define CAL_ACCEL_REST (*(volatile int32_t *)0x087E5AD0)
-#define CAL_ACCEL_FULL (*(volatile int32_t *)0x087E5AD4)
-#define CAL_BRAKE_REST (*(volatile int32_t *)0x087E5AD8)
-#define CAL_BRAKE_TRAVEL (*(volatile int32_t *)0x087E5ADC)
+#define CALIBRATION(offset) (*(volatile int32_t *)(game->calibration + (offset)))
+#define CAL_WHEEL_CENTRE CALIBRATION(0x00)
+#define CAL_WHEEL_LEFT CALIBRATION(0x04)
+#define CAL_WHEEL_RIGHT CALIBRATION(0x08)
+#define CAL_ACCEL_REST CALIBRATION(0x14)
+#define CAL_ACCEL_FULL CALIBRATION(0x18)
+#define CAL_BRAKE_REST CALIBRATION(0x1C)
+#define CAL_BRAKE_TRAVEL CALIBRATION(0x20)
 
-#define CONFIG_INSTANCE (*(uint8_t *volatile *)0x087E5588) // clConfig: byte 1 is USE_JAMMA_DEVICE
-#define KICKBACK_INSTANCE (*(uint8_t *volatile *)0x09035980)
+#define CONFIG_INSTANCE (*(uint8_t *volatile *)game->config) // clConfig: byte 1 USE_JAMMA_DEVICE, 2 USE_CAMERA_DEVICE
+#define KICKBACK_INSTANCE (*(uint8_t *volatile *)game->kickback)
 
 // Gear up and gear down, the lever's four positions
 #define SWITCH_GEAR_UP BUTTON_2
@@ -202,7 +229,10 @@ static int n2Init(int jamma, int restart)
     *N2_JVS_ERROR = 0;
     *N2_ERROR_COUNT = 0;
     if (CONFIG_INSTANCE)
+    {
         CONFIG_INSTANCE[1] = 1;
+        CONFIG_INSTANCE[2] = 0; // USE_CAMERA_DEVICE: no /dev/video0 here (Maximum Heat 3D's config.csv has it on)
+    }
     n2Update();
     *N2_INIT_FLAG = 1;
     return 1;
@@ -237,14 +267,15 @@ static int serialOpenNone(void *serial)
 
 void deadHeatIoInstall(void)
 {
-    detourFunction(0x0808BF50, n2Init);
-    detourFunction(0x0808B5F0, n2Exec);      // clSystemN2::exec
-    detourFunction(0x0808B8F0, n2Exec);      // clSystemN2::execSystemN2
-    detourFunction(0x0808B7B0, n2Exec);      // clSystemN2::execSystemN2Step2
-    detourFunction(0x0808B790, n2Nothing);   // clSystemN2::execFirstStep
-    detourFunction(0x0808B5C0, n2Nothing);   // clSystemN2::final
-    detourFunction(0x08092360, n2TxNothing); // n2JvioTxPl
-    detourFunction(0x0808C060, serialOpenNone);
-    patchMemoryFromString(0x0809FC64, "31c09090"); // clKickback::setTRQPowerType: the type read as 0
-    log_info("Dead Heat: N2 I/O and Kickback boards emulated");
+    game = gId == MAXIMUM_HEAT_3D ? &maximumHeat3d : &deadHeatUs;
+    detourFunction(game->init, n2Init);
+    detourFunction(game->exec, n2Exec);
+    detourFunction(game->execSystemN2, n2Exec);
+    detourFunction(game->execStep2, n2Exec);
+    detourFunction(game->execFirstStep, n2Nothing);
+    detourFunction(game->final, n2Nothing);
+    detourFunction(game->jvioTxPl, n2TxNothing);
+    detourFunction(game->serialOpen, serialOpenNone);
+    patchMemoryFromString(game->torqueTypeRead, "31c09090"); // clKickback::setTRQPowerType: the type read as 0
+    log_info("Dead Heat engine: N2 I/O and Kickback boards emulated");
 }

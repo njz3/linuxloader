@@ -2166,6 +2166,12 @@ int initResolutionPatches()
         break;
         case INITIALD_4_EXP_SBNK_REVB:
         {
+            // Forced even at 1360x768 and in the test program (there at 1360x768, its menus not patched):
+            // initialD.ini's Width and Height are ignored (TeknoParrot leaves 1920x1080 there, a width out of the
+            // game's range: it falls back to 800 and keeps the 1080)
+            setVariable(0x0837979d, 0x0000f0e9);              // Force set resolution
+            setVariable(0x08379893, isTestMode() ? 1360 : gWidth); // Set ResX
+            setVariable(0x08379898, isTestMode() ? 768 : gHeight); // Set ResY
             if (isTestMode())
                 break;
             if (gWidth == 1360 && gHeight == 768)
@@ -2179,9 +2185,6 @@ int initResolutionPatches()
                 }
                 break;
             }
-            setVariable(0x0837979d, 0x0000f0e9); // Force set resolution
-            setVariable(0x08379893, gWidth);     // Set ResX
-            setVariable(0x08379898, gHeight);    // Set ResY
             // Renderbuffer Resolution
             setVariable(0x082560a2, gWidth);  // Set ResX
             setVariable(0x0825609a, gHeight); // Set ResY
@@ -2217,6 +2220,10 @@ int initResolutionPatches()
         break;
         case INITIALD_4_EXP_SBNK_REVC:
         {
+            // Forced even at 1360x768 and in the test program: initialD.ini's Width and Height are ignored (see Rev B)
+            setVariable(0x0837961d, 0x0000f0e9);              // Force set resolution
+            setVariable(0x08379713, isTestMode() ? 1360 : gWidth); // Set ResX
+            setVariable(0x08379718, isTestMode() ? 768 : gHeight); // Set ResY
             if (isTestMode())
                 break;
             if (gWidth == 1360 && gHeight == 768)
@@ -2230,9 +2237,6 @@ int initResolutionPatches()
                 }
                 break;
             }
-            setVariable(0x0837961d, 0x0000f0e9); // Force set resolution
-            setVariable(0x08379713, gWidth);     // Set ResX
-            setVariable(0x08379718, gHeight);    // Set ResY
             // Renderbuffer Resolution
             setVariable(0x08256192, gWidth);  // Set ResX
             setVariable(0x0825618a, gHeight); // Set ResY
@@ -2269,6 +2273,10 @@ int initResolutionPatches()
         break;
         case INITIALD_4_EXP_SBNK_REVD:
         {
+            // Forced even at 1360x768 and in the test program: initialD.ini's Width and Height are ignored (see Rev B)
+            setVariable(0x0837b12d, 0x0000f0e9);              // Force set resolution
+            setVariable(0x0837b223, isTestMode() ? 1360 : gWidth); // Set ResX
+            setVariable(0x0837b228, isTestMode() ? 768 : gHeight); // Set ResY
             if (isTestMode())
                 break;
             if (gWidth == 1360 && gHeight == 768)
@@ -2282,9 +2290,6 @@ int initResolutionPatches()
                 }
                 break;
             }
-            setVariable(0x0837b12d, 0x0000f0e9); // Force set resolution
-            setVariable(0x0837b223, gWidth);     // Set ResX
-            setVariable(0x0837b228, gHeight);    // Set ResY
             // Renderbuffer Resolution
             setVariable(0x0825728a, gWidth);  // Set ResX
             setVariable(0x08257282, gHeight); // Set ResY

@@ -39,6 +39,7 @@
 #define REAL_FUNC(name) dlsym(RTLD_NEXT, #name)
 #else
 #include <direct.h>
+#include <io.h>
 #include <winsock2.h>
 #include <iphlpapi.h>
 #include <fcntl.h>
@@ -73,10 +74,67 @@ extern bool mj4ResponseReady;
 
 bool sprFontXstLoaded = false;
 
+#ifdef _WIN32
+// A game inside a Linux disk image (Gaelco's: <image>/home/joc2001/joc2001/salidas/gameport) opens its files by
+// absolute paths: those are taken in the image, the first folder from the game's up with home, etc, lib and bin
+static char s_linuxRoot[MAX_PATH] = "";
+
+static void findLinuxRoot(void)
+{
+    static const char *const subdirs[] = {"home", "etc", "lib", "bin"};
+    char dir[MAX_PATH];
+    if (!_getcwd(dir, sizeof(dir)))
+        return;
+    for (;;)
+    {
+        bool image = true;
+        for (size_t i = 0; i < sizeof(subdirs) / sizeof(subdirs[0]) && image; i++)
+        {
+            char probe[MAX_PATH];
+            snprintf(probe, sizeof(probe), "%s\\%s", dir, subdirs[i]);
+            DWORD attributes = GetFileAttributesA(probe);
+            image = attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY);
+        }
+        if (image)
+        {
+            strncpy(s_linuxRoot, dir, sizeof(s_linuxRoot) - 1);
+            log_info("Linux disk image: absolute paths taken in %s", s_linuxRoot);
+            return;
+        }
+        char *slash = strrchr(dir, '\\');
+        if (!slash || slash[1] == '\0') // the drive's root was the last one
+            return;
+        if (slash == dir + 2 && dir[1] == ':')
+            slash[1] = '\0';
+        else
+            *slash = '\0';
+    }
+}
+
+static const char *linuxRooted(const char *src, char *buffer, size_t size)
+{
+    static bool s_searched = false;
+    if (!s_searched)
+    {
+        s_searched = true; // before the game's first chdir: the loader is in its folder
+        findLinuxRoot();
+    }
+    if (s_linuxRoot[0] == '\0' || src[0] != '/' || strncmp(src, "/dev/", 5) == 0 || strncmp(src, "/proc/", 6) == 0 ||
+        strncmp(src, "/sys/", 5) == 0)
+        return src;
+    snprintf(buffer, size, "%s%s", s_linuxRoot, src);
+    return buffer;
+}
+#endif
+
 void ConvertPath(char *dst, const char *src, size_t size)
 {
     if (!src || !dst)
         return;
+#ifdef _WIN32
+    char rooted[MAX_PATH];
+    src = linuxRooted(src, rooted, sizeof(rooted));
+#endif
     strncpy(dst, src, size - 1);
     dst[size - 1] = '\0';
 
@@ -701,6 +759,24 @@ int sysVirtualWrite(int fd, const void *buffer, size_t count);
 int sysVirtualClose(int fd);
 #endif
 
+#ifndef __linux__
+// Games read, write and close their sockets as descriptors, but on Windows they are Winsock handles, not CRT ones:
+// read and write go to the network bridge's recv and send (Maximum Heat 3D's link talks with write)
+int bridgeSend(SOCKET s, const char *buf, int len, int flags);
+int bridgeRecv(SOCKET s, char *buf, int len, int flags);
+
+static int isWinsockHandle(int fd)
+{
+    // A descriptor the C library has open is a file, whatever its number: a socket's handle can carry the same value
+    // (Ring Riders' model files were read with recv, which waited)
+    if (fd >= 0 && _get_osfhandle(fd) != -1)
+        return 0;
+    int socketType;
+    int socketTypeLen = sizeof(socketType);
+    return getsockopt((SOCKET)fd, SOL_SOCKET, SO_TYPE, (char *)&socketType, &socketTypeLen) == 0;
+}
+#endif
+
 int sharedClose(int fd)
 {
 #ifdef __linux__
@@ -723,11 +799,11 @@ int sharedClose(int fd)
     }
 
 #ifndef __linux__
-    // Games close their sockets with close(), but on Windows they are Winsock handles, not CRT descriptors
-    int socketType;
-    int socketTypeLen = sizeof(socketType);
-    if (getsockopt((SOCKET)fd, SOL_SOCKET, SO_TYPE, (char *)&socketType, &socketTypeLen) == 0)
+    if (isWinsockHandle(fd))
+    {
+        log_info(">>> close: socket=%d", fd);
         return closesocket((SOCKET)fd) == 0 ? 0 : -1;
+    }
 #endif
 
     return _close(fd);
@@ -820,6 +896,10 @@ ssize_t sharedRead(int fd, void *buf, size_t count)
         return count;
     }
 
+#ifndef __linux__
+    if (isWinsockHandle(fd))
+        return bridgeRecv((SOCKET)fd, (char *)buf, (int)count, 0);
+#endif
     return _read(fd, buf, count);
 }
 
@@ -978,6 +1058,10 @@ ssize_t sharedWrite(int fd, const void *buf, size_t count)
         return cardReaderWrite(fd, buf, count);
     }
 
+#ifndef __linux__
+    if (isWinsockHandle(fd))
+        return bridgeSend((SOCKET)fd, (const char *)buf, (int)count, 0);
+#endif
     return _write(fd, buf, count);
 }
 
@@ -1016,6 +1100,50 @@ typedef struct
     } u;
 } LinuxIfreq;
 
+// eth0 as the games see it: its address and a MAC. Dead Heat's engine sets the address itself (sudo ifconfig eth0
+// 192.168.GROUP.ID ...) and reads it back: the one it set is kept, as Linux would
+static char eth0Set[16] = "";
+
+void sharedEth0Set(const char *ifconfigArguments)
+{
+    char address[16] = "";
+    if (sscanf(ifconfigArguments, "%15s", address) == 1 && inet_addr(address) != INADDR_NONE)
+        strcpy(eth0Set, address);
+}
+
+const char *sharedEth0SetAddress(void)
+{
+    return eth0Set[0] ? eth0Set : NULL;
+}
+
+static const char *eth0Address(void)
+{
+    if (getConfig()->crc32 == SEGA_RACE_TV_SBPF && strcmp(getConfig()->srtvIP, "") != 0)
+        return getConfig()->srtvIP;
+    if (eth0Set[0])
+        return eth0Set;
+    return "127.0.0.1";
+}
+
+static const uint8_t eth0Mac[6] = {0x00, 0xD0, 0xF1, 0x00, 0x00, 0x01}; // SEGA OUI
+
+// Namco's ifconfig.pl (Dead Heat's engine), which the game runs through sudo perl into a file it reads: eth0 as
+// "interface address mask MAC link", the same as the ioctls below
+int sharedNamcoIfconfig(const char *path)
+{
+    unsigned a[4] = {127, 0, 0, 1};
+    sscanf(eth0Address(), "%u.%u.%u.%u", &a[0], &a[1], &a[2], &a[3]);
+    char winPath[MAX_PATH];
+    ConvertPath(winPath, path, MAX_PATH);
+    FILE *file = writeDirFopen(winPath, "w");
+    if (!file)
+        return 1 << 8;
+    fprintf(file, "0 %u %u %u %u 255 255 255 0 %u %u %u %u %u %u 1\n", a[0], a[1], a[2], a[3], eth0Mac[0], eth0Mac[1],
+            eth0Mac[2], eth0Mac[3], eth0Mac[4], eth0Mac[5]);
+    fclose(file);
+    return 0;
+}
+
 static int windowsSocketIoctl(int fd, unsigned long int request, void *argp)
 {
     if (request == LINUX_FIONBIO || request == LINUX_FIONREAD)
@@ -1032,9 +1160,7 @@ static int windowsSocketIoctl(int fd, unsigned long int request, void *argp)
     if (!ifr)
         return 0;
 
-    const char *ip = "127.0.0.1";
-    if (getConfig()->crc32 == SEGA_RACE_TV_SBPF && strcmp(getConfig()->srtvIP, "") != 0)
-        ip = getConfig()->srtvIP;
+    const char *ip = eth0Address();
 
     switch (request)
     {
@@ -1059,10 +1185,9 @@ static int windowsSocketIoctl(int fd, unsigned long int request, void *argp)
             return 0;
         case LINUX_SIOCGIFHWADDR:
         {
-            static const uint8_t mac[6] = {0x00, 0xD0, 0xF1, 0x00, 0x00, 0x01}; // SEGA OUI
             memset(&ifr->u, 0, sizeof(ifr->u));
             ifr->u.hw.family = 1; // ARPHRD_ETHER
-            memcpy(ifr->u.hw.data, mac, sizeof(mac));
+            memcpy(ifr->u.hw.data, eth0Mac, sizeof(eth0Mac));
             return 0;
         }
         default:

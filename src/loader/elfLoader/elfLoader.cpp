@@ -6,6 +6,7 @@
 #include "linuxStack.hpp"
 #include "libcBridge.hpp"
 #include "elfCall.h"
+#include "elfNoSections.hpp"
 #include <elfio.hpp>
 #include <cstring>
 #include <cstdlib>
@@ -19,6 +20,13 @@
 using namespace ELFIO;
 
 static std::vector<void *> s_PendingEhFrames;
+
+// The unwinder's registration functions, which a program may define itself
+static bool IsOwnUnwinderSymbol(const std::string &name)
+{
+    return name == "__register_frame_info" || name == "__deregister_frame_info" ||
+           name == "__register_frame_info_bases" || name == "__deregister_frame_info_bases";
+}
 
 void ElfLoader::RegisterAllEhFrames()
 {
@@ -234,6 +242,11 @@ bool ElfLoader::ParseElf(const std::string &path)
     }
 
     log_info("Successfully parsed 32-bit x86 ELF: %s", path.c_str());
+
+    // Raw Thrills' programs come without section headers, their imports hidden by a HASP envelope (elfNoSections.cpp)
+    elfAddDynamicSections(*m_Elfio);
+    if (!m_IsSharedObject)
+        elfAddHaspEnvelopeImports(*m_Elfio);
     return true;
 }
 
@@ -393,6 +406,11 @@ bool ElfLoader::LoadDependencies()
         SymbolResolver::GetInstance().RegisterLibrary("libdl.so.2", "INTERNAL");
         SymbolResolver::GetInstance().RegisterLibrary("librt.so.1", "INTERNAL");
         SymbolResolver::GetInstance().RegisterLibrary("libSDL-1.2.so.0", "INTERNAL"); // sdl12Bridge.c
+        // Raw Thrills' Cruis'n Blast: its I/O boards found through udev, its videos in Theora, PhysX's cooking
+        SymbolResolver::GetInstance().RegisterLibrary("libudev.so.1", "INTERNAL");
+        SymbolResolver::GetInstance().RegisterLibrary("libtheora.so.0", "INTERNAL");
+        SymbolResolver::GetInstance().RegisterLibrary("libogg.so.0", "INTERNAL");
+        SymbolResolver::GetInstance().RegisterLibrary("libPhysXLoader.so.1", "INTERNAL");
         // Intel compiler runtimes: when the game ships them (SEGA Race TV imports _intel_fast_memcpy and the
         // register-based __libm_sse2_* entry points), load them natively; bridges still take priority.
         for (const char *intelLib : {"libimf.so", "libirc.so", "libsvml.so"})
@@ -413,6 +431,17 @@ bool ElfLoader::LoadDependencies()
         section *pSection = m_Elfio->sections[i];
         if (pSection->get_type() == SHT_DYNAMIC)
         {
+            // The main program's GLIBCXX_3.4.N requirements, among its dynamic strings: the libstdc++ to load
+            section *strings = pSection->get_link() < m_Elfio->sections.size() ? m_Elfio->sections[pSection->get_link()] : nullptr;
+            if (!m_IsSharedObject && strings && strings->get_data())
+            {
+                std::string all(strings->get_data(), strings->get_size());
+                int required = 0;
+                for (size_t at = all.find("GLIBCXX_3.4."); at != std::string::npos; at = all.find("GLIBCXX_3.4.", at + 1))
+                    required = std::max(required, atoi(all.c_str() + at + 12));
+                SymbolResolver::GetInstance().SetRequiredGlibcxx(required);
+            }
+
             dynamic_section_accessor dynamic(*m_Elfio, pSection);
             Elf_Xword dyn_num = dynamic.get_entries_num();
             for (Elf_Xword j = 0; j < dyn_num; ++j)
@@ -537,16 +566,16 @@ bool ElfLoader::ProcessRelocations()
                 {
                     std::string symbolName = "";
                     Elf_Xword symSize = 0;
+                    Elf64_Addr symDefinition = 0;
+                    Elf_Half symShndx = SHN_UNDEF;
                     section *symSec = m_Elfio->sections[pSection->get_link()];
                     if (symSec)
                     {
                         symbol_section_accessor symbols(*m_Elfio, symSec);
-                        Elf64_Addr value;
                         unsigned char bind;
                         unsigned char symcat;
-                        Elf_Half shndx;
                         unsigned char other;
-                        symbols.get_symbol(symbolIdx, symbolName, value, symSize, bind, symcat, shndx, other);
+                        symbols.get_symbol(symbolIdx, symbolName, symDefinition, symSize, bind, symcat, symShndx, other);
                     }
 
                     uint8_t *targetAddr = reinterpret_cast<uint8_t *>(offset + m_LoadBias);
@@ -566,7 +595,17 @@ bool ElfLoader::ProcessRelocations()
                     if (!symbolName.empty())
                     {
                         std::string moduleName;
-                        void *resolvedFunc = SymbolResolver::GetInstance().ResolveSymbol(symbolName, &moduleName);
+                        void *resolvedFunc;
+                        if (!m_IsSharedObject && symShndx != SHN_UNDEF && symDefinition && IsOwnUnwinderSymbol(symbolName))
+                        {
+                            // A program that links its own unwinder (Intel's C++ runtime: Gaelco's Championship Tuning
+                            // Race) registers its .eh_frame with its own __register_frame_info, through the PLT: as
+                            // ld.so does, the program's definition wins, or its exceptions find no frame and abort
+                            resolvedFunc = reinterpret_cast<void *>(static_cast<uintptr_t>(symDefinition + m_LoadBias));
+                            moduleName = "the program itself";
+                        }
+                        else
+                            resolvedFunc = SymbolResolver::GetInstance().ResolveSymbol(symbolName, &moduleName);
 
                         if (resolvedFunc)
                         {
@@ -912,7 +951,7 @@ bool ElfLoader::Execute(int argc, char **argv, char **envp)
     }
 
     log_info("Preparing to execute main ELF...");
-    Elf64_Addr entryAddr = m_Elfio->get_entry();
+    Elf64_Addr entryAddr = elfStartCallingMain(*m_Elfio, static_cast<uint32_t>(m_Elfio->get_entry()));
     if (entryAddr == 0)
     {
         log_error("No entry point found - cannot execute");
@@ -998,15 +1037,14 @@ bool ElfLoader::Execute(int argc, char **argv, char **envp)
     __builtin_unreachable();
 }
 
+// A function of the game itself, as findStaticFnAddr reads the ELF's .symtab on Linux. Never the loader's bridge of
+// that name: a game that imports the function would have the bridge detoured onto itself (an endless jump), and
+// MSVC folds identical bridges, so that others would break too
 extern "C" void *GetStaticFunctionAddress(const char *name)
 {
-    std::string moduleName;
-    void *result = SymbolResolver::GetInstance().ResolveSymbol(name, &moduleName);
+    void *result = SymbolResolver::GetInstance().FindNativeSymbol(name);
     if (!result)
-    {
-        log_error("Failed to resolve symbol: %s\n", name);
-        return NULL;
-    }
+        log_info("findStaticFnAddr: %s is not a function of the game", name);
     return result;
 }
 

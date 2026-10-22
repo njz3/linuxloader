@@ -32,7 +32,8 @@ void setOpen(bool open)
 extern "C" void guiOverlayInit(SDL_Window *window)
 {
     g_ready = gui::initContext(window, getConfig()->language);
-    g_configFile = (configPath && configPath[0]) ? configPath : "linuxloader.ini";
+    const char *used = getConfigFilePath();
+    g_configFile = used[0] ? used : (configPath && configPath[0]) ? configPath : "linuxloader.ini";
     gui::setControlsFile((controlsPath && controlsPath[0]) ? controlsPath : "controls.ini");
 }
 

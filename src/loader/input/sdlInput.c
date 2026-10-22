@@ -18,6 +18,7 @@
 #include <sys/stat.h>
 
 #include "../graphics/blitStretching.h"
+#include "../agent/agent.h"
 #include "../config/config.h"
 #include "../graphics/crossHair.h"
 #include "../hardware/lindbergh/forceFeedback.h"
@@ -395,7 +396,8 @@ int initSdlInput(const char *controlsPath)
         SDL_free(joystics);
     }
 
-    if (sdlJoysticks.joysticksCount > 0)
+    // The agent mode without a controller still keeps the board model, for its journal (ffb, tel)
+    if (sdlJoysticks.joysticksCount > 0 || agentActive())
     {
         sdlFfbInit();
     }
@@ -634,7 +636,7 @@ void remapPerGame()
         gJvsMap[PLAYER_1][LA_GearUp] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_3};
         gJvsMap[PLAYER_1][LA_GearDown] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_4};
     }
-    else if (gId == DEAD_HEAT_US)
+    else if (gGrp == GROUP_DEAD_HEAT)
     {
         // Namco's N2 I/O board (hardware/namco/deadHeatIo.c): Start is the test menu's Enter, the game starts with
         // the accelerator; nitro, view and the gears on player 1's buttons, the gears turned into the lever's four
@@ -648,6 +650,16 @@ void remapPerGame()
         gJvsMap[PLAYER_2][LA_Boost] = (JVSActionMapping){JVS_CALL_NONE, NONE};
         gJvsMap[PLAYER_2][LA_GearUp] = (JVSActionMapping){JVS_CALL_NONE, NONE};
         gJvsMap[PLAYER_2][LA_GearDown] = (JVSActionMapping){JVS_CALL_NONE, NONE};
+    }
+    else if (gGrp == GROUP_GAELCO)
+    {
+        // Gaelco's interface board (hardware/gaelco/gaelcoIo.c): its switches from player 1's buttons
+        gJvsMap[PLAYER_1][LA_MusicChange] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_1};
+        gJvsMap[PLAYER_1][LA_ViewChange] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_2};
+        gJvsMap[PLAYER_1][LA_GearUp] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_3};
+        gJvsMap[PLAYER_1][LA_GearDown] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_4};
+        gJvsMap[PLAYER_1][LA_Boost] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_5};
+        gJvsMap[PLAYER_1][LA_BoostRight] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_6};
     }
     else if (gId == PRIMEVAL_HUNT_SBPP)
     {
@@ -690,7 +702,7 @@ void initActionProperties()
     gActionProperties[PLAYER_1][LA_Flying_Y].isCentering = true;
     gActionProperties[PLAYER_1][LA_Throttle].isCentering = true;
     // Namco's cabinets have a test switch that stays on: the test menu lasts while it is on
-    if (gId == DEAD_HEAT_US)
+    if (gGrp == GROUP_DEAD_HEAT)
         gActionProperties[SYSTEM][LA_Test].isToggle = true;
 }
 
@@ -2220,7 +2232,7 @@ void processChangedActions()
 
                     overlayShowMessage(msg, 3000, pos);
                 }
-                if (gId == DEAD_HEAT_US && actionId == LA_Test)
+                if (gGrp == GROUP_DEAD_HEAT && actionId == LA_Test)
                     overlayShowMessage(state->isActive ? "Test switch on" : "Test switch off", 3000, OVERLAY_BOTTOM_LEFT);
                 setSwitch(player, map->jvsInput, state->isActive);
                 break;

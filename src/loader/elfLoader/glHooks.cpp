@@ -853,11 +853,11 @@ extern "C" void __attribute__((cdecl)) wrap_glReadPixels(GLint x, GLint y, GLsiz
 // that is a variable (its downsampling and glow shaders), and warns of the missing #version; the game takes any log
 // for an error and leaves (clShaderManager). Both are added in front of each source, and a shader that compiled, or a
 // program that linked, has no log.
-extern "C" uint32_t gId;
+extern "C" int gGrp;
 
 static bool deadHeatShaders()
 {
-    return gId == DEAD_HEAT_US;
+    return gGrp == GROUP_DEAD_HEAT; // Maximum Heat 3D: the same engine
 }
 
 static std::string deadHeatSource(GLsizei count, const char *const *strings, const GLint *lengths)
@@ -866,12 +866,15 @@ static std::string deadHeatSource(GLsizei count, const char *const *strings, con
     for (GLsizei i = 0; i < count; i++)
         if (strings[i])
             source.append(strings[i], lengths && lengths[i] >= 0 ? (size_t)lengths[i] : strlen(strings[i]));
-    std::string prefix;
-    if (source.find("#version") == std::string::npos)
-        prefix += "#version 110\n";
-    if (source.find("vec4 gl_TexCoord") == std::string::npos)
-        prefix += "varying vec4 gl_TexCoord[8];\n";
-    return prefix + source;
+    std::string texCoord = source.find("vec4 gl_TexCoord") == std::string::npos ? "varying vec4 gl_TexCoord[8];\n" : "";
+    size_t version = source.find("#version");
+    if (version == std::string::npos)
+        return "#version 120\n" + texCoord + source; // 120: NVIDIA's compiler wants it for the f suffixes
+    // Maximum Heat 3D's sources start with their own #version 120: the declaration goes after it
+    size_t lineEnd = source.find('\n', version);
+    if (lineEnd == std::string::npos)
+        return source + "\n" + texCoord;
+    return source.insert(lineEnd + 1, texCoord);
 }
 
 static void emptyLog(GLsizei *length, char *log, GLsizei size)
@@ -2124,6 +2127,116 @@ extern "C" void __attribute__((cdecl)) wrap_glBufferSubData(GLenum target, GLint
         glad_glBufferSubData(target, offset, size, data);
 }
 
+// Maximum Heat 3D, Dead Heat Riders and Gaelco's games call these
+extern "C" void __attribute__((cdecl)) wrap_glLoadMatrixd(const GLdouble *m)
+{
+    if (glad_glLoadMatrixd)
+        glad_glLoadMatrixd(m);
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glTexGenf(GLenum coord, GLenum pname, GLfloat param)
+{
+    if (glad_glTexGenf)
+        glad_glTexGenf(coord, pname, param);
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glRasterPos4f(GLfloat x, GLfloat y, GLfloat z, GLfloat w)
+{
+    if (glad_glRasterPos4f)
+        glad_glRasterPos4f(x, y, z, w);
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glBlitFramebufferEXT(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0,
+                                                                 GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter)
+{
+    if (glad_glBlitFramebufferEXT)
+        glad_glBlitFramebufferEXT(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter);
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glRenderbufferStorageMultisampleEXT(GLenum target, GLsizei samples, GLenum internalformat,
+                                                                                GLsizei width, GLsizei height)
+{
+    if (glad_glRenderbufferStorageMultisampleEXT)
+        glad_glRenderbufferStorageMultisampleEXT(target, samples, internalformat, width, height);
+}
+
+// Gaelco's games were written for the GeForce: their register combiners pass through where the driver has them
+// (NVIDIA's), and are left out elsewhere, the textures then drawn without their combining
+static void registerCombinersMissing()
+{
+    static bool s_logged = false;
+    if (!s_logged)
+        log_warn("GL_NV_register_combiners not in this driver: the game's combiners are left out");
+    s_logged = true;
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glCombinerInputNV(GLenum stage, GLenum portion, GLenum variable, GLenum input, GLenum mapping,
+                                                              GLenum componentUsage)
+{
+    if (glad_glCombinerInputNV)
+        glad_glCombinerInputNV(stage, portion, variable, input, mapping, componentUsage);
+    else
+        registerCombinersMissing();
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glCombinerOutputNV(GLenum stage, GLenum portion, GLenum abOutput, GLenum cdOutput,
+                                                               GLenum sumOutput, GLenum scale, GLenum bias, GLboolean abDotProduct,
+                                                               GLboolean cdDotProduct, GLboolean muxSum)
+{
+    if (glad_glCombinerOutputNV)
+        glad_glCombinerOutputNV(stage, portion, abOutput, cdOutput, sumOutput, scale, bias, abDotProduct, cdDotProduct, muxSum);
+    else
+        registerCombinersMissing();
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glCombinerParameterfvNV(GLenum pname, const GLfloat *params)
+{
+    if (glad_glCombinerParameterfvNV)
+        glad_glCombinerParameterfvNV(pname, params);
+    else
+        registerCombinersMissing();
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glCombinerParameteriNV(GLenum pname, GLint param)
+{
+    if (glad_glCombinerParameteriNV)
+        glad_glCombinerParameteriNV(pname, param);
+    else
+        registerCombinersMissing();
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glCombinerStageParameterfvNV(GLenum stage, GLenum pname, const GLfloat *params)
+{
+    if (glad_glCombinerStageParameterfvNV)
+        glad_glCombinerStageParameterfvNV(stage, pname, params);
+    else
+        registerCombinersMissing();
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glFinalCombinerInputNV(GLenum variable, GLenum input, GLenum mapping, GLenum componentUsage)
+{
+    if (glad_glFinalCombinerInputNV)
+        glad_glFinalCombinerInputNV(variable, input, mapping, componentUsage);
+    else
+        registerCombinersMissing();
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glVertexWeightPointerEXT(GLint size, GLenum type, GLsizei stride, const void *pointer)
+{
+    if (glad_glVertexWeightPointerEXT)
+        glad_glVertexWeightPointerEXT(size, type, stride, pointer);
+}
+
+// Their vertex array range: the memory comes from glXAllocateMemoryNV's malloc (glxBridge.c), and the arrays in it
+// are drawn as plain vertex arrays
+extern "C" void __attribute__((cdecl)) wrap_glVertexArrayRangeNV(GLsizei length, const void *pointer)
+{
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glFlushVertexArrayRangeNV()
+{
+}
+
 // Dead Heat calls these too
 extern "C" void __attribute__((cdecl)) wrap_glGetQueryiv(GLenum target, GLenum pname, GLint *params)
 {
@@ -2879,6 +2992,34 @@ void *GLHooks_GetProcAddress(const char *procName)
         return (void *)&wrap_glBufferSubData;
     if (strcmp(procName, "glTexCoord2d") == 0)
         return (void *)&wrap_glTexCoord2d;
+    if (strcmp(procName, "glLoadMatrixd") == 0)
+        return (void *)&wrap_glLoadMatrixd;
+    if (strcmp(procName, "glTexGenf") == 0)
+        return (void *)&wrap_glTexGenf;
+    if (strcmp(procName, "glRasterPos4f") == 0)
+        return (void *)&wrap_glRasterPos4f;
+    if (strcmp(procName, "glBlitFramebufferEXT") == 0)
+        return (void *)&wrap_glBlitFramebufferEXT;
+    if (strcmp(procName, "glRenderbufferStorageMultisampleEXT") == 0)
+        return (void *)&wrap_glRenderbufferStorageMultisampleEXT;
+    if (strcmp(procName, "glCombinerInputNV") == 0)
+        return (void *)&wrap_glCombinerInputNV;
+    if (strcmp(procName, "glCombinerOutputNV") == 0)
+        return (void *)&wrap_glCombinerOutputNV;
+    if (strcmp(procName, "glCombinerParameterfvNV") == 0)
+        return (void *)&wrap_glCombinerParameterfvNV;
+    if (strcmp(procName, "glCombinerParameteriNV") == 0)
+        return (void *)&wrap_glCombinerParameteriNV;
+    if (strcmp(procName, "glCombinerStageParameterfvNV") == 0)
+        return (void *)&wrap_glCombinerStageParameterfvNV;
+    if (strcmp(procName, "glFinalCombinerInputNV") == 0)
+        return (void *)&wrap_glFinalCombinerInputNV;
+    if (strcmp(procName, "glVertexWeightPointerEXT") == 0)
+        return (void *)&wrap_glVertexWeightPointerEXT;
+    if (strcmp(procName, "glVertexArrayRangeNV") == 0)
+        return (void *)&wrap_glVertexArrayRangeNV;
+    if (strcmp(procName, "glFlushVertexArrayRangeNV") == 0)
+        return (void *)&wrap_glFlushVertexArrayRangeNV;
     void *proc = (void *)SDL_GL_GetProcAddress(procName);
     if (proc)
         return proc;

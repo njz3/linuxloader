@@ -27,8 +27,16 @@ int createDefaultIni(const char *filePath)
     fprintf(file, "# Boost render resolution in HOD4/2Spicy/Harley/Rambo/HOD-EX/ID4/ID5 and LGJ\n");
     fprintf(file, "BOOST_RENDER_RES = %s\n\n", defaults.boostRenderRes ? "true" : "false");
     fprintf(file, "# Set to true for full screen\nFULLSCREEN = %s\n\n", defaults.fullscreen ? "true" : "false");
-    fprintf(file, "# Shape of the picture: ORIGINAL (the game's render resolution), 4:3, 16:9, or 4:3_LETTERBOX (a 4:3 frame\n");
-    fprintf(file, "# with the picture whole inside at its own shape, black bars above and below a 16:9 one)\nASPECT_RATIO = ORIGINAL\n\n");
+    fprintf(file, "# Shape of the picture: ORIGINAL (the game's render resolution); 4:3 or 16:9 (that frame, the picture whole\n");
+    fprintf(file, "# inside at its own shape, black bars where the shapes differ; 4:3_LETTERBOX is 4:3); 4:3_STRETCH or 16:9_STRETCH\n");
+    fprintf(file, "# (the picture fills the frame, deformed); 4:3_CROP or 16:9_CROP (the picture fills the frame, cut on the\n");
+    fprintf(file, "# sides or above and below)\nASPECT_RATIO = ORIGINAL\n\n");
+    fprintf(file, "# The part a cropped aspect ratio keeps: -100 (left or top) to 100 (right or bottom), 0 the middle\n");
+    fprintf(file, "CROP_POSITION = 0\n\n");
+    fprintf(file, "# Cropped aspect ratios: true bends the parts they would cut onto the frame's edges, as on a cylinder seen from\n");
+    fprintf(file, "# the front, so the whole picture stays visible. BARREL_CENTER: the middle shown undistorted, in %% of the frame.\n");
+    fprintf(file, "# BARREL_RADIUS: the cylinder's radius in %% of the frame (small bends hard at the edge, large compresses evenly)\n");
+    fprintf(file, "CROP_BARREL = false\nBARREL_CENTER = 60\nBARREL_RADIUS = 50\n\n");
     fprintf(file, "# WINDOW (window at the aspect ratio, square pixels), WINDOW_STRETCH (the picture fills the window),\n");
     fprintf(file, "# FULLSCREEN (full screen at the aspect ratio) or FULLSCREEN_STRETCH (the picture fills the screen).\n");
     fprintf(file, "# Takes over FULLSCREEN when set.\nDISPLAY_MODE = %s\n\n", defaults.fullscreen ? "FULLSCREEN" : "WINDOW");

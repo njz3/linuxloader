@@ -557,9 +557,49 @@ extern "C" char *bridgeStrerrorR(int errnum, char *buffer, size_t length) // GNU
 
 // --- network
 
+extern "C" void networkFromThisPc(void *address); // networkBridge.cpp: this PC as the game's own address
+
 extern "C" int bridgeGetpeername(int fd, struct sockaddr *address, int *length)
 {
-    return getpeername((SOCKET)fd, address, length);
+    if (getpeername((SOCKET)fd, address, length) != 0)
+        return -1;
+    networkFromThisPc(address);
+    return 0;
+}
+
+// --- libusb 1.0 (Dead Heat Riders looks for its I/O board on USB): a bus without any device
+static int usbContext;
+
+extern "C" int bridgeLibusbInit(void **context)
+{
+    if (context)
+        *context = &usbContext;
+    return 0;
+}
+
+extern "C" void bridgeLibusbExit(void *context)
+{
+    (void)context;
+}
+
+extern "C" int bridgeLibusbGetDeviceList(void *context, void ***list)
+{
+    (void)context;
+    static void *none[1] = {NULL};
+    if (list)
+        *list = none;
+    log_info("libusb: no USB device");
+    return 0;
+}
+
+extern "C" int bridgeLibusbNoDevice(void)
+{
+    return -4; // LIBUSB_ERROR_NO_DEVICE
+}
+
+extern "C" void bridgeLibusbClose(void *handle)
+{
+    (void)handle;
 }
 
 extern "C" unsigned int bridgeIfNametoindex(const char *name)
@@ -633,6 +673,13 @@ namespace SysBridge
         MAP("strerror_r", bridgeStrerrorR);
         MAP("getpeername", bridgeGetpeername);
         MAP("if_nametoindex", bridgeIfNametoindex);
+        MAP("libusb_init", bridgeLibusbInit);
+        MAP("libusb_exit", bridgeLibusbExit);
+        MAP("libusb_get_device_list", bridgeLibusbGetDeviceList);
+        MAP("libusb_get_device_descriptor", bridgeLibusbNoDevice);
+        MAP("libusb_open", bridgeLibusbNoDevice);
+        MAP("libusb_get_string_descriptor_ascii", bridgeLibusbNoDevice);
+        MAP("libusb_close", bridgeLibusbClose);
         MAP("if_indextoname", bridgeIfIndextoname);
         MAP("inet_ntop", bridgeInetNtop);
     }

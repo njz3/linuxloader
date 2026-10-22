@@ -22,8 +22,9 @@ void renderFrame(int width, int height);
 // Windows).
 const char *tr(const char *text);
 
-// The settings window. inGame: settings that need a restart are marked so, display settings apply live.
-void drawSettings(bool *open, const std::string &configFile, bool inGame);
+// The settings window. inGame: settings that need a restart are marked so, display settings apply live. configFile
+// becomes the game's own file once "Save for this game" wrote it.
+void drawSettings(bool *open, std::string &configFile, bool inGame);
 // Writes the settings to configFile, keeping its other lines and comments.
 bool saveSettings(const std::string &configFile);
 

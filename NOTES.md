@@ -62,6 +62,25 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 51 | 21/10 | Réorganiser l'historique en commits par fonction, pour des PR vers upstream (FFB, interface...) | ✅ 9 commits par fonction + NOTES.md, poussés en force sur `dev/ffbedition` ; arbre final identique ; chaque étape compile (MinGW et MSVC) ; ancien historique dans la branche locale `backup/ffbedition-84d5d1e` ; Linux non essayé |
 | 52 | 21/10 | Lancer les jeux depuis le partage de racecab1 (question de la session « Image borne ») | ✅ possible en lecture : Dead Heat lancé depuis `\\racecab1\C\racecab\Games`, rien d'écrit sur la borne ; mais démarrage en 100 s au lieu de 11 s et démo saccadée (données lues par le réseau) |
 | 53 | 21/10 | Dossier d'écriture pour UWF : tout en lecture seule sauf un dossier, réglages, NVRAM et fichiers des jeux en overlay ; même spécification pour sm2-emu, Supermodel et Flycast | ⚠️ linuxloader : `--write-dir` / `[Paths] WRITE_DIR`, essayé avec OutRun et Dead Heat (dossiers des jeux intacts) ; spécification envoyée aux trois sessions ; sm2-emu et Supermodel l'ont faite (non commitée) ; Flycast sans réponse |
+| 54 | 21/10 | Initial D 5 ne freine pas (signalé par un joueur) : le copier et l'essayer | ✅ copié dans `games/initiald5` ; le frein marche dans le loader : le défaut vient sans doute de la version, de la manette ou du `controls.ini` du joueur (à lui demander) |
+| 55 | 21/10 | Quels autres jeux non protégés peuvent passer par le linuxloader (question à la session « Image borne ») | ✅ six : Initial D 4 Export (traduction FR), Maximum Heat 3D, Dead Heat Riders, Ring Riders, Tokyo Cop, Gaelco Championship Tuning Race ; copiés de racecab1 dans `games/` |
+| 56 | 21/10 | Les faire tous, dans l'ordre | ✅ cinq jouables (ID4 FR, Maximum Heat 3D, Ring Riders, Tokyo Cop, Gaelco Tuning) ; Dead Heat Riders s'arrête sur sa clé HASP USB (« DONGLE ERROR 1 ») : contournement à décider ; détail dans `BILAN.md` |
+| 57 | 21/10 | Creuser Initial D 4 FR (écran « Card Stocker Cleaning », image décalée) | ✅ les deux corrigés, démo en français plein écran (voir journal) |
+| 58 | 21/10 | Tester aussi les autres nouveaux jeux | ✅ voir 56 |
+| 59 | 22/10 | Continuer avec les autres jeux | ✅ voir 56 |
+| 60 | 22/10 | Mettre à jour les notes avec les derniers développements | ✅ |
+| 61 | 22/10 | Supprimer la copie locale de Cruis'n Blast si plus rien n'est possible dessus | ✅ `games/cruisnblast` (12 Go) mis à la Corbeille |
+| 62 | 22/10 | Un bilan par fonction (contrôles, vJoy, FFB, affichage, menu de service...) dans un markdown rempli au fur et à mesure | ✅ `BILAN.md` : tableau par jeu, bilan par fonction, détail par jeu |
+| 63 | 22/10 | Ne plus s'arrêter avant d'avoir lancé tous les jeux et fait tous les essais | ✅ sauf Dead Heat Riders (clé HASP, à décider) ; jeux Gaelco joués par vJoy le 22/10 au soir |
+| 64 | 22/10 | Effacer les copies locales des jeux déjà pris en charge ; retirer FFB Plugin et DLL TeknoParrot de chaque nouvelle copie | ✅ ID4 FR, Maximum Heat 3D, Dead Heat mis à la Corbeille ; copies nettoyées ; restent `deadheatriders`, `gaelcotuning`, `ringriders`, `tokyocop` |
+| 65 | 22/10 | (relayée par windowsloader) Titre de fenêtre « titre [nom court] » pour l'autodétection de BackForceFeeder | ✅ toutes les fenêtres (GLUT, GLX, SDL 1.2, SDL, X11) |
+| 66 | 22/10 | (relayée par windowsloader) ASPECT_RATIO comme windowsloader : 4:3 et 16:9 = forme du cadre, image à son rapport avec bandes noires, seuls les modes étirés étirent | ✅ |
+| 67 | 22/10 | Émuler le son des jeux Gaelco | ✅ carte son émulée (`gaelcoSound.c`) : banque `roms.new`, 16 voies, IMA ADPCM ; vérifié par captures WAV (MinGW et MSVC), pas encore écouté |
+| 68 | 22/10 | Essai vJoy des jeux Gaelco après la série de windowsloader | ✅ les trois joués par vJoy (pièce, Start, commandes, retour de force reçu) ; accélérateur de vJoy sur l'axe 3 (vJoy à 4 axes) |
+| 69 | 22/10 | Remettre le 4:3 « plein » (16:9 comprimé) et le 16:9 étiré ; ajouter 4:3 et 16:9 recadrés, avec un curseur de recadrage | ✅ `ASPECT_RATIO` = `4:3_STRETCH`, `16:9_STRETCH`, `4:3_CROP`, `16:9_CROP`, `CROP_POSITION` (−100 à 100) ; dans F10 avec le curseur ; 4:3 et 16:9 gardent leurs bandes noires (accord windowsloader) ; vérifié sur Tuning (4:3) et Dead Heat Riders (16:9), MinGW et MSVC compilés |
+| 70 | 22/10 | Recadré : montrer quand même les parties coupées, comprimées sur les bords comme sur un cylindre (taille de la zone centrale, rayon de courbure) | ✅ `CROP_BARREL`, `BARREL_CENTER` (%), `BARREL_RADIUS` (%) ; dans F10 (case et deux curseurs, compilé, pas encore vu à l'écran) ; vérifié sur Dead Heat Riders (4:3 recadré) et Tuning (16:9 recadré), MinGW et MSVC compilés |
+| 71 | 22/10 | Réglages par jeu et en ligne de commande | ✅ `<nom court>.ini` à côté de `linuxloader.ini` lu à sa place pour ce jeu ; bouton F10 « Sauvegarder pour ce jeu » (copie du fichier commun la première fois, puis les sauvegardes y vont ; compilé, pas encore vu à l'écran) ; `--set SECTION.CLE=VALEUR` répétable, par-dessus le fichier lu ; vérifié en mode agent (fichier du jeu, `--set`, les deux ensemble) |
+| 72 | 22/10 | Demander à windowsloader, Flycast, Supermodel et sm2-emu les mêmes réglages d'aspect, de sauvegarde par jeu et de ligne de commande | ✅ spécification envoyée aux quatre sessions (windowsloader en file d'attente) |
 
 ## État des jeux (build MSVC, GPU Intel, vJoy)
 
@@ -70,8 +89,83 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | OutRun 2 SP SDX | ✅ | ✅ | ✅ RS422 | ressort 8B, amortisseur 86, bosses FB ; couple 84 au centrage seulement |
 | Hummer Extreme | ✅ | ✅ | ✅ RS422 | amortisseur 86, vibrations 85 (jusqu'à 50 Hz) |
 | Sega Race TV | ✅ | ✅ partie complète | ✅ RS422 | couple 84 jusqu'à ±26 % en course, coupé en attract (80 00 00) |
+| Dead Heat | ✅ | ✅ course complète | ✅ carte Kickback → trames servo | son non écouté |
+
+Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BILAN.md`) :
+
+| Jeu | Où il en est | Blocage suivant |
+|:--|:--|:--|
+| Initial D 4 Export FR | ✅ partie, FFB, menu de service, vJoy | `id4.elf originallllll` (ELF traduit) non essayé |
+| Maximum Heat 3D | ✅ partie, FFB, menu de test, vJoy | caméra coupée (pas de `/dev/video0`) |
+| Dead Heat Riders | ⛔ « DONGLE ERROR 1, E193 » | clé HASP USB (`clHASP::Check`) : contournement à décider |
+| Ring Riders | ✅ course, FFB, menu TEST (GPU NVIDIA) | son émulé ; joué par vJoy |
+| Tokyo Cop | ✅ poursuite, FFB, menu de test | son émulé ; joué par vJoy |
+| Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Six jeux non protégés (demandes 55 à 59)
+- Copiés de `\\racecab1\C\racecab\Games` par robocopy (`/R:600 /W:30 /MT:4`, le partage décroche) : `initiald4fr`
+  4,8 Go, `maxheat3d` 3,0 Go, `deadheatriders` 2,4 Go, `ringriders` 182 Mo, `tokyocop` 440 Mo, `gaelcotuning` 578 Mo.
+- **Initial D 4 Export FR** (reconnu comme Rev D, SBNK) :
+  - « Card Stocker Cleaning » au démarrage : le `sram.bin` neuf du loader met à 0 le compteur du stocker
+    (`cBookKeeping`, octet 0x18B, 200 après nettoyage) ; `doesNeedStockerCleaning` et `doesNeedRollerCleaning`
+    renvoient 0 pour la Rev D, comme pour ID5.
+  - Image de 800 px de large, décalée et coupée en haut : `initialD.ini` laissé par TeknoParrot dit
+    `Width = 1920, Height = 1080` ; le jeu n'accepte que 640 à 1600 de large, retombe à 800 et garde 1080. Le loader
+    imposait la résolution seulement hors 1360×768 : il l'impose maintenant toujours (Rev B, C, D).
+  - `id4.elf` (= `id4.elf ORIG`) est l'ELF anglais, retouché en 1920×1080 à 0x0837B223 ; la traduction est dans les
+    données (démo, avertissements) ; `id4.elf originallllll` a ses textes en français.
+- **Fonctions génériques ajoutées** (pour ces jeux, utiles à d'autres) :
+  - X11 : `XIfEvent` (MapNotify et Expose synthétiques), `XAllocSizeHints`, `XCreateImage`/`XPutImage`/`XCreatePixmap`,
+    `XCreateGC`/`XFreeGC`, opérations de fenêtre sans effet, économiseur d'écran, DPMS, keysyms.
+  - GL : `glLoadMatrixd`, `glTexGenf`, `glRasterPos4f`, `glBlitFramebufferEXT`, `glRenderbufferStorageMultisampleEXT`,
+    register combiners NVIDIA (passés au pilote s'il les a, ignorés sinon), vertex array range (mémoire de
+    `glXAllocateMemoryNV` par malloc), `gluBuild2DMipmaps`.
+  - libc et maths : `ctime`, `stime`, `sigaddset`, `ceil`, `floor`, `log2f`, `sincos`, `sincosf`.
+  - Image disque Linux : un jeu dont l'ELF est dans une arborescence `home`, `etc`, `lib`, `bin` (les Gaelco) voit
+    ses chemins absolus pris dans cette image (`ConvertPath`).
+  - Options de socket : table Linux → Winsock complète (SO_*, IP_*, multicast, délais en timeval, linger).
+  - `system()` : `sudo ifconfig eth0` répond succès ; `perl ./data/ifconfig.pl > fichier` (Namco) écrit la ligne
+    attendue (eth0, adresse, masque, MAC, lien), cohérente avec les ioctl SIOCGIF* du loader.
+- **Maximum Heat 3D** (US DRIVE rév. 8807, le moteur de Dead Heat rév. 6273) :
+  - Entrée de jeu `MAXIMUM_HEAT_3D` (CRC partiel 0xF932E88E) et groupe `GROUP_DEAD_HEAT` commun aux deux jeux
+    (shaders, entrées, interrupteur Test).
+  - Mêmes patches que Dead Heat aux adresses de ses symboles (HASP, link group, deux destructeurs) ; carte d'E/S N2
+    et carte Kickback de `deadHeatIo.c` par une table d'adresses par jeu (mêmes champs, `clKickback` décalé de 4
+    octets après 0x7C).
+  - Pas le patch du PCB ID : `clNet::getPcbId` est en base 0 ici (option du menu de test moins 1).
+  - Shaders : ses sources commencent par `#version 120` ; la déclaration de `gl_TexCoord` va après.
+  - Caméra : `USE_CAMERA_DEVICE` (octet 2 de `clConfig`) forcé à FALSE, pas de `/dev/video0` (son `config.csv`
+    d'origine l'active, celui de Dead Heat a été modifié).
+  - Reste : le contrôle du link au démarrage échoue (« PCB-ID dupliqué ») ; le jeu ne reçoit pas ses propres paquets
+    (aucun `sendto` vu) ; Dead Heat passe grâce à son `save0` venu d'une borne (`ifconfig.txt`, options du test).
+- **Gaelco** : leurs ELF (`home/joc2001/joc200x/salidas/gameport` ou `car`) parlent à la carte d'E/S et de son par
+  des appels système ajoutés au noyau Gaelco (`int 0x80`, n° 229 à 236, fonctions `iogaelco_*`), remplacées par
+  `hardware/gaelco/gaelcoIo.c` (registres, ports, sorties moteur → trames servo) et `gaelcoSound.c` (la carte son).
+- **Gaelco Tuning** : son abandon après 40 s (« Material not found! ») venait du loader : le jeu lie le dérouleur C++
+  d'Intel et enregistre son `.eh_frame` par son propre `__register_frame_info` (PLT) ; le loader branchait ce symbole
+  sur libgcc de MinGW, la liste du jeu restait vide et l'exception, normalement attrapée, finissait en abort. La
+  définition du programme gagne maintenant (`elfLoader.cpp`, comme ld.so). Résolution native 720×540.
+- **Volant Gaelco** : gauche = valeur haute sur leur carte ; Ring Riders et Tokyo Cop tournaient à l'envers et leur
+  moteur poussait du côté du braquage ; vérifié dans les trois écrans de test et par le signe du couple.
+- **Tokyo Cop** : menu de test par le code de touche 0x14 du port 0x42 (le loader y renvoyait 0xFF, une touche du
+  pavé numérique toujours enfoncée) ; frein = contact (port 0x40 bit 4), sirène et vue sur le port 0x41.
+- **`findStaticFnAddr` (Windows)** : seulement les symboles définis par les ELF chargés (`FindNativeSymbol`) ; la
+  résolution générale rendait le pont du loader pour un nom importé, détourné alors sur lui-même (`jmp $`) : les jeux
+  Gaelco bouclaient sur MSVC dans `CreateGLWindow` (vu au débogueur, cdb).
+- **`isWinsockHandle`** : un descripteur ouvert de la libc (`_get_osfhandle`) est un fichier ; sinon, la valeur d'un
+  fichier égale à celle d'une socket envoyait sa lecture dans `recv` (Ring Riders bloqué dans `CFileCacher::read`).
+- **MSVC** : les trois jeux Gaelco démarrent ; Tuning jusqu'en course.
+- **Son Gaelco** : échantillonneur de 16 voies à 48 kHz ; banque `roms.new` envoyée par `dump_sound_buffer` (en-têtes
+  de 32 octets du `sound.h` de Tuning) ; commandes `add_comm` 1 à 7 ; IMA ADPCM quartet haut d'abord ; gain Q14 ×
+  volume général (réglage du jeu au carré). Tokyo Cop attendait « tampon prêt » sur la commande d'interface 11 (13
+  ailleurs) avant d'envoyer quoi que ce soit. Capture : `LL_SOUND_WAV=<fichier>`. Musique de Tuning capturée identique
+  à son échantillon (corrélation 1,000).
+- **vJoy (jeux Gaelco)** : joués de bout en bout par vJoy le 22/10 au soir. Ce n'était pas la boîte du pare-feu :
+  les jeux Gaelco chargent 45 à 60 s en lancement normal (pièce perdue si envoyée avant), et vJoy n'expose plus que 4
+  axes (X, Y, Z, Rz) : l'accélérateur est l'axe 3 de SDL, `build-mingw/controls.ini` disait l'axe 5 (vJoy à 6 axes) ;
+  corrigé. Service se tient environ une seconde.
 
 ### Dossier d'écriture pour UWF (demandes 52 et 53)
 - But de l'utilisateur : UWF (filtre d'écriture de Windows) sur tout C: sauf un dossier, par exemple
@@ -425,6 +519,45 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
   `getpwuid_r`, `catopen`/`catgets`, `if_nametoindex`, `timegm`, `syscall`, `mlockall`...), les patchs HASP de
   `dh_emu.c` aux adresses de cette version, une entrée de jeu, et sans doute le son 5.1 et la caméra (à couper dans
   `data/csv/config.csv`). Les commandes passent par une manette SDL d'après le README.
+
+### Rapports d'aspect étirés et recadrés (demande 69)
+- Avant l'alignement sur windowsloader (matin du 22/10), `4:3` et `16:9` remplissaient le cadre en déformant l'image ;
+  l'alignement leur a donné les bandes noires. Les deux remplissages déformés reviennent sous leurs propres noms :
+  `4:3_STRETCH` (un jeu 16:9 comprimé dans un cadre 4:3), `16:9_STRETCH` (un jeu 4:3 élargi).
+- `4:3_CROP` et `16:9_CROP` : l'image remplit le cadre à ses proportions, la partie qui déborde coupée (les côtés d'un
+  jeu 16:9 en 4:3, le haut et le bas d'un jeu 4:3 en 16:9) ; `CROP_POSITION` (−100 à gauche ou en haut, 0 au milieu,
+  100 à droite ou en bas) place la partie gardée. Lu à chaque image : le curseur de F10 agit en direct.
+- `blitPresent` : le cadre a la forme du rapport (la fenêtre aussi en `WINDOW`), placé par le mode d'affichage ; dans
+  le cadre, l'image avec bandes, étirée ou recadrée (rectangle source du blit, qui garde aussi le recadrage de
+  Chihiro).
+- Vérifié en mode agent (`screen`, configurations par `-c`) : Tuning 720×540 en 16:9 (bandes, étiré, recadré à −100,
+  0 et 100) ; Dead Heat Riders 1360×768 en 4:3 (bandes, étiré, recadré à −100, 0 et 100) ; F10 vu en lancement
+  normal (liste et curseur).
+- `CROP_BARREL` (demande 70) : le milieu du cadre (`BARREL_CENTER` % de lui) comme le recadrage le montre, les parties
+  coupées comprimées sur les bords comme sur un cylindre vu de face : un point à l'arc s du bord du milieu se montre à
+  sin(s / R), R le rayon (`BARREL_RADIUS` % du cadre), mis à l'échelle pour que le bord de l'image tombe sur celui du
+  cadre, un quart de tour au plus (petit rayon : forte courbure au bord ; grand : compression presque uniforme). Un
+  bord qui a moins d'image que de place s'étire seulement. `CROP_POSITION` déplace le milieu.
+- Dessin : une bande de quadrilatères texturés (la texture du FBO), 64 pas par bord, en fonction fixe ; l'état GL du
+  jeu sauvé et rendu autour (attributs, matrices, programme GLSL, programmes ARB et NV, combineurs NV).
+- Vérifié en mode agent : Dead Heat Riders en 4:3 recadré (l'astérisque du coin, coupé sans courbure, revient au bord ;
+  milieu 60/30/100/0 %, rayon 20/50/300 %, position −100) ; Tuning en 16:9 recadré (l'horloge en haut et « credits »
+  en bas reviennent, comprimés ; les arêtes se courbent près des bords avec un petit rayon).
+
+### Réglages par jeu et `--set` (demandes 71 et 72)
+- `config.c` : `initConfig` connaît le jeu avant de lire le fichier ; quand le fichier est `linuxloader.ini` (celui du
+  dossier courant ou du dossier d'écriture, pas un `-c` à un autre nom), `<nom court>.ini` du même dossier est lu à sa
+  place s'il existe (« Settings of this game » dans le journal). C'est le même fichier que le picker cherchait déjà à
+  côté du programme. `getConfigFilePath()` donne le fichier lu ; F10 y sauvegarde.
+- F10 « Sauvegarder pour ce jeu » : `<nom court>.ini` à côté du fichier en cours, copié la première fois, puis écrit ;
+  les sauvegardes suivantes y vont.
+- `--set SECTION.CLE=VALEUR` (ou `--set=`), pris par `mainW.cpp` avant les arguments du jeu, appliqué par
+  `iniSetValue` sur le fichier lu (ou sur les valeurs par défaut s'il n'y a pas de fichier) ; section sans casse, clé
+  en majuscules ; jusqu'à 32. Décrit dans `--help`.
+- Essais (mode agent, dossier de test) : `--set Display.ASPECT_RATIO=16:9_STRETCH` donne 960×540 sur Tuning ;
+  `gaelcotuning.ini` présent : 960×540, absent : 720×540 ; fichier du jeu plus `--set …=4:3` : 720×540.
+- Spécification commune (rapports, recadrage courbé, réglages par jeu, `--set`) envoyée à windowsloader, Flycast,
+  Supermodel et sm2-emu à la demande de l'utilisateur.
 
 ### 4:3 avec bandes noires et résolution interne (demandes 44 à 46)
 - `ASPECT_4_3_LETTERBOX` (3) : la fenêtre ou la zone d'écran prend la forme 4:3 (`blitDisplayAspect`), puis

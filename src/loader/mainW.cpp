@@ -26,6 +26,7 @@
 #include "elfLoader/networkBridge.hpp"
 #include "elfLoader/mathBridge.hpp"
 #include "elfLoader/sysBridge.hpp"
+#include "elfLoader/rawThrillsBridge.hpp"
 #include "elfLoader/symbolResolver.hpp"
 #include "elfLoader/pthread/pthreadEmu.hpp"
 #include "loader/config/config.h"
@@ -38,6 +39,14 @@
 #include "gui/gui.h"
 #include "agent/agent.h"
 #include "redirections/writeDir.h"
+
+// On a laptop with two GPUs (NVIDIA Optimus, AMD PowerXpress), the dedicated one: the games were written for NVIDIA's
+// (Gaelco's draw with its register combiners, which Intel's driver has not)
+extern "C"
+{
+    __declspec(dllexport) DWORD NvOptimusEnablement = 1;
+    __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+}
 
 std::string g_absoluteElfPath;
 extern "C" { uint32_t partialElfCrc = 0; } // read from C (config.c)
@@ -154,6 +163,7 @@ void initBridges()
     RegexBridge::initBridges();
     MathBridge::initBridges();
     SysBridge::initBridges();
+    RawThrillsBridge::initBridges();
 }
 
 #ifdef _MSC_VER
@@ -170,6 +180,15 @@ int main(int argc, char *argv[], char *envp[])
     _set_invalid_parameter_handler(ignoreInvalidParameter);
 #endif
     logSetMinLevel(LOG_WARN);
+    // LL_LOG=warn, info, debug or trace: that much of the log, unbuffered so that a crash keeps it
+    if (const char *level = getenv("LL_LOG"))
+    {
+        logSetMinLevel(strcmp(level, "trace") == 0   ? LOG_TRACE
+                       : strcmp(level, "debug") == 0 ? LOG_DEBUG
+                       : strcmp(level, "warn") == 0  ? LOG_WARN
+                                                     : LOG_INFO);
+        setvbuf(stdout, NULL, _IONBF, 0);
+    }
 
     // --agent / --agent-show: the game driven over stdin/stdout (agent/agent.c); --write-dir PATH: the folder
     // everything is written to (redirections/writeDir.c). Not arguments of the game.
@@ -185,6 +204,10 @@ int main(int argc, char *argv[], char *envp[])
             s_writeDir = argv[i] + 12;
         else if (strcmp(argv[i], "--write-dir") == 0 && i + 1 < argc)
             s_writeDir = argv[++i];
+        else if (strncmp(argv[i], "--set=", 6) == 0)
+            configAddOverride(argv[i] + 6);
+        else if (strcmp(argv[i], "--set") == 0 && i + 1 < argc)
+            configAddOverride(argv[++i]);
         else
             args.push_back(argv[i]);
     }

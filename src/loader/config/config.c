@@ -66,6 +66,22 @@ char *getGameName()
     return config.gameTitle;
 }
 
+// The window's title: the game's name, then its short name in brackets, by which BackForceFeeder recognises the game
+// (no space nor bracket, kept from one version to the next), and the frame rate when fps is not negative. An unknown
+// game has no short name, nor brackets
+void formatWindowTitle(char *buffer, size_t size, double fps)
+{
+    char name[192];
+    if (config.gameShortTitle && config.gameShortTitle[0])
+        snprintf(name, sizeof(name), "%s [%s]", config.gameTitle, config.gameShortTitle);
+    else
+        snprintf(name, sizeof(name), "%s", config.gameTitle);
+    if (fps >= 0.0)
+        snprintf(buffer, size, "%s - FPS: %.2f", name, fps);
+    else
+        snprintf(buffer, size, "%s", name);
+}
+
 char *getDvpName()
 {
     return config.gameDVP;
@@ -130,6 +146,10 @@ void setDefaultValues(EmulatorConfig *cfg)
     cfg->emulateJVS = 1;
     cfg->fullscreen = 0;
     cfg->aspectRatio = ASPECT_ORIGINAL;
+    cfg->cropPosition = 0;
+    cfg->cropBarrel = 0;
+    cfg->barrelCenter = 60;
+    cfg->barrelRadius = 50;
     cfg->displayMode = -1;
     cfg->lindberghColour = YELLOW;
     strcpy(cfg->eepromPath, "eeprom.bin");
@@ -337,8 +357,23 @@ void applyIniConfig(EmulatorConfig *config, const IniConfig *ini)
         config->aspectRatio = ASPECT_4_3_LETTERBOX;
     else if (strcmp(displayValue, "16:9") == 0)
         config->aspectRatio = ASPECT_16_9;
+    else if (strcmp(displayValue, "4:3_stretch") == 0 || strcmp(displayValue, "4:3 stretch") == 0)
+        config->aspectRatio = ASPECT_4_3_STRETCH;
+    else if (strcmp(displayValue, "16:9_stretch") == 0 || strcmp(displayValue, "16:9 stretch") == 0)
+        config->aspectRatio = ASPECT_16_9_STRETCH;
+    else if (strcmp(displayValue, "4:3_crop") == 0 || strcmp(displayValue, "4:3 crop") == 0)
+        config->aspectRatio = ASPECT_4_3_CROP;
+    else if (strcmp(displayValue, "16:9_crop") == 0 || strcmp(displayValue, "16:9 crop") == 0)
+        config->aspectRatio = ASPECT_16_9_CROP;
     else if (strcmp(displayValue, "original") == 0)
         config->aspectRatio = ASPECT_ORIGINAL;
+    config->cropPosition = getInt(ini, "Display", "CROP_POSITION", config->cropPosition);
+    config->cropPosition = config->cropPosition < -100 ? -100 : config->cropPosition > 100 ? 100 : config->cropPosition;
+    config->cropBarrel = getInt(ini, "Display", "CROP_BARREL", config->cropBarrel);
+    config->barrelCenter = getInt(ini, "Display", "BARREL_CENTER", config->barrelCenter);
+    config->barrelCenter = config->barrelCenter < 0 ? 0 : config->barrelCenter > 100 ? 100 : config->barrelCenter;
+    config->barrelRadius = getInt(ini, "Display", "BARREL_RADIUS", config->barrelRadius);
+    config->barrelRadius = config->barrelRadius < 1 ? 1 : config->barrelRadius > 1000 ? 1000 : config->barrelRadius;
     displayValue[0] = '\0';
     getString(ini, "Display", "DISPLAY_MODE", displayValue, sizeof(displayValue));
     toLowerCase(displayValue);
@@ -542,6 +577,79 @@ void applyIniConfig(EmulatorConfig *config, const IniConfig *ini)
     }
 }
 
+// --set SECTION.KEY=VALUE: the section matched without case, the key in capitals, as the ini files write them
+#define MAX_OVERRIDES 32
+static char *overrides[MAX_OVERRIDES];
+static int overrideCount;
+static char configFileUsed[PATH_MAX];
+
+void configAddOverride(const char *assignment)
+{
+    if (overrideCount < MAX_OVERRIDES)
+        overrides[overrideCount++] = strdup(assignment);
+    else
+        log_warn("--set: more than %d settings, %s ignored", MAX_OVERRIDES, assignment);
+}
+
+static bool sameText(const char *a, const char *b)
+{
+    while (*a && tolower((unsigned char)*a) == tolower((unsigned char)*b))
+        a++, b++;
+    return tolower((unsigned char)*a) == tolower((unsigned char)*b);
+}
+
+static void applyOverrides(IniConfig *ini)
+{
+    static const char *sections[] = {"Cards",    "CrossHairs", "Cursor",  "Display", "EVDEV",   "Emulation", "ForceFeedback", "GameSpecific",
+                                     "Graphics", "Input",      "Launcher", "Network", "Outputs", "Paths",     "System"};
+    for (int i = 0; i < overrideCount; i++)
+    {
+        char assignment[512];
+        snprintf(assignment, sizeof(assignment), "%s", overrides[i]);
+        char *equals = strchr(assignment, '=');
+        char *dot = strchr(assignment, '.');
+        if (!equals || !dot || dot > equals)
+        {
+            log_warn("--set %s: expected SECTION.KEY=VALUE", overrides[i]);
+            continue;
+        }
+        *dot = '\0';
+        *equals = '\0';
+        const char *section = assignment;
+        for (size_t s = 0; s < sizeof(sections) / sizeof(sections[0]); s++)
+            if (sameText(section, sections[s]))
+                section = sections[s];
+        char *key = dot + 1;
+        for (char *c = key; *c; c++)
+            *c = (char)toupper((unsigned char)*c);
+        iniSetValue(ini, section, key, equals + 1);
+        log_info("--set %s.%s = %s", section, key, equals + 1);
+    }
+}
+
+// <short name>.ini in the folder of linuxloader.ini, the game's own settings (F10's "Save for this game", the picker)
+static void useGameConfigFile(char *filePath)
+{
+    const char *name = strrchr(filePath, '/');
+    const char *backslash = strrchr(filePath, '\\');
+    if (!name || (backslash && backslash > name))
+        name = backslash;
+    name = name ? name + 1 : filePath;
+    if (!config.gameShortTitle || !config.gameShortTitle[0] || !sameText(name, CONFIG_PATH))
+        return;
+    char gameFile[PATH_MAX];
+    snprintf(gameFile, sizeof(gameFile), "%.*s%s.ini", (int)(name - filePath), filePath, config.gameShortTitle);
+    if (!fileExists(gameFile))
+        return;
+    log_info("Settings of this game: %s", gameFile);
+    snprintf(filePath, PATH_MAX, "%s", gameFile);
+}
+
+const char *getConfigFilePath(void)
+{
+    return configFileUsed;
+}
+
 int initConfig(const char *configFilePath)
 {
     setDefaultValues(&config);
@@ -577,14 +685,19 @@ int initConfig(const char *configFilePath)
 #endif
     }
     filePath[PATH_MAX - 1] = '\0';
+    useGameConfigFile(filePath);
+    snprintf(configFileUsed, sizeof(configFileUsed), "%s", filePath);
     IniConfig *ini = iniLoad(filePath);
 
+    if (ini == NULL && overrideCount > 0)
+        ini = calloc(1, sizeof(IniConfig)); // the defaults, with the command line's settings over them
     if (ini == NULL)
     {
         log_warn("Cannot open or parse %s, using default values.", filePath);
         return 1;
     }
 
+    applyOverrides(ini);
     applyIniConfig(&config, ini);
 
     if (config.customCursorEnabled && (strcmp(config.customCursor, "") != 0 || strcmp(config.touchCursor, "") != 0))

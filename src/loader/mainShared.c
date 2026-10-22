@@ -416,7 +416,10 @@ void printUsage(char *programName)
     printf("  --list-guids       | -lg Lists available SDL controllers GUIDs.\n");
     printf("  --version          | -v  Displays the version of the loader and team's names\n");
     printf("  --help             | -h  Displays this usage text\n");
-    printf("  --config           | -c  Specifies configuration ini file path\n");
+    printf("  --config           | -c  Specifies configuration ini file path (default: linuxloader.ini, or the\n");
+    printf("                           game's <short name>.ini beside it when there is one)\n");
+    printf("  --set SECTION.KEY=VALUE  Overrides one setting of the ini file, e.g. --set Display.ASPECT_RATIO=4:3_CROP\n");
+    printf("                           (repeatable)\n");
     printf("  --controls         | -o  Specifies controls ini file path\n");
     printf("  --controllerdb     | -d  Specifies gamecontrollerdb.txt file path\n");
     printf("  --library-path     | -L  Specifies library path\n");

@@ -53,6 +53,9 @@ long int sharedFtell(FILE *stream);
 int sharedFseek(FILE *stream, long int offset, int whence);
 void sharedRewind(FILE *stream);
 int sharedIoctl(int fd, unsigned long int request, ...);
+int sharedNamcoIfconfig(const char *path);
+void sharedEth0Set(const char *ifconfigArguments);
+const char *sharedEth0SetAddress(void);
 int sharedSelect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout);
 #ifdef _WIN32
 const char *sharedBinaryMode(const char *mode, char *buffer, size_t size);

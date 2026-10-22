@@ -6,6 +6,8 @@
 
 #include <math.h>
 #include <cmath>
+#include <stdint.h>
+#include <stdlib.h>
 
 #define MAP(name, func) SymbolResolver::GetInstance().RegisterVTable(name, reinterpret_cast<void *>(func))
 
@@ -61,6 +63,15 @@ namespace MathBridge
         MAP("frexpf", bridge_frexpf);
         MAP("ldexpf", bridge_ldexpf);
         MAP("fabsf", bridge_fabsf);
+        MAP("ceil", bridge_ceil);
+        MAP("floor", bridge_floor);
+        MAP("log2f", bridge_log2f);
+        MAP("sincos", bridge_sincos);
+        MAP("sincosf", bridge_sincosf);
+        MAP("strtof", bridge_strtof);
+        MAP("strtold", bridge_strtold);
+        MAP("strtoul", bridge_strtoul);
+        MAP("frexpl", bridge_frexpl);
     }
 }   
 
@@ -275,6 +286,66 @@ extern "C" double bridge_difftime(int end, int start)
 extern "C" float bridge_fabsf(float x)
 {
     return ::fabsf(x);
+}
+
+extern "C" double bridge_ceil(double x)
+{
+    return ::ceil(x);
+}
+
+extern "C" double bridge_floor(double x)
+{
+    return ::floor(x);
+}
+
+extern "C" float bridge_log2f(float x)
+{
+    return ::log2f(x);
+}
+
+// glibc's, not in Windows' C library
+extern "C" void bridge_sincos(double x, double *s, double *c)
+{
+    *s = ::sin(x);
+    *c = ::cos(x);
+}
+
+extern "C" void bridge_sincosf(float x, float *s, float *c)
+{
+    *s = ::sinf(x);
+    *c = ::cosf(x);
+}
+
+extern "C" float bridge_strtof(const char *text, char **end)
+{
+    return ::strtof(text, end);
+}
+
+// Linux returns a long double in st(0), where a double comes back too: the caller reads the same register
+extern "C" double bridge_strtold(const char *text, char **end)
+{
+    return ::strtod(text, end);
+}
+
+extern "C" unsigned long bridge_strtoul(const char *text, char **end, int base)
+{
+    return ::strtoul(text, end, base);
+}
+
+// The x87 extended value read by hand (MSVC's long double is a double), then split as frexp does
+extern "C" double bridge_frexpl(MathBridge::LinuxLongDouble x, int *exponent)
+{
+    uint64_t mantissa;
+    uint16_t signExponent;
+    memcpy(&mantissa, x.bytes, 8);
+    memcpy(&signExponent, x.bytes + 8, 2);
+    int biased = signExponent & 0x7FFF;
+    double value = 0.0;
+    if (biased != 0 || mantissa != 0)
+        value = ::ldexp((double)mantissa, biased - 16383 - 63);
+    if (signExponent & 0x8000)
+        value = -value;
+    return ::frexp(value, exponent);
 }
 
 #endif
