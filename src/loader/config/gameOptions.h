@@ -1,0 +1,52 @@
+#pragma once
+
+// The options of one game: the F10 window's "Game options" page, in the settings file's [Game.<short name>] section,
+// read over the general keys and for that game only (gameOptions.c, the same layout as windowsloader's).
+
+#include <stdbool.h>
+#include <stddef.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef enum
+{
+    GAME_OPTION_SWITCH, // a check box: true / false
+    GAME_OPTION_CHOICE, // a list: one of values, written as it is
+    GAME_OPTION_RANGE   // a slider: an integer from min to max
+} GameOptionKind;
+
+typedef struct
+{
+    const char *key;   // in [Game.<short name>], in capitals
+    const char *label; // English, translated by the interface
+    const char *help;
+    GameOptionKind kind;
+    size_t field; // offsetof(EmulatorConfig, ...): an int, or a float when isFloat
+    bool isFloat;
+    const char *const *values;      // GAME_OPTION_CHOICE: the values written, NULL-terminated; the field holds the index
+    const char *const *valueLabels; // and what the list shows
+    int min, max;                   // GAME_OPTION_RANGE
+    bool nextStart;                 // takes effect at the next start (else at once)
+    bool (*applies)(void);          // an option of the game being run
+} GameOption;
+
+extern const GameOption gameOptionTable[];
+extern const int gameOptionCount;
+
+// [Game.<short name>] of the game being run, or "" for no game
+const char *gameOptionSection(void);
+int gameOptionValue(const GameOption *option);
+void gameOptionSetValue(const GameOption *option, int value);
+// The value as the settings file writes it; and read from it (false when the text is not one)
+void gameOptionFormat(const GameOption *option, char *buffer, size_t size);
+bool gameOptionParse(const GameOption *option, const char *text);
+// Once the settings are read: the values the game started with, against which the page marks the changes that wait
+// for the next start
+void gameOptionsRemember(void);
+int gameOptionLaunchValue(const GameOption *option);
+
+#ifdef __cplusplus
+}
+#endif

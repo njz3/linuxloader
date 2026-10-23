@@ -384,6 +384,7 @@ typedef struct
     int enableCrosshairs;
     int gsevoCrosshairAlwaysOn;
     int gsevoCrosshairAlwaysOff;
+    int noCardReader; // Maximum Tune 3: played as with CARD R/W OFF (its card reader-printer is not emulated)
     char p1CrossHairPath[MAX_PATH_LENGTH];
     char p2CrossHairPath[MAX_PATH_LENGTH];
     int customCrossHairWidth;

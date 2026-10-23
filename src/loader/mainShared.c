@@ -419,7 +419,8 @@ void printUsage(char *programName)
     printf("  --config           | -c  Specifies configuration ini file path (default: linuxloader.ini, or the\n");
     printf("                           game's <short name>.ini beside it when there is one)\n");
     printf("  --set SECTION.KEY=VALUE  Overrides one setting of the ini file, e.g. --set Display.ASPECT_RATIO=4:3_CROP\n");
-    printf("                           (repeatable)\n");
+    printf("                           (repeatable); Game.KEY=VALUE sets an option of the game being run, its\n");
+    printf("                           [Game.<short name>] section (F10's Game options page)\n");
     printf("  --controls         | -o  Specifies controls ini file path\n");
     printf("  --controllerdb     | -d  Specifies gamecontrollerdb.txt file path\n");
     printf("  --library-path     | -L  Specifies library path\n");

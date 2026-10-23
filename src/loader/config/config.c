@@ -5,6 +5,7 @@
 
 #include "config.h"
 #include "gameData.h"
+#include "gameOptions.h"
 #include "../graphics/gpuVendor.h"
 #include "../log/log.h"
 #include "iniParser.h"
@@ -229,6 +230,7 @@ void setDefaultValues(EmulatorConfig *cfg)
     cfg->enableCrosshairs = 0;
     cfg->gsevoCrosshairAlwaysOn = 0;
     cfg->gsevoCrosshairAlwaysOff = 0;
+    cfg->noCardReader = 1;
     strcpy(cfg->p1CrossHairPath, "");
     strcpy(cfg->p2CrossHairPath, "");
     cfg->customCrossHairWidth = 64;
@@ -619,12 +621,32 @@ static void applyOverrides(IniConfig *ini)
         for (size_t s = 0; s < sizeof(sections) / sizeof(sections[0]); s++)
             if (sameText(section, sections[s]))
                 section = sections[s];
+        if (sameText(section, "Game")) // the options of the game being run, [Game.<short name>]
+            section = gameOptionSection();
         char *key = dot + 1;
         for (char *c = key; *c; c++)
             *c = (char)toupper((unsigned char)*c);
         iniSetValue(ini, section, key, equals + 1);
         log_info("--set %s.%s = %s", section, key, equals + 1);
     }
+}
+
+// The options of the game being run, from its [Game.<short name>] section, over the general keys (gameOptions.c)
+static void applyGameOptions(const IniConfig *ini)
+{
+    const char *section = gameOptionSection();
+    for (int i = 0; section[0] && i < gameOptionCount; i++)
+    {
+        const GameOption *option = &gameOptionTable[i];
+        if (!option->applies())
+            continue;
+        const char *raw = getValue(ini, section, option->key);
+        char clean[256];
+        const char *value = raw ? cleanValue(raw, clean, sizeof(clean)) : NULL;
+        if (value && !gameOptionParse(option, value))
+            log_warn("[%s] %s = %s: not a value of this option", section, option->key, value);
+    }
+    gameOptionsRemember();
 }
 
 // <short name>.ini in the folder of linuxloader.ini, the game's own settings (F10's "Save for this game", the picker)
@@ -694,11 +716,13 @@ int initConfig(const char *configFilePath)
     if (ini == NULL)
     {
         log_warn("Cannot open or parse %s, using default values.", filePath);
+        gameOptionsRemember();
         return 1;
     }
 
     applyOverrides(ini);
     applyIniConfig(&config, ini);
+    applyGameOptions(ini);
 
     if (config.customCursorEnabled && (strcmp(config.customCursor, "") != 0 || strcmp(config.touchCursor, "") != 0))
         config.hideCursor = 0;

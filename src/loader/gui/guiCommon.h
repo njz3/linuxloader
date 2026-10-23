@@ -37,6 +37,11 @@ struct IniValue
 };
 bool iniUpdate(const std::string &path, const std::vector<IniValue> &values);
 
+// The "Game options" page: the options of the game being run (config/gameOptions.c), in its [Game.<short name>]
+// section of configFile; and their values for saveSettings
+void drawGameOptionsTab(const std::string &configFile);
+void gameOptionsIniValues(std::vector<IniValue> &values);
+
 // The controls page: the bindings of controls.ini, captured from the devices.
 void setControlsFile(const std::string &path);
 void drawControlsTab(bool inGame);

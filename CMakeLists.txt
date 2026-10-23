@@ -77,6 +77,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "Linux" AND NOT MINGW AND NOT CMAKE_C_COMPILER MATC
         src/loader/config/config.c
         src/loader/input/evdevInput.c
         src/loader/config/gameData.c
+        src/loader/config/gameOptions.c
         src/loader/config/configIni.c)
 
     set_target_properties(linuxloader_exe PROPERTIES LINK_FLAGS "-m32")

@@ -2803,6 +2803,11 @@ int initPatch()
             namcoHaspInstall();  // its HASP key, from a memory image beside the game
             n2SoundInstall();    // NVIDIA's OpenAL in the program: OpenAL Soft's
             deadHeatIoInstall(); // the N2 I/O board as Nirin's, the Kickback wheel board as Dead Heat's
+            // [Game.mt3] NO_CARD_READER (the default): played as with the test menu's CARD R/W OFF, the card
+            // reader-printer not being emulated (clTestMode::isNoUseCardDevice)
+            void *noCardDevice = findStaticFnAddr("_ZNK10clTestMode17isNoUseCardDeviceEv");
+            if (getConfig()->noCardReader && noCardDevice)
+                detourFunction((size_t)noCardDevice, stubRetOne);
         }
         break;
         case RING_RIDERS:

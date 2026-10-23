@@ -149,6 +149,48 @@ const std::unordered_map<std::string, const char *> &frenchTexts()
         {"Saved to %s (this game only)", "Sauvegardé dans %s (ce jeu seulement)"},
         {"Cannot write %s", "Impossible d'écrire %s"},
         {"Takes effect at the next start.", "Prend effet au prochain démarrage."},
+        {"Game options", "Options du jeu"},
+        {"Unknown game", "Jeu inconnu"},
+        {"In [%s] of %s, for this game only.", "Dans [%s] de %s, pour ce jeu seulement."},
+        {"(at the next start)", "(au prochain lancement)"},
+        {"No options for this game.", "Aucune option pour ce jeu."},
+        {"Changed options take effect at the next start, once saved.", "Les options changées prennent effet au prochain lancement, une fois enregistrées."},
+        {"Play without the card reader", "Jouer sans le lecteur de cartes"},
+        {"As when its test menu's CARD R/W is OFF: no card check at start, games without a card. The card reader-printer is not emulated yet: unticked, the test menu decides, and CARD R/W ON stops the game at error E51.", "Comme avec CARD R/W à OFF dans son menu de test : pas de contrôle des cartes au démarrage, parties sans carte. Le lecteur-imprimante n'est pas encore émulé : décoché, c'est le menu de test qui décide, et CARD R/W à ON arrête le jeu sur l'erreur E51."},
+        {"Emulate the drive board", "Émuler la carte servo"},
+        {"The force feedback board on its serial port, emulated by the loader for the wheel. Unticked: the serial port is passed to a real board (Initial D: the card reader shares the serial ports).", "La carte du retour de force, sur son port série, émulée par le loader pour le volant. Décoché : le port série va à une vraie carte (Initial D : le lecteur de cartes partage les ports série)."},
+        {"Skip the cabinet checks", "Sauter les contrôles de la borne"},
+        {"The drive board and tower checks of the start skipped.", "Les contrôles de la carte servo et de la tour au démarrage sont sautés."},
+        {"Fix the flickering", "Corriger le scintillement"},
+        {"A shader patch for the flickering some graphics cards show.", "Une correction des shaders pour le scintillement de certaines cartes graphiques."},
+        {"Emulate the card reader", "Émuler le lecteur de cartes"},
+        {"The players' cards kept in files (Cards section).", "Les cartes des joueurs gardées dans des fichiers (section Cards)."},
+        {"Steering travel used", "Course du volant utilisée"},
+        {"In % of the wheel's travel: a smaller turn of the wheel for a full turn in the game. 0: the whole travel.", "En % de la course du volant : un plus petit tour de volant pour un tour complet dans le jeu. 0 : toute la course."},
+        {"Chinese language", "Langue chinoise"},
+        {"The game in Chinese (DVP-0084 and DVP-0084A).", "Le jeu en chinois (DVP-0084 et DVP-0084A)."},
+        {"The HW210 IC card reader, its cards kept in files.", "Le lecteur de cartes à puce HW210, ses cartes gardées dans des fichiers."},
+        {"Render with the Mesa patches", "Rendu avec les corrections Mesa"},
+        {"The shaders patched as for Mesa's drivers.", "Les shaders corrigés comme pour les pilotes Mesa."},
+        {"Screens", "Écrans"},
+        {"Where the touch screen goes beside the main one.", "Où va l'écran tactile à côté de l'écran principal."},
+        {"Default (no scaling)", "Par défaut (sans mise à l'échelle)"},
+        {"No touch screen", "Sans écran tactile"},
+        {"Side by side", "Côte à côte"},
+        {"Touch screen on the right", "Écran tactile à droite"},
+        {"Touch screen below", "Écran tactile en dessous"},
+        {"Test menu on one screen", "Menu de test sur un écran"},
+        {"The test menu on the main screen alone.", "Le menu de test sur l'écran principal seul."},
+        {"Render with Zink", "Rendu avec Zink"},
+        {"A special OpenGL library that fixes the graphic glitches.", "Une bibliothèque OpenGL spéciale qui corrige les défauts graphiques."},
+        {"Playable at any time", "Jouable à toute heure"},
+        {"The game also runs at the hours its servers refused.", "Le jeu tourne aussi aux heures que ses serveurs refusaient."},
+        {"Other gun display", "Autre affichage des armes"},
+        {"The cabinet's switch that changes how the guns are shown.", "L'interrupteur de la borne qui change l'affichage des armes."},
+        {"Swap handlebar and throttle", "Échanger guidon et poignée"},
+        {"For JVS passthrough: the two analogue channels swapped.", "Pour le JVS direct : les deux voies analogiques échangées."},
+        {"Crosshairs always shown", "Viseurs toujours affichés"},
+        {"Crosshairs always hidden", "Viseurs toujours cachés"},
         {"Interface based on sm2-emu's, by Daniel Martin (dmanlfc) and the sm2-emu contributors, modified for the "
          "Lindbergh loader:",
          "Interface basée sur celle de sm2-emu, de Daniel Martin (dmanlfc) et des contributeurs de sm2-emu, modifiée "
@@ -642,6 +684,13 @@ void drawSettings(bool *open, std::string &configFile, bool inGame)
             ImGui::EndTabItem();
         }
 
+        // The options of the game being run, from its module's table (config/gameOptions.c)
+        if (inGame && ImGui::BeginTabItem(tr("Game options")))
+        {
+            drawGameOptionsTab(configFile);
+            ImGui::EndTabItem();
+        }
+
         if (ImGui::BeginTabItem(tr("Outputs and network")))
         {
             bool outputs = cfg->outputsNetwork != 0;
@@ -753,7 +802,7 @@ bool saveSettings(const std::string &configFile)
     char number[32];
     int mode = currentDisplayMode();
     snprintf(number, sizeof(number), "%.1f", cfg->fpsTarget);
-    return iniUpdate(configFile, {
+    std::vector<IniValue> values = {
                                      {"Display", "ASPECT_RATIO", aspectNames[std::clamp(cfg->aspectRatio, 0, IM_ARRAYSIZE(aspectNames) - 1)]},
                                      {"Display", "CROP_POSITION", std::to_string(cfg->cropPosition)},
                                      {"Display", "CROP_BARREL", cfg->cropBarrel ? "true" : "false"},
@@ -776,6 +825,8 @@ bool saveSettings(const std::string &configFile)
                                      {"Network", "SRTV_IPADDRESS", cfg->srtvIP},
                                      {"Launcher", "GAMES_DIR", cfg->gamesDir},
                                      {"Launcher", "LANGUAGE", cfg->language},
-                                 });
+                                 };
+    gameOptionsIniValues(values); // [Game.<short name>] of the game being run, none in the picker
+    return iniUpdate(configFile, values);
 }
 } // namespace gui
