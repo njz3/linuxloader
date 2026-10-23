@@ -198,12 +198,14 @@ static void *admGetCurrentDrawable(void)
     return &window;
 }
 
-// The loader's swap, as SDL 1.2 games': the picture scaled to the window, the overlays, the agent's frame
+// The loader's swap, as SDL 1.2 games': the picture scaled to the window, the overlays, the agent's frame. The game
+// reads no SDL event (its inputs are the N2 board's), so the loader's own are handled here: controllers, keyboard, F10
 static int admSwapBuffers(void *drawable)
 {
     (void)drawable;
     traceDump();
     sdl12GLSwapBuffers();
+    pollEvents();
     return 1;
 }
 
