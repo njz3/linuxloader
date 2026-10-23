@@ -48,15 +48,12 @@
 #define CARD_FD 0x4E32    // the emulated port's descriptor in clSerialN2
 #define FRAME_MAX 600
 
-// Maximum Tune 3's clSerialN2: open, close, send and receive
-#define SERIAL_OPEN 0x0852D900
-#define SERIAL_CLOSE 0x0852DAB0
-#define SERIAL_SEND 0x0852DADC
-#define SERIAL_RECEIVE 0x0852DB30
-
 // clSerialN2's descriptor and port index
-#define SERIAL_FD(serial) (*(int *)((uint8_t *)(serial) + 4))
-#define SERIAL_PORT(serial) (*(int *)((uint8_t *)(serial) + 0xC))
+#define SERIAL_FD(serial) (*(int *)((uint8_t *)(serial) + serialFields[0]))
+#define SERIAL_PORT(serial) (*(int *)((uint8_t *)(serial) + serialFields[1]))
+
+extern uint32_t gId;
+static int serialFields[2] = {4, 0xC}; // Maximum Tune 3DX+: 8 and 0x10 (a field before them)
 
 typedef enum
 {
@@ -453,12 +450,27 @@ void n2CardPrinterKey(void)
     keyPressed();
 }
 
+// clSerialN2's open, close, send and receive, found by their symbols (Maximum Tune 3 and 3DX+)
 void n2CardPrinterInstall(void)
 {
-    detourFunction(SERIAL_OPEN, serialOpen);
-    detourFunction(SERIAL_CLOSE, serialClose);
-    detourFunction(SERIAL_SEND, serialSend);
-    detourFunction(SERIAL_RECEIVE, serialReceive);
+    static const char *names[4] = {"_ZN10clSerialN24openEv", "_ZN10clSerialN25closeEv", "_ZN10clSerialN24sendEPhi",
+                                   "_ZN10clSerialN27receiveEPhi"};
+    void *replacements[4] = {(void *)serialOpen, (void *)serialClose, (void *)serialSend, (void *)serialReceive};
+    if (gId == WANGAN_MIDNIGHT_MT3DX)
+    {
+        serialFields[0] = 8;
+        serialFields[1] = 0x10;
+    }
+    for (int i = 0; i < 4; i++)
+    {
+        void *function = findStaticFnAddr(names[i]);
+        if (!function)
+        {
+            log_error("Card reader-printer: %s not found, not emulated", names[i]);
+            return;
+        }
+        detourFunction((size_t)function, replacements[i]);
+    }
     log_info("Card reader-printer emulated, its card in %s ([Cards] CARDFILE_01, CardInsert key)",
              getConfig()->cardFile1);
 }

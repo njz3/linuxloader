@@ -97,7 +97,7 @@ static bool ghostSquad(void)
 
 static bool maximumTune3(void)
 {
-    return crc() == WANGAN_MIDNIGHT_MT3;
+    return crc() == WANGAN_MIDNIGHT_MT3 || crc() == WANGAN_MIDNIGHT_MT3DX;
 }
 
 static const char *const phModes[] = {"0", "1", "2", "3", "4", NULL};

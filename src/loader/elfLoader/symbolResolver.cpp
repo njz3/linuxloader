@@ -176,6 +176,27 @@ SymbolResolver::SymbolResolver()
     m_VTables["fputc"] = reinterpret_cast<void *>(fputc);
 }
 
+// A copied link left empty (Maximum Tune 3DX+'s libso/libboost_system-gcc40-mt-1_36.so.1.36.0): the library is the
+// same name without its version numbers, the first of x.so.1.36, x.so.1, x.so that holds something
+static std::string UnversionedLibrary(const std::string &path)
+{
+    std::string name = path;
+    while (true)
+    {
+        size_t dot = name.find_last_of('.');
+        size_t so = name.rfind(".so.");
+        if (dot == std::string::npos || so == std::string::npos || dot < so + 3)
+            return path;
+        name.erase(dot);
+        WIN32_FILE_ATTRIBUTE_DATA data;
+        if (GetFileAttributesExA(name.c_str(), GetFileExInfoStandard, &data) && (data.nFileSizeLow || data.nFileSizeHigh))
+        {
+            log_info("%s is empty: %s taken", path.c_str(), name.c_str());
+            return name;
+        }
+    }
+}
+
 // A Linux symbolic link copied to Windows becomes a small file holding the target's name (Maximum Tune 3's
 // libso/libz.so.1 holds "libz.so"): the library is that target, beside the link
 static std::string FollowLinkFile(std::string path)
@@ -186,6 +207,8 @@ static std::string FollowLinkFile(std::string path)
         char text[256];
         file.read(text, sizeof(text));
         std::streamsize size = file.gcount();
+        if (size == 0 && file.eof())
+            return UnversionedLibrary(path);
         if (size < 4 || size >= (std::streamsize)sizeof(text) || memcmp(text, "\x7f" "ELF", 4) == 0)
             return path;
         std::string target(text, (size_t)size);

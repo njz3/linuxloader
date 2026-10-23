@@ -2797,6 +2797,7 @@ int initPatch()
         }
         break;
         case WANGAN_MIDNIGHT_MT3:
+        case WANGAN_MIDNIGHT_MT3DX:
         {
             // NVIDIA's arcade driver is built into the program: its display calls and OpenGL entry points go to the
             // loader's window and OpenGL
@@ -2805,10 +2806,25 @@ int initPatch()
             n2SoundInstall();    // NVIDIA's OpenAL in the program: OpenAL Soft's
             deadHeatIoInstall(); // the N2 I/O board as Nirin's, the Kickback wheel board as Dead Heat's
             n2CardPrinterInstall(); // the card reader-printer on its serial port, its cards in files
-            // [Game.mt3] NO_CARD_READER: played as with the test menu's CARD R/W OFF (clTestMode::isNoUseCardDevice)
+            // [Game.mt3] NO_CARD_READER: played as with the test menu's CARD R/W OFF (clTestMode::isNoUseCardDevice);
+            // isEnableCardDevice gives 0 then, as it does with CARD R/W OFF (3DX+ asks it for its card screens)
             void *noCardDevice = findStaticFnAddr("_ZNK10clTestMode17isNoUseCardDeviceEv");
+            void *enableCardDevice = findStaticFnAddr("_ZNK10clTestMode18isEnableCardDeviceEv");
             if (getConfig()->noCardReader && noCardDevice)
                 detourFunction((size_t)noCardDevice, stubRetOne);
+            if (getConfig()->noCardReader && enableCardDevice)
+                detourFunction((size_t)enableCardDevice, stubRetZero);
+            // Maximum Tune 3DX+: its data/config.lua says JAMMA = FALSE (the keyboard instead of the N2 board): the
+            // board's branch taken whatever it says, in clMain::init and both clMain::clMain
+            if (gId == WANGAN_MIDNIGHT_MT3DX)
+            {
+                patchMemoryFromString(0x088C55C1, "9090");
+                patchMemoryFromString(0x088C6456, "9090");
+                patchMemoryFromString(0x088CAC06, "9090");
+                // The test permission the boot sequence gives (clMain +0x19, set by seqBoot) is gone by the demo
+                // in this version, where Maximum Tune 3 keeps it: the demo (seqAtructMovie) takes Test without it
+                patchMemoryFromString(0x087974AC, "9090");
+            }
         }
         break;
         case RING_RIDERS:

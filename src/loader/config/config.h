@@ -64,6 +64,7 @@
 #define MAXIMUM_HEAT_3D 0xf932e88e                                // Namco ES1, US DRIVE rev. 8807
 #define NIRIN 0x71e72ff6                                          // Namco ES1, NRN100-4-NA-DAT0-A37
 #define WANGAN_MIDNIGHT_MT3 0xec016afd                            // Namco N2, Maximum Tune 3 Export
+#define WANGAN_MIDNIGHT_MT3DX 0x85a0e7ab                          // Namco N2, Maximum Tune 3DX+ Japan
 #define MJ4_SBPN_REVG 0x57813a7                                   // DVP-0049G
 #define MJ4_EVO_SBTA 0xb785a0e9                                   // DVP-0081
 #define OUTRUN_2_SP_SDX_SBMB 0x92c196d5                           // DVP-0015

@@ -659,7 +659,7 @@ void remapPerGame()
             gJvsMap[PLAYER_1][LA_ViewChange] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_2};
             gJvsMap[PLAYER_1][LA_Boost] = (JVSActionMapping){JVS_CALL_NONE, NONE};
         }
-        if (gId == WANGAN_MIDNIGHT_MT3)
+        if (gId == WANGAN_MIDNIGHT_MT3 || gId == WANGAN_MIDNIGHT_MT3DX)
         {
             // Gear up and gear down move its H shifter (buttons 7 and 8, deadHeatIo.c); view change on button 9, its
             // intrude change (the other players' challenges) on button 10 as Boost (its switch test)
@@ -722,7 +722,8 @@ void initActionProperties()
     gActionProperties[PLAYER_1][LA_Flying_Y].isCentering = true;
     gActionProperties[PLAYER_1][LA_Throttle].isCentering = true;
     // Namco's cabinets have a test switch that stays on: the test menu lasts while it is on
-    if (gGrp == GROUP_DEAD_HEAT && gId != WANGAN_MIDNIGHT_MT3) // Maximum Tune 3's Test is a button, its menu's Enter
+    // Maximum Tune 3's and 3DX+'s Test is a button, their menu's Enter
+    if (gGrp == GROUP_DEAD_HEAT && gId != WANGAN_MIDNIGHT_MT3 && gId != WANGAN_MIDNIGHT_MT3DX)
         gActionProperties[SYSTEM][LA_Test].isToggle = true;
 }
 
@@ -2224,7 +2225,7 @@ void processChangedActions()
         switch (map->call_type)
         {
             case JVS_CALL_SWITCH:
-                if (gId == WANGAN_MIDNIGHT_MT3 && actionId == LA_CardInsert)
+                if ((gId == WANGAN_MIDNIGHT_MT3 || gId == WANGAN_MIDNIGHT_MT3DX) && actionId == LA_CardInsert)
                 {
                     // Each press of the card key: a toggle's two states, a button's press
                     if (state->isActive || gActionProperties[player][actionId].isToggle)

@@ -108,6 +108,14 @@ static const DeadHeatAddresses maximumTune3 = {
     "31c090",   4,          0,          0x3D,       0x3E,       0x3F,       0x20,       true,
 };
 
+// Maximum Tune 3DX+ (Japan, 2008): Maximum Tune 3's boards and fields, its addresses elsewhere
+static const DeadHeatAddresses maximumTune3dx = {
+    0x085AE1C8, 0x085AE298, 0x085AE304, 0x085AD79C, 0x085AD408, 0x085AD964, 0x085558D0, 0,          0x085AAEFC,
+    0x097FC081, 0x097FC080, 0x097FC0EC, 0x097FC104, 0x097EF580, 0x09768E40, 0,          0x097FC054,
+    0x104,      0x108,      0x128,      0x50,       0x1A8,      GEARBOX_H,  false,      false,
+    "31c090",   4,          0,          0x3D,       0x3E,       0x3F,       0x20,       true,
+};
+
 static const DeadHeatAddresses *game = &deadHeatUs;
 extern uint32_t gId;
 
@@ -411,6 +419,7 @@ void deadHeatIoInstall(void)
            : gId == DEAD_HEAT_RIDERS ? &deadHeatRiders
            : gId == NIRIN            ? &nirin
            : gId == WANGAN_MIDNIGHT_MT3 ? &maximumTune3
+           : gId == WANGAN_MIDNIGHT_MT3DX ? &maximumTune3dx
                                      : &deadHeatUs;
     if (game->gearbox == GEARBOX_H)
         gear = 0; // neutral, as the lever rests: in the menus, up and down would move the cursor
