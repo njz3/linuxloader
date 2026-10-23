@@ -1934,6 +1934,16 @@ __attribute__((naked)) static void replacementXmtTexture(void)
 }
 #endif
 
+// Initial D 5 at 1360x768, in game at that size and in the test program (like Initial D 4's): without Width and
+// Height in initialD.ini (TeknoParrot removes them) it takes 1920x1080, which puts the race HUD (time, speed) and the
+// test menus off the window
+static void id5NativeResolution(size_t acceptResolution, size_t resX, size_t resY)
+{
+    patchMemoryFromString(acceptResolution, "E9f000"); // Accept different Resolutions
+    setVariable(resX, 1360);
+    setVariable(resY, 768);
+}
+
 int initResolutionPatches()
 {
     int numDisplays;
@@ -2593,9 +2603,11 @@ int initResolutionPatches()
         break;
         case INITIALD_5_EXP_SBRY:
         {
+            bool origRes = (gWidth == 1360 && gHeight == 768);
+            if (isTestMode() || origRes)
+                id5NativeResolution(0x0853d8cd, 0x0853d9c3, 0x0853d9c8);
             if (isTestMode())
                 break;
-            bool origRes = (gWidth == 1360 && gHeight == 768);
             if (!getConfig()->boostRenderRes && origRes)
             {
                 break;
@@ -2646,9 +2658,11 @@ int initResolutionPatches()
         break;
         case INITIALD_5_EXP20_SBTS:
         {
+            bool origRes = (gWidth == 1360 && gHeight == 768);
+            if (isTestMode() || origRes)
+                id5NativeResolution(0x0855a48d, 0x0855a583, 0x0855a588);
             if (isTestMode())
                 break;
-            bool origRes = (gWidth == 1360 && gHeight == 768);
             if (!getConfig()->boostRenderRes && origRes)
             {
                 break;
@@ -2700,9 +2714,11 @@ int initResolutionPatches()
         break;
         case INITIALD_5_EXP20_SBTS_REVA:
         {
+            bool origRes = (gWidth == 1360 && gHeight == 768);
+            if (isTestMode() || origRes)
+                id5NativeResolution(0x0855a6dd, 0x0855a7d3, 0x0855a7d8);
             if (isTestMode())
                 break;
-            bool origRes = (gWidth == 1360 && gHeight == 768);
             if (!getConfig()->boostRenderRes && origRes)
             {
                 break;
@@ -2753,9 +2769,11 @@ int initResolutionPatches()
         break;
         case INITIALD_5_JAP_SBQZ_REVA: // ID5 - DVP-0070A
         {
+            bool origRes = (gWidth == 1360 && gHeight == 768);
+            if (isTestMode() || origRes)
+                id5NativeResolution(0x0853ccdd, 0x0853cdd3, 0x0853cdd8);
             if (isTestMode())
                 break;
-            bool origRes = (gWidth == 1360 && gHeight == 768);
             if (!getConfig()->boostRenderRes && origRes)
             {
                 break;
@@ -2806,9 +2824,11 @@ int initResolutionPatches()
         break;
         case INITIALD_5_JAP_SBQZ_REVC: // ID5 - DVP-0070C
         {
+            bool origRes = (gWidth == 1360 && gHeight == 768);
+            if (isTestMode() || origRes)
+                id5NativeResolution(0x0853d6fd, 0x0853d7f3, 0x0853d7f8);
             if (isTestMode())
                 break;
-            bool origRes = (gWidth == 1360 && gHeight == 768);
             if (!getConfig()->boostRenderRes && origRes)
             {
                 break;
@@ -2859,9 +2879,11 @@ int initResolutionPatches()
         break;
         case INITIALD_5_JAP_SBQZ_REVF: // ID5 - DVP-0070F
         {
+            bool origRes = (gWidth == 1360 && gHeight == 768);
+            if (isTestMode() || origRes)
+                id5NativeResolution(0x08556bbd, 0x08556cb3, 0x08556cb8);
             if (isTestMode())
                 break;
-            bool origRes = (gWidth == 1360 && gHeight == 768);
             if (!getConfig()->boostRenderRes && origRes)
             {
                 break;

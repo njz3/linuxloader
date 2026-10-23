@@ -1106,7 +1106,6 @@ int initPatch()
             patchMemoryFromString(0x087beb6c, "5b");         // Skips initialization
             detourFunction(0x0833601c, stubRetZero);         // doesNeedRollerCleaning
             detourFunction(0x08336038, stubRetZero);         // doesNeedStockerCleaning
-            idFeedbackInstall();                             // the feedback board's frames to the FFB model
 
             if (GPUVendor != NVIDIA_GPU)
             {
@@ -4035,5 +4034,8 @@ int initPatch()
         default:
             break;
     }
+    // Initial D 4 and 5 with a wheel (not the server boxes): their feedback board's frames to the FFB model
+    if (config->gameGroup == GROUP_ID4_EXP || config->gameGroup == GROUP_ID4_JAP || config->gameGroup == GROUP_ID5)
+        idFeedbackInstall();
     return 0;
 }
