@@ -88,6 +88,15 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 77 | 22/10 | Retirer l'utilisation du dongle (Nirin, Dead Heat Riders) | ✅ les deux jouables : Nirin (clé HASP répondue comme celle de Dead Heat, course menée en mode agent et par vJoy) ; Dead Heat Riders (sa clé USB présentée par la libusb du loader, cartes N2 et Kickback émulées, course menée en mode agent, MinGW et MSVC) ; voir journal |
 | 78 | 23/10 | Commit et push, puis continuer avec Maximum Tune 3 | 🔄 `ea5690e` poussé ; Maximum Tune 3 jouable (démarrage, menu de test, partie, FFB, son en capture WAV ; MinGW, et MSVC jusqu'à la course qui s'y bloque) ; lecteur-imprimante de cartes pas encore émulé (CARD R/W OFF dans GAME OPTIONS) ; 3DX+ ensuite |
 | 79 | 23/10 | Inventaire des jeux Linux de racecab1 (refait) | ✅ 65 dossiers parcourus : 18 jeux Linux (7 Lindbergh, 3 Namco ES1, 3 Namco N2, 2 Cruis'n Blast, 3 Gaelco), 47 Windows ; 15 se jouent, restent MT3DX+ (à copier), les cartes de MT3, Cruis'n Blast (abandonné) ; tableau dans `BILAN.md` |
+| 88 | 23/10 | Continuer les jeux et l'intégration, commit à la fin seulement | ✅ Maximum Tune 3 mené par vJoy (entrées corrigées hors mode agent), écriture de la carte vue ; Maximum Tune 3DX+ jouable : démarrage, menus, course, FFB, vJoy, menu de test ; les deux en `WORKING` (voir journal) |
+| 89 | 23/10 | Pour Cruis'n Blast 1.25, s'appuyer sur l'émulation HASP de Nirin | ❌ refusé : son programme est protégé par l'enveloppe Sentinel HASP (une protection contre la copie, pas les appels à la bibliothèque HASP de Nirin) ; le lancer sans la clé reviendrait à neutraliser cette protection |
+| 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
+| 91 | 23/10 | Cruis'n Blast 1.25 n'est pas chiffré ? | ✅ exact, ma réponse était fausse : son code est en clair (6,47 bits par octet) ; l'enveloppe enlève les sections et cache les imports |
+| 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
+| 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
+| 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 95 | 23/10 | Commit ? « Attends d'avoir fait tous les jeux » | ✅ les manques de chaque jeu repris : cartes de Maximum Tune 3DX+ et son jeu sans lecteur ✅, Initial D 5 ✅ (FFB, menu de test, HUD, vJoy), Dead Heat ✅ (course MinGW et MSVC, menu de test, vJoy) ; courses de Maximum Tune 3 et 3DX+ en MSVC ⚠️ (cause cherchée, pas corrigée ; MinGW les joue) ; commit à faire |
+| 87 | 23/10 | Demander à windowsloader comment émuler le dongle USB de Cruis'n Blast 1.x | ✅ il ne l'a jamais étudié ; profil TeknoParrot ElfLdr2 / RawThrillsFNF sans réglage de dongle ; sa méthode : remplacer la fonction du jeu qui lit la clé |
 | 86 | 23/10 | Modes d'affichage « plein écran fenêtré / borderless » et « borderless stretch » | ✅ `DISPLAY_MODE = BORDERLESS` et `BORDERLESS_STRETCH` (noms convenus avec windowsloader et la session Supermodel) ; `FULLSCREEN` devient un vrai plein écran à la résolution du jeu ; vérifié sur OutRun en fenêtre visible |
 | 85 | 23/10 | OutRun 2 SP SDX : cabine deluxe, sans doute une carte qui fait bouger la cabine en plus de celle du volant | ✅ carte de mouvement sur le second port série (`/dev/ttyS1`, `EMULATE_MOTIONBOARD`) : dans la description du jeu et dans « Cartes » (`SERIAL_2_PATH`) ; le port s'ouvre sur COM10 (115200 bauds), rien n'y passe pendant l'attract |
 | 84 | 23/10 | Dans la description des jeux, la carte d'E/S des contrôles et la carte moteur | ✅ dans le sélecteur et en tête de « Options du jeu » : « Controls on JVS board, Sega 837-14572, JVS 3.0 », « Motor board: Sega-like servoboard », carte de mouvement, Namco N2 et Kickback, carte d'interface Gaelco (libellés de windowsloader, traduits) |
@@ -119,6 +128,91 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Les manques de chaque jeu (demande 95)
+- **Maximum Tune 3DX+, cartes** (mode agent, `NO_CARD_READER=false`) : carte neuve donnée par le distributeur au bout
+  du compte à rebours de « Do you have a card? », nom, course, carte écrite (`53`) et imprimée ; à la partie suivante
+  la carte insérée est lue (« Card data confirmed », nom et voiture de la carte) ; en fin de partie l'écran du
+  kilométrage montre le mot de passe, la carte est écrite et imprimée, puis une deuxième partie repart avec elle. Le
+  lecteur de MT3 marche donc aussi pour 3DX+, sans changement.
+- **Maximum Tune 3DX+, « Jouer sans le lecteur de cartes »** (`NO_CARD_READER`) : sans effet sur 3DX+, qui proposait
+  quand même une carte. Ses écrans de carte demandent `clTestMode::isEnableCardDevice` (qui lit le réglage CARD R/W
+  lui-même), pas `isNoUseCardDevice` comme MT3. Avec l'option, les deux répondent maintenant comme avec CARD R/W OFF
+  (`isEnableCardDevice` rend 0) : course directe en invité (GUEST), aucune commande au lecteur (MinGW).
+- **Maximum Tune 3DX+ en MSVC** : menus et écrans de carte, mais la course échoue comme celle de MT3 : le thread de
+  course plante (0xC0000005) dans `clRTMovie::End` → `clCamera::Release` sur une caméra nulle, deux fois sur deux.
+  Même problème ouvert que MT3 en MSVC ; MinGW joue les deux.
+- **Dead Heat** (non-régression complète ; recopié : 2,5 Go, fichiers TeknoParrot à la Corbeille) : contrôle du link
+  d'une borne seule (environ 60 s), démo, pièces, course à San Francisco à 176 km/h, MinGW et MSVC ; FFB de la carte
+  Kickback (224 forces constantes, 17 amortisseurs, 821 rappels au centre) ; menu de test (interrupteur Test
+  enclenché : MENU, I/O TEST et son sous-menu, Bas et Start ; Test relâché, le jeu redémarre) ; vJoy : partie menée
+  en fenêtre visible, 275 forces constantes et 916 ressorts/amortisseurs reçus.
+- **Initial D 5 Export 2.0** (`INITIALD_5_EXP20_SBTS`, recopié : 3,8 Go, fichiers TeknoParrot à la Corbeille) :
+  - Retour de force : même carte qu'Initial D 4 (`cFeedbackSCI`, `_sSCI::send`). Le crochet est maintenant posé une
+    fois pour tous les Initial D 4 et 5 avec volant (groupes `GROUP_ID4_EXP`, `GROUP_ID4_JAP`, `GROUP_ID5`, à la fin
+    de `initPatch`), au lieu de deux versions seulement ; il cherche la fonction par son symbole. Course : 1 520 forces
+    constantes, 44 vibrations, l'amortisseur.
+  - Son `initialD.ini` n'a plus de `Width` ni de `Height` (retirés par TeknoParrot) : le jeu prend alors 1920×1080.
+    À 1360×768 le loader laissait faire : en course le HUD (temps, vitesse, compte-tours, rétroviseur) sortait de la
+    fenêtre, et le programme de test (`-t`) ne montrait que la dernière ligne de son menu. La résolution est imposée
+    à 1360×768 en jeu à cette taille et dans le programme de test, comme pour Initial D 4 (`id5NativeResolution`
+    dans `patchResolution.c`, pour les six versions d'ID5).
+  - Essais : course sur le lac d'Akina (HUD complet, 114 km/h), MinGW et MSVC ; menu de test (« GAME TEST MODE »,
+    ses 12 entrées, Service pour choisir, Test pour entrer, OUTPUT TEST) ; vJoy : partie menée en fenêtre visible,
+    1 604 forces constantes et 579 vibrations reçues.
+- **Maximum Tune 3 en MSVC** (course qui se bloque) : cause cherchée, pas corrigée.
+  - Le NaN ne vient d'aucune fonction mathématique du pont (traceur temporaire sur leurs entrées et sorties, et sur
+    l'état de la pile x87 : vide et sans faute à chaque appel ; retiré).
+  - Il naît dans le calcul SSE du jeu : `yt::CSlit::GetMatrix` normalise une normale de longueur nulle. L'objet route
+    (`CSlit`) de la voiture rivale, posé par `CSeq::Init` → `CRivalCar::SetFirst` → `CSlit::SetFirst`, a des champs
+    absurdes (paramètre 900 289, positions vers 1e13 pour un circuit vers 1,8e7).
+  - Sous MinGW aussi, ces champs sont des NaN au premier `GetMatrix`, mais la course continue. Même chapitre des
+    deux côtés (Series01, départ KgDaikoku_In) ; le point de départ de la rivale diffère (MSVC : 2 560 000, 0, 55 ;
+    MinGW : 2 077 730, 1,3e12, 1,2e9), calculé par `CSlit::GetFirstPoint` depuis l'odomètre du joueur et le décalage
+    de `GetSeqStartOfs_StoryRival` (`data/carconfig/ytConfigStory.txt`). Piste suivante : la lecture de ce fichier et
+    de `/tmp/ytCarryover.txt` (absent ici), ou une donnée du joueur non initialisée.
+  - Au passage : la build MSVC écrit les exposants comme glibc (`1.516e+07`), MinGW (msvcrt) avec trois chiffres
+    (`1.516e+007`).
+
+### R-Tuned et Initial D 4 Japon terminés (demande 94)
+- R-Tuned (`games/rtuned/dsr`, recopié : 972 Mo, fichiers TeknoParrot à la Corbeille) : le plantage MSVC au démarrage
+  ne revient plus (6 démarrages et 2 courses sans erreur) ; c'était sans doute la même cause que chez Dead Heat,
+  de la mémoire neuve non mise à zéro, corrigée depuis (`malloc` et `operator new` du jeu à zéro). Mode agent :
+  démo, pièces, choix de la voiture, course entière, FFB (amortisseur, couple, auto-centrage), menu de test.
+  vJoy : course à Hong Kong jusqu'à 107 km/h, forces constantes et ressorts reçus.
+- Initial D 4 Japon (Rev B, `games/initiald4/id4.elf`, 3 Go) : sa carte servo n'était pas émulée par défaut, d'où
+  pas de FFB. Les trames de `_sSCI::send` vont maintenant au modèle de la carte, comme pour l'Export
+  (`idFeedbackInstall`, `patch.c`). Mode agent : course avec 3 080 forces constantes et 35 vibrations.
+  vJoy : carte de joueur lue, course sur l'Akina mouillé de 96 à 122 km/h jusqu'à « TIME IS UP », 939 forces
+  constantes et 163 vibrations reçues.
+- Le port série par défaut (`/dev/ttyS0`, quand aucune vraie carte n'est choisie) n'est plus signalé comme une
+  erreur : le port reste fermé, comme avant le passthrough.
+
+### Maximum Tune 3 par vJoy, et Maximum Tune 3DX+ (demande 88)
+- MT3 n'avait aucune entrée hors mode agent : il n'appelle jamais `SDL_PollEvent` (ses entrées sont celles de la carte
+  N2) et son échange d'images (pilote NVIDIA intégré, `admBridge.c`) ne faisait que `SDL_PumpEvents` ; les manettes,
+  le clavier et F10 n'étaient donc pas traités (le mode agent les traite lui-même). `admSwapBuffers` appelle
+  maintenant `pollEvents`. Test vJoy : pièces, menus à l'accélérateur, Story, course jusqu'à 120 km/h en balayant le
+  volant, retour de force vers vJoy (forces constantes, ressort, amortisseur).
+- Maximum Tune 3DX+ (Japon, CRC `0x85A0E7AB`, `WANGAN_MIDNIGHT_MT3DX`) : même moteur que MT3, avec ses symboles ;
+  l'affichage, la clé HASP et le son de MT3 sont trouvés par symbole. Carte N2 et Kickback : mêmes champs, adresses
+  relevées (table `maximumTune3dx` de `deadHeatIo.c`). `clSerialN2` a un champ de plus (descripteur à +8, port à
+  +0x10) : le lecteur de cartes trouve ses fonctions par symbole et prend les décalages du jeu.
+- Copie de MT3DX+ : ses liens symboliques Linux sont devenus des fichiers vides (`libso/libboost_*-1_36.so.1.36.0`,
+  0 octet ; chez MT3 c'étaient de petits fichiers texte). Le chargeur de bibliothèques prend alors le même nom sans
+  ses numéros de version (`...-1_36.so`, `symbolResolver.cpp`).
+- Son `data/config.lua` dit `JAMMA = FALSE` (le clavier au lieu de la carte N2 : réglage de TeknoParrot) : les pièces
+  passaient, pas l'accélérateur ni le volant. Les trois branches qui lisent ce réglage (`clMain::init` et les deux
+  `clMain::clMain`) prennent celle de la carte (`patch.c`), sans toucher aux fichiers du jeu.
+- Menu de test : la permission que donne le démarrage (`clMain` +0x19, mise par `seqBoot`) a disparu quand la démo
+  tourne (MT3 la garde ; cause non trouvée), et la démo (`seqAtructMovie`) ignorait Test ; elle le prend sans elle.
+  Navigation : Service et Test tenus environ 15 images.
+- Essais : démarrage (contrôle des cartes, liaison entre bornes 300 s au premier démarrage seulement), démo, pièces,
+  écrans de carte, constructeur, voiture, couleur, boîte, nom, mode Story, course sur la Daikoku Line ; FFB (ressort,
+  amortisseur, couple) ; vJoy : course de 50 à 119 km/h, 611 forces constantes et 1 439 ressorts/amortisseurs reçus ;
+  menu de test et « ゲーム設定 ». Le lecteur de cartes répond à ses commandes de démarrage ; l'insertion d'une carte
+  n'est pas encore essayée sur ce jeu.
+- MT3 : en fin de course le jeu imprime et écrit la carte (`53`), enregistrée ; l'éjection de fin de partie pas vue.
 
 ### Lecteur-imprimante de cartes de Maximum Tune 3 (demande 82)
 - `clCardPrinter` sur `clSerialN2` port 2 (`/dev/ttyM2`) : trame de commande (STX, longueur, commande, trois zéros,

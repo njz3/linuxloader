@@ -20,25 +20,27 @@ annexes (`Sega\assets\rpi-billboard`, une mise à jour), pas le jeu.
 | Outrun 2 SP SDX - SEGA Lindbergh | Lindbergh | `disk0/Jennifer/Jennifer` | `OUTRUN_2_SP_SDX_*` | ✅ partie, FFB RS422, menu de service |
 | Hummer Extreme - SEGA Lindbergh | Lindbergh | `disk0/hummer_Master.elf` | `HUMMER_EXTREME_SBST` | ✅ partie, FFB RS422 (vibrations), menu de service ; dump en 2560×1440 |
 | Sega Race TV - SEGA Lindbergh | Lindbergh | `drive.elf` | `SEGA_RACE_TV_SBPF` | ✅ partie complète, FFB RS422, menu de service |
-| R-Tuned Ultimate Street Racing - SEGA Lindbergh | Lindbergh | `dsr` (et variantes TeknoParrot) | `R_TUNED_SBQW` | ✅ démo, menus jusqu'au choix de la voiture, menu de test ; MSVC : plantage irrégulier au démarrage |
-| Initial D 4 - SEGA Lindbergh | Lindbergh | `id4.elf` | `INITIALD_4_SBML_REVB` | ✅ démo, menu de service ; carte servo non émulée en `AUTO` (pas de FFB par défaut) |
+| R-Tuned Ultimate Street Racing - SEGA Lindbergh | Lindbergh | `dsr` (et variantes TeknoParrot) | `R_TUNED_SBQW` | ✅ course entière, FFB RS422, menu de test, vJoy ; MSVC : plus de plantage |
+| Initial D 4 - SEGA Lindbergh | Lindbergh | `id4.elf` | `INITIALD_4_SBML_REVB` | ✅ partie, FFB (par défaut), menu de service, vJoy |
 | Initial D 4 Export (Fr Traduction) - SEGA Lindbergh | Lindbergh | `id4.elf` (Rev D) | `INITIALD_4_EXP_SBNK_REVD` | ✅ partie, FFB, menu de service, vJoy |
-| Initial D 5 Export - SEGA Lindbergh | Lindbergh | `id5.exe` (ELF) | `INITIALD_5_EXP*` | ✅ partie, frein vérifié (demande 54) |
-| Dead Heat - Namco ES1 | Namco ES1 | `a.elf` | `DEAD_HEAT_US` | ✅ course, FFB (Kickback) |
+| Initial D 5 Export - SEGA Lindbergh | Lindbergh | `id5.exe` (ELF) | `INITIALD_5_EXP20_SBTS` | ✅ partie (HUD complet), FFB, menu de test, vJoy ; MinGW et MSVC |
+| Dead Heat - Namco ES1 | Namco ES1 | `a.elf` | `DEAD_HEAT_US` | ✅ course (MinGW et MSVC), FFB (Kickback), menu de test, vJoy |
 | Maximum Heat 3D - Namco ES1 | Namco ES1 | `a.elf` | `MAXIMUM_HEAT_3D` | ✅ partie, FFB, menu de test, vJoy |
 | Nirin - Namco ES1 | Namco ES1 | `exec/a.elf` | `NIRIN` | ✅ course, menu de test, vJoy ; clé HASP répondue |
 | Dead Heat Riders - Namco N2 | Namco N2 | `a.elf` | `DEAD_HEAT_RIDERS` | ✅ course, FFB, menu de test, vJoy ; clé USB présentée |
-| Wangan Midnight Maximum Tune 3 (Export) - Namco N2 | Namco N2 | `main` | `WANGAN_MIDNIGHT_MT3` | ✅ course (MinGW), FFB, menu de test, son, lecteur-imprimante de cartes (carte neuve écrite puis relue) ; course bloquée en MSVC, vJoy à faire |
-| Wangan Midnight Maximum Tune 3DX+ (Japan) - Namco N2 | Namco N2 | `main` | — | ⏳ pas encore copié ; même plateforme que MT3 (pilote NVIDIA, HASP, OpenAL dans le programme) |
-| Cruisn Blast 1.25 - Raw Thrills PC based | Raw Thrills (Linux) | `game` | — | ❌ abandonné (décision de l'utilisateur) |
+| Wangan Midnight Maximum Tune 3 (Export) - Namco N2 | Namco N2 | `main` | `WANGAN_MIDNIGHT_MT3` | ✅ course (MinGW), FFB, menu de test, son, lecteur-imprimante de cartes (carte neuve écrite puis relue), vJoy ; course bloquée en MSVC |
+| Wangan Midnight Maximum Tune 3DX+ (Japan) - Namco N2 | Namco N2 | `main` | `WANGAN_MIDNIGHT_MT3DX` | ✅ course (MinGW), FFB, menu de test, vJoy, cartes (neuve, lue, écrite et imprimée en fin de partie), jeu sans lecteur ; course en échec en MSVC |
+| Cruisn Blast 1.25 - Raw Thrills PC based | Raw Thrills (Linux) | `game` | — | ❌ protégé par l'enveloppe Sentinel HASP (code en clair) : non fait |
 | Cruisn Blast 2.31 - Raw Thrills PC based | Raw Thrills (Linux) | `game` | — | ❌ abandonné |
 | Gaelco Championship Tuning Race - Gaelco PC Based | Gaelco PC | image disque, `.../salidas/car` | `GAELCO_TUNING_RACE` | ✅ course, FFB, menu Test, son émulé, vJoy |
 | Ring Riders - Gaelco PC Based | Gaelco PC | image disque, `.../salidas/gameport` | `RING_RIDERS` | ✅ course, FFB, menu TEST, son émulé, vJoy |
 | Tokyo Cop - Gaelko PC Based | Gaelco PC | image disque, `.../salidas/gameport` | `TOKYO_COP` | ✅ poursuite, FFB, menu de test, son émulé, vJoy |
 
-Bilan : 15 des 18 jeux Linux se jouent ; restent Maximum Tune 3DX+ (à copier), le lecteur de cartes de Maximum Tune 3
-et les deux Cruis'n Blast (abandonnés). Dans `gameData.c` (l'état que montre le sélecteur), Dead Heat Riders et
-Nirin sont passés de `NOT_WORKING` à `WORKING` ; Maximum Tune 3 reste `NOT_WORKING` tant que ses cartes manquent.
+Bilan (23/10, nuit) : 16 des 18 jeux Linux se jouent entièrement (course, FFB, menu de test, vJoy), Maximum Tune 3
+et 3DX+ avec leurs cartes, R-Tuned, Initial D 4 Japon, Initial D 5 et Dead Heat compris ; restent les deux Cruis'n
+Blast (protégés par l'enveloppe Sentinel HASP : non faits). Seule limite connue de la build MSVC : les courses de
+Maximum Tune 3 et 3DX+ (MinGW les joue). Dans `gameData.c` (l'état que montre le sélecteur), Dead Heat Riders,
+Nirin, Maximum Tune 3 et 3DX+ sont en `WORKING`.
 
 Jeux Windows (47) : Taito Type X, X+ et X2 (Battle Gear 4 et ses deux Tuned 2.8, Chase H.Q. 2, D1GP Arcade, Valve
 Limit R, Wacky Races) ; SEGA Ringedge, NU, Ringwide, ALLS, Europa-R et PC (Initial D 6 AA, 7 AAX, 8 Infinity,
@@ -72,7 +74,7 @@ Racers 2071).
 | Ring Riders | ✅ | ✅ sur GPU NVIDIA (blanc sur Intel : register combiners) | ✅ pièces, Start, guidon (sens corrigé), poignée, frein | ✅ course menée par vJoy (pièce, Start, Service, guidon, poignée, frein), retour de force reçu | ✅ moteur du guidon (rappel au centre, sens corrigé) et vibreur | ✅ menu TEST, Input/Output, mire | son émulé (carte son Gaelco) ; plateforme de mouvement absente (« MOTION SYSTEM ERROR LOG ») |
 | Tokyo Cop | ✅ | ✅ sur GPU NVIDIA | ✅ pièces, klaxon (Start), volant (sens corrigé), accélérateur, frein (contact, nouveau), sirène, vue | ✅ poursuite menée par vJoy (pièce, klaxon, volant, accélérateur, sirène, frein), retour de force reçu | ✅ moteur du volant (rappel au centre, sens corrigé) | ✅ menu TEST (code de touche 0x14), Controls Test, mire | son émulé ; « MOTION SYSTEM ERROR! » (siège mobile absent) |
 | Gaelco Championship Tuning Race | ✅ (dérouleur C++ du jeu) | ✅ 720×540 natif | ✅ pièces, Start, volant, accélérateur, frein, vue, palettes (boîte manuelle) | ✅ course menée par vJoy (pièce, Start, volant, accélérateur, frein, vue), retour de force reçu | ✅ moteur du volant (rappel au centre) | ✅ menu Test, Controls Test (toutes les commandes affichées justes) | son émulé ; plateforme de mouvement absente ; « Control de produccion » (écran d'usine) fait quitter le jeu |
-| Dead Heat (non-régression) | ✅ | ✅ sur GPU NVIDIA | ✅ course | — | ✅ ressort, amortisseur, couple | — | revérifié après les changements communs ; patch du PCB ID retiré |
+| Dead Heat (non-régression) | ✅ (link d'une borne seule, environ 60 s) | ✅ sur GPU NVIDIA | ✅ course | ✅ partie menée par vJoy, retour de force reçu | ✅ ressort, amortisseur, couple | ✅ menu de test, I/O TEST | revérifié le 23/10 (MinGW et MSVC) ; patch du PCB ID retiré |
 
 ## Bilan par fonction (22/10)
 
@@ -91,7 +93,7 @@ Racers 2071).
 - **vJoy** : les cinq jeux qui démarrent sont joués de bout en bout par vJoy, le retour de force reçu par vJoy (Ring
   Riders 3 574 forces constantes et 71 vibrations en course, Tokyo Cop 900, Tuning 1 909).
 - **Menu de service** : ouvert et parcouru pour ID4 FR, Maximum Heat 3D, Ring Riders, Tokyo Cop (depuis aujourd'hui)
-  et Gaelco Tuning ; Dead Heat (non-régression) ne l'a pas été.
+  et Gaelco Tuning ; Dead Heat aussi depuis le 23/10.
 - **Son** : non vérifié pour ID4 et les jeux Namco (essais sans écoute). Jeux Gaelco : leur carte son est émulée
   (`hardware/gaelco/gaelcoSound.c`, ci-dessous) ; la musique de Tuning capturée est identique à son échantillon
   (corrélation 1,000, niveau attendu), Ring Riders et Tokyo Cop jouent du début à la fin.
