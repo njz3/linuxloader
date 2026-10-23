@@ -31,6 +31,7 @@
 #include "../log/log.h"
 #include "filesystemShared.h"
 #include "writeDir.h"
+#include "../hardware/lindbergh/serialPort.h"
 
 #ifdef __linux__
 #include <dlfcn.h>
@@ -285,7 +286,11 @@ int sharedOpen(const char *pathname, int flags, ...)
     {
         if (getConfig()->emulateDriveboard == 0 && getConfig()->emulateRideboard == 0 && getConfig()->emulateHW210CardReader == 0 &&
             getConfig()->emulateTouchscreen == 0)
+#ifdef _WIN32
+            return serialPortOpen(getConfig()->serial1Path, flags); // [Paths] SERIAL_1_PATH: a COM port
+#else
             return _open(getConfig()->serial1Path, flags, mode);
+#endif
 
         if (hooks[SERIAL0] != NO_DEVICE && getConfig()->emulateHW210CardReader && gId != R_TUNED_SBQW)
             return hooks[SERIAL0];
@@ -301,9 +306,15 @@ int sharedOpen(const char *pathname, int flags, ...)
 
     if (strcmp(pathname, "/dev/ttyS1") == 0 || strcmp(pathname, "/dev/tts/1") == 0)
     {
-        if (getConfig()->emulateDriveboard == 0 && getConfig()->emulateMotionboard == 0 && getConfig()->emulateHW210CardReader == 0 &&
-            getConfig()->emulateTouchscreen == 0)
+        // OutRun's drive board is on the first port alone, its motion board on this one
+        bool outrunPorts = gGrp == GROUP_OUTRUN || gGrp == GROUP_OUTRUN_TEST;
+        if ((getConfig()->emulateDriveboard == 0 || outrunPorts) && getConfig()->emulateMotionboard == 0 &&
+            getConfig()->emulateHW210CardReader == 0 && getConfig()->emulateTouchscreen == 0)
+#ifdef _WIN32
+            return serialPortOpen(getConfig()->serial2Path, flags);
+#else
             return _open(getConfig()->serial2Path, flags, mode);
+#endif
 
         if (hooks[SERIAL1] != NO_DEVICE && getConfig()->emulateHW210CardReader && gId != R_TUNED_SBQW)
             return hooks[SERIAL1];
@@ -790,6 +801,8 @@ int sharedClose(int fd)
 #else
     if (sysVirtualFd(fd))
         return sysVirtualClose(fd);
+    if (serialPortIs(fd))
+        return serialPortClose(fd);
 #endif
     // The standard streams stay the loader's: the agent's commands and answers, the log. Dead Heat Riders' camera
     // library closes descriptor 0 when no camera opened (its descriptor still at 0); Ring Riders closes stdout
@@ -872,6 +885,8 @@ ssize_t sharedRead(int fd, void *buf, size_t count)
 #else
     if (sysVirtualFd(fd))
         return sysVirtualRead(fd, buf, count);
+    if (serialPortIs(fd))
+        return serialPortRead(fd, buf, count);
 #endif
 
     if (fd == (int)hooks[BASEBOARD])
@@ -1043,6 +1058,8 @@ ssize_t sharedWrite(int fd, const void *buf, size_t count)
 #else
     if (sysVirtualFd(fd))
         return sysVirtualWrite(fd, buf, count);
+    if (serialPortIs(fd))
+        return serialPortWrite(fd, buf, count);
 #endif
 
     // void *addr = __builtin_return_address(0);
@@ -1226,6 +1243,9 @@ int sharedIoctl(int fd, unsigned long int request, ...)
     static int (*_ioctl)(int fd, int request, void *data) = NULL;
     if (_ioctl == NULL)
         _ioctl = REAL_FUNC(ioctl);
+#else
+    if (serialPortIs(fd))
+        return serialPortIoctl(fd, request, argp);
 #endif
 
     if (fd == (int)hooks[EEPROM])
@@ -1279,6 +1299,48 @@ int sharedIoctl(int fd, unsigned long int request, ...)
 #define LINUX_FD_ZERO_BIT(p) memset((void *)(p), 0, 128)
 #endif
 
+#ifdef WIN32
+// A select on the COM ports a board is passed to: those with bytes waiting to be read, those to write to (at once),
+// waited for until the timeout; -1 when the sets hold none of them
+static int serialPortSelect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout)
+{
+    unsigned long wantRead[32] = {0}, wantWrite[32] = {0};
+    bool any = false;
+    for (int fd = 0; fd < nfds && fd < 1024; fd++)
+    {
+        if (!serialPortIs(fd))
+            continue;
+        if (readfds && LINUX_FD_ISSET_BIT(fd, readfds))
+            LINUX_FD_SET_BIT(fd, wantRead), any = true;
+        if (writefds && LINUX_FD_ISSET_BIT(fd, writefds))
+            LINUX_FD_SET_BIT(fd, wantWrite), any = true;
+    }
+    if (!any)
+        return -1;
+    ULONGLONG deadline = timeout ? GetTickCount64() + (ULONGLONG)timeout->tv_sec * 1000 + timeout->tv_usec / 1000 : 0;
+    for (;;)
+    {
+        int ready = 0;
+        if (readfds)
+            LINUX_FD_ZERO_BIT(readfds);
+        if (writefds)
+            LINUX_FD_ZERO_BIT(writefds);
+        if (exceptfds)
+            LINUX_FD_ZERO_BIT(exceptfds);
+        for (int fd = 0; fd < nfds && fd < 1024; fd++)
+        {
+            if (LINUX_FD_ISSET_BIT(fd, wantRead) && serialPortPending(fd) > 0)
+                LINUX_FD_SET_BIT(fd, readfds), ready++;
+            if (LINUX_FD_ISSET_BIT(fd, wantWrite))
+                LINUX_FD_SET_BIT(fd, writefds), ready++;
+        }
+        if (ready || (timeout && GetTickCount64() >= deadline))
+            return ready;
+        Sleep(1);
+    }
+}
+#endif
+
 static int (*_select)(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout) = NULL;
 int sharedSelect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout)
 {
@@ -1309,6 +1371,12 @@ int sharedSelect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
             return baseboardSelect(nfds, readfds, writefds, exceptfds, timeout);
         }
     }
+
+#ifdef WIN32
+    int serialReady = serialPortSelect(nfds, readfds, writefds, exceptfds, timeout);
+    if (serialReady >= 0)
+        return serialReady;
+#endif
 
     if ((getConfig()->emulateHW210CardReader == 1 || getConfig()->emulateDriveboard == 1) &&
         (gGrp != GROUP_ID5 && gGrp != GROUP_ID4_EXP && gGrp != GROUP_ID4_JAP))

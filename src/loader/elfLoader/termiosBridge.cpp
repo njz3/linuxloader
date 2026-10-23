@@ -3,6 +3,7 @@
 #include "symbolResolver.hpp"
 #include "libcBridge.hpp"
 #include "../log/log.h"
+#include "../hardware/lindbergh/serialPort.h"
 #include <map>
 #include <cstring>
 
@@ -55,22 +56,27 @@ namespace TermiosBridge
     {
         if (!termios_p)
             return -1;
-        // Store state to appease the game
+        // Store state to appease the game; a COM port a board is passed to takes it (VTIME is c_cc[5], VMIN c_cc[6])
         g_termios_state[fd] = *termios_p;
+        if (serialPortIs(fd))
+            serialPortSetup(fd, termios_p->c_ospeed, termios_p->c_cflag, termios_p->c_cc[6], termios_p->c_cc[5]);
         log_debug("tcsetattr: fd=%d, speed=%d, flags=0x%x", fd, termios_p->c_ospeed, termios_p->c_cflag);
         return 0;
     }
 
     int bridgeTcflush(int fd, int queue_selector)
     {
-        // Ideally map to PurgeComm, but returning 0 (success) is sufficient for now
+        serialPortFlush(fd, queue_selector); // a COM port a board is passed to
         return 0;
     }
 
     int bridgeTcdrain(int fd)
     {
         // Wait for transmission. Sleep briefly to simulate IO delay.
-        Sleep(1);
+        if (serialPortIs(fd))
+            serialPortDrain(fd);
+        else
+            Sleep(1);
         return 0;
     }
 

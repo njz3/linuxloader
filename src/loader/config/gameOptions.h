@@ -47,6 +47,32 @@ bool gameOptionParse(const GameOption *option, const char *text);
 void gameOptionsRemember(void);
 int gameOptionLaunchValue(const GameOption *option);
 
+// A board of the cabinet on one of the game's serial ports, emulated by the loader or passed to a real board on a
+// serial port of the PC (the page's "Boards" part, as windowsloader's): its EMULATE_ key and its port, the keys of
+// [Emulation] and [Paths] that [Game.<short name>] also holds for this game
+typedef struct
+{
+    const char *label;      // English, translated by the interface
+    const char *gamePort;   // the game's side: "/dev/ttyS0", "base board" (translated)
+    const char *emulateKey; // EMULATE_JVS, EMULATE_DRIVEBOARD
+    const char *pathKey;    // JVS_PATH, SERIAL_1_PATH
+    size_t emulateField;    // offsetof(EmulatorConfig, ...): an int
+    size_t pathField;       // a char[MAX_PATH_LENGTH]
+    bool (*applies)(void);
+} GameBoard;
+
+extern const GameBoard gameBoardTable[];
+extern const int gameBoardCount;
+
+bool gameBoardEmulated(const GameBoard *board);
+const char *gameBoardPath(const GameBoard *board);
+// Emulated (port NULL), or the real board on a port of the PC ("COM10")
+void gameBoardSet(const GameBoard *board, const char *port);
+// [Game.<short name>]'s values, NULL for a key it does not have
+void gameBoardLoad(const GameBoard *board, const char *emulate, const char *path);
+// Not as the game started
+bool gameBoardChanged(const GameBoard *board);
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,6 +1,7 @@
 #if defined(_WIN32) || defined(__MINGW32__)
 #include "../redirections/filesystemShared.h"
 #include "../redirections/writeDir.h"
+#include "../hardware/lindbergh/serialPort.h"
 #include "filesystemBridge.hpp"
 #include "libcBridge.hpp"
 #include "symbolResolver.hpp"
@@ -942,6 +943,16 @@ extern "C"
     int bridgeFcntl(int fd, int cmd, ...)
     {
         log_debug("fcntl(fd=%d, cmd=%d)", fd, cmd);
+        if (serialPortIs(fd) && cmd == 3) // F_GETFL of a COM port a board is passed to
+            return serialPortFlags(fd);
+        if (serialPortIs(fd) && cmd == 4)
+        {
+            va_list args;
+            va_start(args, cmd);
+            serialPortSetNonBlocking(fd, (va_arg(args, int) & 04000) != 0);
+            va_end(args);
+            return 0;
+        }
         if (fd == 0 && cmd == 4) // F_SETFL
         {
             va_list args;

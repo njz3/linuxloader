@@ -650,6 +650,17 @@ static void applyGameOptions(const IniConfig *ini)
         if (value && !gameOptionParse(option, value))
             log_warn("[%s] %s = %s: not a value of this option", section, option->key, value);
     }
+    for (int i = 0; section[0] && i < gameBoardCount; i++)
+    {
+        const GameBoard *board = &gameBoardTable[i];
+        if (!board->applies())
+            continue;
+        const char *rawEmulate = getValue(ini, section, board->emulateKey);
+        const char *rawPath = getValue(ini, section, board->pathKey);
+        char emulate[64], path[MAX_PATH_LENGTH];
+        gameBoardLoad(board, rawEmulate ? cleanValue(rawEmulate, emulate, sizeof(emulate)) : NULL,
+                      rawPath ? cleanValue(rawPath, path, sizeof(path)) : NULL);
+    }
     gameOptionsRemember();
 }
 

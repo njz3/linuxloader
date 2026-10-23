@@ -1,21 +1,95 @@
-#ifdef __linux__
+// The JVS packets passed to a real I/O board (EMULATE_JVS false, JVS_PATH): Linux's serial device, or a COM port on
+// Windows (serialPort.c), the board's answers read by a thread into one frame at a time.
+
 #include <stdio.h>   /* Standard input/output definitions */
 #include <string.h>  /* String function definitions */
+
+#include "passthrough.h"
+
+#ifdef __linux__
 #include <unistd.h>  /* UNIX standard function definitions */
 #include <fcntl.h>   /* File control definitions */
 #include <errno.h>   /* Error number definitions */
 #include <termios.h> /* POSIX terminal control definitions */
 #include <sys/ioctl.h> /* Ioctl function to control device drivers in the kernel */
 #include <pthread.h>   /* POSIX threads API to create and manage threads in the program */
-
-#include "passthrough.h"
+#include <time.h>
+#define LOCK_FRAME() pthread_mutex_lock(&jvsBuffer_lock)
+#define UNLOCK_FRAME() pthread_mutex_unlock(&jvsBuffer_lock)
+#define SERIAL_READ(fd, buffer, count) read(fd, buffer, count)
+#else
+#include <windows.h>
+#include "serialPort.h"
+static CRITICAL_SECTION jvsBufferLock;
+#define LOCK_FRAME() EnterCriticalSection(&jvsBufferLock)
+#define UNLOCK_FRAME() LeaveCriticalSection(&jvsBufferLock)
+#define SERIAL_READ(fd, buffer, count) serialPortRead(fd, buffer, count)
+#endif
 
 #define TIMEOUT_SELECT 200
 #define CTS_ON_RETRY 20
 
+#define JVS_ANSWER_WAIT 200 // ms
+
 // Used to read JVS frame in a non-blocking way
 JVSFrame jvsFrameBuffer;
+static volatile unsigned int jvsLastRequest; // when the last request began, in ms
+#ifdef __linux__
 pthread_mutex_t jvsBuffer_lock = PTHREAD_MUTEX_INITIALIZER;
+#endif
+
+static unsigned int jvsMilliseconds(void)
+{
+#ifdef _WIN32
+    return GetTickCount();
+#else
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return (unsigned int)(now.tv_sec * 1000 + now.tv_nsec / 1000000);
+#endif
+}
+
+// A request's first byte (its sync): the frame the board answered before is not this one's
+static void jvsRequestStarts(const void *buffer, int count)
+{
+    if (count < 1 || *(const unsigned char *)buffer != 0xE0)
+        return;
+    LOCK_FRAME();
+    jvsFrameBuffer.ready = 0;
+    jvsLastRequest = jvsMilliseconds();
+    UNLOCK_FRAME();
+}
+
+#ifdef _WIN32
+// The port as Linux's initJVSSerial sets it: 115200 bauds, 8N1, no flow control, a read waiting 0.1 s for its byte
+int openJVSSerial(char *jvsPath)
+{
+    int fd = serialPortOpen(jvsPath, 2); // O_RDWR
+    if (fd < 0)
+        printf("Failed to open '%s' for JVS.\n", jvsPath);
+    return fd;
+}
+
+int initJVSSerial(int fd)
+{
+    serialPortSetup(fd, 0x1002, 0x30, 0, 1); // B115200, CS8, VMIN 0, VTIME 1
+    return 0;
+}
+
+int jvsSerialWrite(int fd, const void *buffer, int count)
+{
+    jvsRequestStarts(buffer, count);
+    return serialPortWrite(fd, buffer, count);
+}
+#else
+int jvsSerialWrite(int fd, const void *buffer, int count)
+{
+    jvsRequestStarts(buffer, count);
+    return write(fd, buffer, count);
+}
+#endif
+
+#ifdef __linux__
 
 
 /**
@@ -146,11 +220,21 @@ int getCTS(int fd)
     return (status & TIOCM_CTS) != 0;
 }
 
+#endif
+
 /**
  * In charge of reading serial port and bufferize JVS frame
  * @param arg
  * @return
  */
+#ifdef _WIN32
+static DWORD WINAPI jvsFrameThreadMain(LPVOID arg)
+{
+    readJVSFrameThread(arg);
+    return 0;
+}
+#endif
+
 void *readJVSFrameThread(void * arg)
 {
     int fd = *((int *) arg);
@@ -169,12 +253,12 @@ void *readJVSFrameThread(void * arg)
         {
             // printf("SERIAL thread debug: trying to read byte.\n");
             // Try to read a byte from serial, this call will be blocking if VMIN > 0 and VTIME = 0
-            bytesRead = read(fd, &localBuffer[byteCount], 1);
+            bytesRead = SERIAL_READ(fd, &localBuffer[byteCount], 1);
 
             // If nothing on serial and CTS is ON, we try to read "CTS_ON_RETRY" times
             ctsRetry = CTS_ON_RETRY;
             while (bytesRead < 1 && --ctsRetry > 0 && jvsFrameBuffer.ready == 0) {
-                bytesRead = read(fd, &localBuffer[byteCount], 1);
+                bytesRead = SERIAL_READ(fd, &localBuffer[byteCount], 1);
                 // printf("SERIAL: Retry number %d.\n", ctsRetry);
             }
 
@@ -201,13 +285,18 @@ void *readJVSFrameThread(void * arg)
             }
         } while (waitForEnd);
 
+        // Nothing came: an empty frame tells the game there is no answer (a reset's), but not while the board may still
+        // answer the last request (the game would take it for that answer)
+        if (byteCount == 0 && jvsMilliseconds() - jvsLastRequest < JVS_ANSWER_WAIT)
+            continue;
+
         // Lock the buffer while we write to it
-        pthread_mutex_lock(&jvsBuffer_lock);
+        LOCK_FRAME();
         memcpy(jvsFrameBuffer.buffer, localBuffer, byteCount);
         jvsFrameBuffer.size = byteCount;
         jvsFrameBuffer.ready = 1;
         ctsRetry = CTS_ON_RETRY;
-        pthread_mutex_unlock(&jvsBuffer_lock);
+        UNLOCK_FRAME();
     }
 
     return NULL;
@@ -227,8 +316,16 @@ int startJVSFrameThread(int *fd)
     jvsFrameBuffer.size = 0;
     memset(jvsFrameBuffer.buffer, 0, JVSBUFFER_SIZE);
 
+#ifdef _WIN32
+    InitializeCriticalSection(&jvsBufferLock);
+    HANDLE jvsFrameThread = CreateThread(NULL, 0, jvsFrameThreadMain, fd, 0, NULL);
+    int ret = jvsFrameThread == NULL;
+    if (jvsFrameThread)
+        CloseHandle(jvsFrameThread);
+#else
     pthread_t jvsFrameThread;
     int ret = pthread_create(&jvsFrameThread, NULL, readJVSFrameThread, fd);
+#endif
     if (ret != 0)
     {
         printf("SERIAL: Failed to create reader thread\n");
@@ -246,7 +343,7 @@ JVSFrame readJVSFrameFromThread()
 {
     JVSFrame frame;
     // Lock while reading/writing to shared frame
-    pthread_mutex_lock(&jvsBuffer_lock);
+    LOCK_FRAME();
 
     // Check if we have a valid frame
     if (jvsFrameBuffer.ready == 1)
@@ -261,8 +358,7 @@ JVSFrame readJVSFrameFromThread()
         frame.size = 0;
         memset(frame.buffer, 0, JVSBUFFER_SIZE);
     }
-    pthread_mutex_unlock(&jvsBuffer_lock);
+    UNLOCK_FRAME();
 
     return frame;
 }
-#endif

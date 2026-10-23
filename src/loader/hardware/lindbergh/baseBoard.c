@@ -79,7 +79,7 @@ int initBaseboard()
     sram = writeDirFopen(sramPath, "rb+");
     fseek(sram, 0, SEEK_SET);
 
-#ifdef __linux__
+    // JVS passed to a real I/O board: a serial device, a COM port on Windows
     if (getConfig()->emulateJVS == 0 && strcmp(getConfig()->jvsPath, "none") != 0)
     {
         jvsFileDescriptor = openJVSSerial(getConfig()->jvsPath);
@@ -92,7 +92,6 @@ int initBaseboard()
         initJVSSerial(jvsFileDescriptor);
         startJVSFrameThread(&jvsFileDescriptor);
     }
-#endif
 
     strcpy(serialString, SERIAL_STRING);
 
@@ -226,7 +225,7 @@ int baseboardIoctl(int fd, unsigned long request, void *data)
                     {
                         for (uint32_t i = 0; i < jvsCommand.srcSize; i++)
                         {
-                            write(jvsFileDescriptor, &inputBuffer[i], 1);
+                            jvsSerialWrite(jvsFileDescriptor, &inputBuffer[i], 1);
                             if (inputBuffer[i] == 0xF0)
                             {
                                 setSenseLine(3);
@@ -277,15 +276,12 @@ int baseboardIoctl(int fd, unsigned long request, void *data)
 
                 case BASEBOARD_PROCESS_JVS:
                 {
-#ifdef __linux__
                     if (getConfig()->emulateJVS)
                     {
-#endif                        
                         memcpy(&sharedMemory[jvsCommand.destAddress], outputBuffer, jvsPacketSize);
                         _data[2] = jvsCommand.destAddress;
                         _data[3] = jvsPacketSize;
                         _data[1] = 1; // Set the status to success
-#ifdef __linux__
                     }
                     else if (jvsFileDescriptor >= 0)
                     {
@@ -295,7 +291,6 @@ int baseboardIoctl(int fd, unsigned long request, void *data)
                         _data[3] = frame.size;
                         _data[1] = frame.ready;
                     }
-#endif                    
                 }
                 break;
 

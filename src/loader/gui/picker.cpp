@@ -51,6 +51,7 @@ struct GameEntry
     std::string dvp;
     std::string gameId;
     std::string resolution;
+    std::vector<std::string> boards; // its I/O and motor boards
     int status = -1;
     GLuint art = 0;
     float artW = 0.0f, artH = 0.0f;
@@ -142,6 +143,7 @@ bool scanGame(const fs::directory_entry &dir, const fs::path &programDir, GameEn
         entry.gameId = data->gameID;
         entry.resolution = data->gameNativeResolutions;
         entry.status = data->gameStatus;
+        entry.boards = gui::boardDescription(data);
     }
     else
     {
@@ -459,6 +461,8 @@ struct Picker
             ImGui::Text("%s : %s", gui::tr("Status"), statusText(cur.status));
             if (!cur.resolution.empty())
                 ImGui::Text("%s : %s", gui::tr("Native resolution"), cur.resolution.c_str());
+            for (const std::string &line : cur.boards)
+                ImGui::TextUnformatted(line.c_str());
         }
         ImGui::Spacing();
         ImGui::TextDisabled("%s", gui::tr("Folder"));

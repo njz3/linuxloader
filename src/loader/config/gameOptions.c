@@ -54,6 +54,12 @@ static bool driveBoard(void)
     return outrun() || hummer() || initialD() || crc() == SEGA_RACE_TV_SBPF || crc() == R_TUNED_SBQW;
 }
 
+// The Lindbergh games: their JVS I/O board through the base board (not Namco's N2 games, not Gaelco's)
+static bool lindberghJvs(void)
+{
+    return group() != GROUP_DEAD_HEAT && group() != GROUP_GAELCO && group() != GROUP_ID_SERVERBOX;
+}
+
 static bool hw210CardReader(void)
 {
     return group() == GROUP_VT3 || group() == GROUP_VT3_TEST || group() == GROUP_VF5 || crc() == R_TUNED_SBQW;
@@ -106,10 +112,6 @@ const GameOption gameOptionTable[] = {
      "decides; with CARD R/W ON the card reader-printer is emulated, its card in [Cards] CARDFILE_01 (the card key "
      "inserts it), and the start waits for the link check (about 5 minutes).",
      GAME_OPTION_SWITCH, FIELD(noCardReader), false, NULL, NULL, 0, 1, true, maximumTune3},
-    {"EMULATE_DRIVEBOARD", "Emulate the drive board",
-     "The force feedback board on its serial port, emulated by the loader for the wheel. Unticked: the serial port is "
-     "passed to a real board (Initial D: the card reader shares the serial ports).",
-     GAME_OPTION_SWITCH, FIELD(emulateDriveboard), false, NULL, NULL, 0, 1, true, driveBoard},
     {"SKIP_OUTRUN_CABINET_CHECK", "Skip the cabinet checks",
      "The drive board and tower checks of the start skipped.", GAME_OPTION_SWITCH, FIELD(skipOutrunCabinetCheck), false,
      NULL, NULL, 0, 1, true, outrun},
@@ -147,6 +149,24 @@ const GameOption gameOptionTable[] = {
 const int gameOptionCount = (int)(sizeof(gameOptionTable) / sizeof(gameOptionTable[0]));
 
 static int launchValues[sizeof(gameOptionTable) / sizeof(gameOptionTable[0])];
+
+// The drive board on the game's first serial port; OutRun's deluxe cabinet (SP SDX) has its motion board on the
+// second
+const GameBoard gameBoardTable[] = {
+    {"Drive board", "/dev/ttyS0", "EMULATE_DRIVEBOARD", "SERIAL_1_PATH", FIELD(emulateDriveboard), FIELD(serial1Path),
+     driveBoard},
+    {"Motion board", "/dev/ttyS1", "EMULATE_MOTIONBOARD", "SERIAL_2_PATH", FIELD(emulateMotionboard), FIELD(serial2Path),
+     outrun},
+    {"JVS I/O board", "base board", "EMULATE_JVS", "JVS_PATH", FIELD(emulateJVS), FIELD(jvsPath), lindberghJvs},
+};
+
+const int gameBoardCount = (int)(sizeof(gameBoardTable) / sizeof(gameBoardTable[0]));
+
+static struct
+{
+    int emulated;
+    char path[MAX_PATH_LENGTH];
+} launchBoards[sizeof(gameBoardTable) / sizeof(gameBoardTable[0])];
 
 const char *gameOptionSection(void)
 {
@@ -218,9 +238,49 @@ void gameOptionsRemember(void)
 {
     for (int i = 0; i < gameOptionCount; i++)
         launchValues[i] = gameOptionValue(&gameOptionTable[i]);
+    for (int i = 0; i < gameBoardCount; i++)
+    {
+        launchBoards[i].emulated = gameBoardEmulated(&gameBoardTable[i]);
+        snprintf(launchBoards[i].path, sizeof(launchBoards[i].path), "%s", gameBoardPath(&gameBoardTable[i]));
+    }
 }
 
 int gameOptionLaunchValue(const GameOption *option)
 {
     return launchValues[option - gameOptionTable];
+}
+
+bool gameBoardEmulated(const GameBoard *board)
+{
+    return *(int *)((char *)getConfig() + board->emulateField) != 0;
+}
+
+const char *gameBoardPath(const GameBoard *board)
+{
+    return (char *)getConfig() + board->pathField;
+}
+
+void gameBoardSet(const GameBoard *board, const char *port)
+{
+    *(int *)((char *)getConfig() + board->emulateField) = port == NULL;
+    if (port)
+        snprintf((char *)getConfig() + board->pathField, MAX_PATH_LENGTH, "%s", port);
+}
+
+void gameBoardLoad(const GameBoard *board, const char *emulate, const char *path)
+{
+    if (emulate && (sameText(emulate, "true") || strcmp(emulate, "1") == 0))
+        *(int *)((char *)getConfig() + board->emulateField) = 1;
+    else if (emulate && (sameText(emulate, "false") || strcmp(emulate, "0") == 0))
+        *(int *)((char *)getConfig() + board->emulateField) = 0;
+    if (path)
+        snprintf((char *)getConfig() + board->pathField, MAX_PATH_LENGTH, "%s", path);
+}
+
+bool gameBoardChanged(const GameBoard *board)
+{
+    int i = (int)(board - gameBoardTable);
+    bool emulated = gameBoardEmulated(board);
+    return emulated != (launchBoards[i].emulated != 0) ||
+           (!emulated && strcmp(gameBoardPath(board), launchBoards[i].path) != 0);
 }
