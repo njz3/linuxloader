@@ -89,7 +89,8 @@ int createDefaultIni(const char *filePath)
     fprintf(file, "[Cards]\n");
     fprintf(file, "# Set to false to use a button to insert a card manually in ID4 or ID5.\n");
     fprintf(file, "# Or true to make the loader auto load\nID_CARDFILE_AUTOLOAD = %s\n\n", defaults.idCardFileAutoload ? "true" : "false");
-    fprintf(file, "# Card File for reader 1 in VT3 or R-Tuned\nCARDFILE_01 = \"%s\"\n\n", defaults.cardFile1);
+    fprintf(file, "# Card File for reader 1 in VT3 or R-Tuned; Maximum Tune 3's card (the card emulators' .RAW text, the\n");
+    fprintf(file, "# CardInsert key offers it to the card reader-printer)\nCARDFILE_01 = \"%s\"\n\n", defaults.cardFile1);
     fprintf(file, "# Card File for reader 2 in VT3 or R-Tuned\nCARDFILE_02 = \"%s\"\n\n", defaults.cardFile2);
     fprintf(file, "# Folder for ID Card files\nID_CARDFOLDER = \"%s\"\n\n", defaults.idCardFolder);
 

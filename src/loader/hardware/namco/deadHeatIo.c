@@ -99,9 +99,10 @@ static const DeadHeatAddresses nirin = {
 };
 
 // Maximum Tune 3 (2007): Nirin's state block, its clSystemN2 the same functions (init has no restart), its Kickback
-// on its own port with its fields elsewhere, a six-speed H shifter, the calibration as centres and travels
+// on its own port with its fields elsewhere, a six-speed H shifter, the calibration as centres and travels. Its
+// clSerialN2 is n2CardPrinter.c's (the card reader-printer on port 2, the other ports left closed)
 static const DeadHeatAddresses maximumTune3 = {
-    0x0852EAB8, 0x0852EB78, 0x0852EBE4, 0x0852E08C, 0x0852DCFC, 0x0852E258, 0x08478734, 0x0852D900, 0x0852F698,
+    0x0852EAB8, 0x0852EB78, 0x0852EBE4, 0x0852E08C, 0x0852DCFC, 0x0852E258, 0x08478734, 0,          0x0852F698,
     0x09B669E1, 0x09B669E0, 0x09B66A4C, 0x09B66A64, 0x09B5CEE0, 0x09AD8120, 0,          0x09B66A80,
     0x104,      0x108,      0x128,      0x50,       0x1A8,      GEARBOX_H,  false,      false,
     "31c090",   4,          0,          0x3D,       0x3E,       0x3F,       0x20,       true,

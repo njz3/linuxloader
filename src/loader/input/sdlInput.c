@@ -31,6 +31,7 @@
 #include "../mainShared.h"
 #include "../graphics/overlayMsgs.h"
 #include "wiimoteEvdev.h"
+#include "../hardware/namco/n2CardPrinter.h"
 
 // --- GLOBAL STATE AND MAPPINGS ---
 ActionState gActionStates[MAX_ENTITIES][NUM_LOGICAL_ACTIONS];
@@ -666,6 +667,8 @@ void remapPerGame()
             gJvsMap[PLAYER_1][LA_GearDown] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_8};
             gJvsMap[PLAYER_1][LA_ViewChange] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_9};
             gJvsMap[PLAYER_1][LA_Boost] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_10};
+            // The card key: the card offered at the card reader-printer's slot (n2CardPrinter.c)
+            gJvsMap[PLAYER_1][LA_CardInsert] = (JVSActionMapping){JVS_CALL_SWITCH, NONE};
         }
     }
     else if (gGrp == GROUP_GAELCO)
@@ -2221,6 +2224,13 @@ void processChangedActions()
         switch (map->call_type)
         {
             case JVS_CALL_SWITCH:
+                if (gId == WANGAN_MIDNIGHT_MT3 && actionId == LA_CardInsert)
+                {
+                    // Each press of the card key: a toggle's two states, a button's press
+                    if (state->isActive || gActionProperties[player][actionId].isToggle)
+                        n2CardPrinterKey();
+                    break;
+                }
                 if ((gGrp == GROUP_ID4_EXP || gGrp == GROUP_ID4_JAP || gGrp == GROUP_ID5) && actionId == LA_CardInsert)
                 {
                     if (state->isActive)

@@ -102,8 +102,9 @@ static const char *const phModeLabels[] = {"Default (no scaling)", "No touch scr
 
 const GameOption gameOptionTable[] = {
     {"NO_CARD_READER", "Play without the card reader",
-     "As when its test menu's CARD R/W is OFF: no card check at start, games without a card. The card reader-printer is "
-     "not emulated yet: unticked, the test menu decides, and CARD R/W ON stops the game at error E51.",
+     "As when its test menu's CARD R/W is OFF: no card check at start, games without a card. Unticked, the test menu "
+     "decides; with CARD R/W ON the card reader-printer is emulated, its card in [Cards] CARDFILE_01 (the card key "
+     "inserts it), and the start waits for the link check (about 5 minutes).",
      GAME_OPTION_SWITCH, FIELD(noCardReader), false, NULL, NULL, 0, 1, true, maximumTune3},
     {"EMULATE_DRIVEBOARD", "Emulate the drive board",
      "The force feedback board on its serial port, emulated by the loader for the wheel. Unticked: the serial port is "
