@@ -88,6 +88,11 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 77 | 22/10 | Retirer l'utilisation du dongle (Nirin, Dead Heat Riders) | ✅ les deux jouables : Nirin (clé HASP répondue comme celle de Dead Heat, course menée en mode agent et par vJoy) ; Dead Heat Riders (sa clé USB présentée par la libusb du loader, cartes N2 et Kickback émulées, course menée en mode agent, MinGW et MSVC) ; voir journal |
 | 78 | 23/10 | Commit et push, puis continuer avec Maximum Tune 3 | 🔄 `ea5690e` poussé ; Maximum Tune 3 jouable (démarrage, menu de test, partie, FFB, son en capture WAV ; MinGW, et MSVC jusqu'à la course qui s'y bloque) ; lecteur-imprimante de cartes pas encore émulé (CARD R/W OFF dans GAME OPTIONS) ; 3DX+ ensuite |
 | 79 | 23/10 | Inventaire des jeux Linux de racecab1 (refait) | ✅ 65 dossiers parcourus : 18 jeux Linux (7 Lindbergh, 3 Namco ES1, 3 Namco N2, 2 Cruis'n Blast, 3 Gaelco), 47 Windows ; 15 se jouent, restent MT3DX+ (à copier), les cartes de MT3, Cruis'n Blast (abandonné) ; tableau dans `BILAN.md` |
+| 86 | 23/10 | Modes d'affichage « plein écran fenêtré / borderless » et « borderless stretch » | ✅ `DISPLAY_MODE = BORDERLESS` et `BORDERLESS_STRETCH` (noms convenus avec windowsloader et la session Supermodel) ; `FULLSCREEN` devient un vrai plein écran à la résolution du jeu ; vérifié sur OutRun en fenêtre visible |
+| 85 | 23/10 | OutRun 2 SP SDX : cabine deluxe, sans doute une carte qui fait bouger la cabine en plus de celle du volant | ✅ carte de mouvement sur le second port série (`/dev/ttyS1`, `EMULATE_MOTIONBOARD`) : dans la description du jeu et dans « Cartes » (`SERIAL_2_PATH`) ; le port s'ouvre sur COM10 (115200 bauds), rien n'y passe pendant l'attract |
+| 84 | 23/10 | Dans la description des jeux, la carte d'E/S des contrôles et la carte moteur | ✅ dans le sélecteur et en tête de « Options du jeu » : « Controls on JVS board, Sega 837-14572, JVS 3.0 », « Motor board: Sega-like servoboard », carte de mouvement, Namco N2 et Kickback, carte d'interface Gaelco (libellés de windowsloader, traduits) |
+| 83 | 23/10 | Passthrough série des cartes moteur et du JVS dans « Options du jeu », avec le choix d'un port COM ; essais sur COM10 et COM11 (paire virtuelle, partagée avec windowsloader) | ✅ partie « Cartes » (Émulée / Vraie carte sur COMn) ; ports COM sous Windows ; JVS direct porté sous Windows ; OutRun SDX : carte moteur et JVS par COM10, faux boîtier sur COM11 (pièces vues dans le jeu) |
+| 82 | 23/10 | Commit et push, puis poursuivre par les jeux | ✅ `9858fbd`, `588769e` poussés ; lecteur-imprimante de cartes de Maximum Tune 3 émulé : carte neuve donnée, écrite, imprimée, enregistrée, relue à la partie suivante (journal) ; ⏳ fin de course, vJoy, 3DX+ |
 | 81 | 23/10 | Page de réglages du jeu en cours dans F10, remplie selon le jeu lancé (lecteur de cartes de MT3, mode Pro de Battle Gear 4 côté windowsloader…) | ✅ onglet « Options du jeu », section `[Game.<nom court>]`, même disposition que windowsloader (convenue avec lui) ; options de MT3 et des jeux Lindbergh ; vérifié sur MT3, MinGW et MSVC |
 | 80 | 23/10 | Mettre à jour l'état des jeux dans `gameData.c` | ✅ Dead Heat Riders et Nirin en `WORKING` (« Working » dans le sélecteur) ; Maximum Tune 3 reste `NOT_WORKING` |
 
@@ -114,6 +119,67 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Lecteur-imprimante de cartes de Maximum Tune 3 (demande 82)
+- `clCardPrinter` sur `clSerialN2` port 2 (`/dev/ttyM2`) : trame de commande (STX, longueur, commande, trois zéros,
+  paramètres, ETX, BCC), ACK, puis ENQ et réponse (commande, R position de la carte, P résultat, S travail, données) ;
+  S '3' = occupé (nouvel ENQ 12 images plus tard). `n2CardPrinter.c` remplace `open`, `close`, `send` et `receive` de
+  `clSerialN2` (les autres ports restent fermés : `deadHeatIo.c` ne s'en charge plus pour MT3).
+- Sous-commandes vues dans le jeu : `10` init, `20` état, `B0 2` contrôle du distributeur (au démarrage) et `B0 1`
+  carte neuve dans le lecteur (avant `B0 2` : « 2 » n'est qu'un contrôle), `33 2 1 6` lecture qui attend la carte du
+  joueur, `33 0 1 6` lecture de la carte en place, `53 0 m 6` écriture des trois pistes (207 octets), `78`/`7C`
+  impression, `80` éjection, `40` annulation.
+- Piège : P '3' est une carte bloquée (E53 « Card jam » après trois essais), pas « pas de carte ». La lecture qui
+  attend la carte répond « pas de carte, sans erreur » (R, P, S à '0') et reste en attente ; le jeu la sonde par de
+  simples ENQ (`requestInsert` → `sendReadEnq`) jusqu'à la carte ou à l'annulation (`40`, fin du compte à rebours ou
+  NO). Une réponse « occupé » sans fin l'empêchait d'annuler.
+- `CardRW` de `testmode.lua` : 0 = ON, 1 = OFF (`isNoUseCardDevice`), 2 = sans lecteur (`isWithOutCardDevice` : le
+  lecteur n'est même pas servi). Remis à 1 (OFF) dans la copie locale après les essais.
+- Essais en mode agent : CARD CHECK OK ; achat d'une carte, création du joueur, impression, écriture enregistrée dans
+  `Card_01.crd` ; à la partie suivante la carte est relue (« Card data confirmed »). La carte créée reste dans
+  `games/mt3/Card_01.crd`.
+
+### Cartes réelles sur un port série : passthrough (demandes 83 et 85)
+- Page « Options du jeu », partie « Cartes » (même présentation que windowsloader, convenue avec lui) : une ligne par
+  carte d'un port série du jeu, « Émulée » ou « Vraie carte sur COMn » parmi les ports que Windows connaît
+  (QueryDosDevice, relus toutes les 2 s), au prochain lancement. Carte moteur du volant (`/dev/ttyS0` :
+  `EMULATE_DRIVEBOARD`, `SERIAL_1_PATH`), carte de mouvement d'OutRun SP SDX (`/dev/ttyS1` : `EMULATE_MOTIONBOARD`,
+  `SERIAL_2_PATH`), carte JVS (`EMULATE_JVS`, `JVS_PATH`). Les clés sont celles de `[Emulation]` et `[Paths]`, écrites
+  dans `[Game.<nom court>]` (pour ce jeu seulement) ; « COM12 » ou « \\.\COM12 » acceptés, « COM12 » écrit.
+- `hardware/lindbergh/serialPort.c` (Windows) : l'ouverture par le jeu de son port série devient celle du port COM
+  (descripteur du runtime C) ; son `tcsetattr` règle vitesse (codes Bxxx), taille, parité, bits de stop et contrôle de
+  flux ; ses lectures suivent `VMIN`, `VTIME` et `O_NONBLOCK` (COMMTIMEOUTS) ; `select`, `FIONREAD`, lignes du modem,
+  `tcflush`, `tcdrain`, `fcntl` F_GETFL/F_SETFL. E/S « overlapped » : sans elles Windows sérialise ReadFile et
+  WriteFile sur un même port, et une lecture en attente (le fil JVS) retardait les écritures du jeu de plusieurs
+  secondes. Sous Linux le jeu ouvre le périphérique lui-même, comme avant.
+- JVS direct (`passthrough.c`) porté sous Windows (fil de lecture, section critique). Corrigé au passage : une trame
+  vide « pas de réponse » publiée avant la réponse de la carte (le jeu la prenait pour celle-ci : « JVS I/O board does
+  not fulfill the game spec ») ; chaque requête efface la trame en attente, et la trame vide n'est publiée qu'après
+  200 ms sans réponse.
+- Le second port d'OutRun passe à une vraie carte même quand la carte du volant reste émulée (elle est sur le premier
+  seul).
+- Essais en agent caché sur OutRun 2 SP SDX, avec un faux boîtier Python sur COM11 (`fake_lindbergh_board.py` dans le
+  dossier temporaire de la session) : carte moteur complète par COM10 (reset `FF`, init `81`, butées `FC`, réglages
+  `83`/`86`/`88`, puis `84` à chaque image ; OutRun SDX envoie des trames de 7 octets, deux cartes sur la ligne, et
+  attend un octet de réponse par carte) ; JVS par COM10 (reset, adresse, identification, capacités 837-14572, puis
+  ~60 lectures par seconde ; les pièces du faux boîtier s'affichent : « CREDIT(S) 2 »). COM10/COM11 partagés avec
+  windowsloader, pris et rendus à tour de rôle.
+
+### Cartes de chaque jeu dans sa description (demandes 84 et 85)
+- `gui::boardDescription` : la carte d'E/S et la carte moteur, dans le panneau du sélecteur et en tête de « Options
+  du jeu ». Lindbergh : « Controls on JVS board, Sega 837-14572 (ou 837-13551), JVS 3.0 (carte de base) » ; servoboard
+  type Sega (`/dev/ttyS0`) pour OutRun, Hummer, Initial D, Sega Race TV, R-Tuned ; carte de mouvement (`/dev/ttyS1`)
+  d'OutRun SP SDX ; siège mobile (ride board) de HOD4 SP et Let's Go Jungle Special ; « aucune » sinon. Namco :
+  carte d'E/S N2 (n2jvio) et carte Kickback (pas pour Nirin). Gaelco : carte d'interface, sorties moteur et vibreur.
+
+### Modes plein écran fenêtré (demande 86)
+- `DISPLAY_MODE` : `BORDERLESS` (fenêtre sans bordure sur tout l'écran, résolution du bureau, image au rapport
+  d'aspect) et `BORDERLESS_STRETCH` (image étirée), à la suite des quatre modes, numéros inchangés ; mêmes noms que
+  windowsloader et Supermodel. `FULLSCREEN` et `FULLSCREEN_STRETCH` passent l'écran au mode le plus proche de la
+  résolution du jeu (SDL_GetClosestFullscreenDisplayMode), et retombent sur le borderless si l'écran n'en a pas ; ce
+  qui était le plein écran (« bureau » de SDL) est devenu BORDERLESS. F11 et Alt+Entrée gardent le mode choisi.
+- Vérifié sur OutRun en fenêtre visible (créneau pris à windowsloader) : BORDERLESS 3072×1920 sans bordure, écran
+  inchangé ; FULLSCREEN : écran en 1280×768 (le plus proche des 800×480 du jeu sur cet écran), rendu en sortant.
 
 ### Options du jeu dans F10 (demande 81)
 - Onglet « Options du jeu » de la fenêtre des paramètres, en jeu seulement : le titre du jeu, où c'est enregistré

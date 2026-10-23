@@ -28,7 +28,7 @@ annexes (`Sega\assets\rpi-billboard`, une mise à jour), pas le jeu.
 | Maximum Heat 3D - Namco ES1 | Namco ES1 | `a.elf` | `MAXIMUM_HEAT_3D` | ✅ partie, FFB, menu de test, vJoy |
 | Nirin - Namco ES1 | Namco ES1 | `exec/a.elf` | `NIRIN` | ✅ course, menu de test, vJoy ; clé HASP répondue |
 | Dead Heat Riders - Namco N2 | Namco N2 | `a.elf` | `DEAD_HEAT_RIDERS` | ✅ course, FFB, menu de test, vJoy ; clé USB présentée |
-| Wangan Midnight Maximum Tune 3 (Export) - Namco N2 | Namco N2 | `main` | `WANGAN_MIDNIGHT_MT3` | ✅ course (MinGW), FFB, menu de test, son ; lecteur-imprimante de cartes à émuler, course bloquée en MSVC, vJoy à faire |
+| Wangan Midnight Maximum Tune 3 (Export) - Namco N2 | Namco N2 | `main` | `WANGAN_MIDNIGHT_MT3` | ✅ course (MinGW), FFB, menu de test, son, lecteur-imprimante de cartes (carte neuve écrite puis relue) ; course bloquée en MSVC, vJoy à faire |
 | Wangan Midnight Maximum Tune 3DX+ (Japan) - Namco N2 | Namco N2 | `main` | — | ⏳ pas encore copié ; même plateforme que MT3 (pilote NVIDIA, HASP, OpenAL dans le programme) |
 | Cruisn Blast 1.25 - Raw Thrills PC based | Raw Thrills (Linux) | `game` | — | ❌ abandonné (décision de l'utilisateur) |
 | Cruisn Blast 2.31 - Raw Thrills PC based | Raw Thrills (Linux) | `game` | — | ❌ abandonné |
@@ -48,6 +48,17 @@ Racing Full Blown, Showdown, Storm Racer G) ; Namco ES3, ES3X et ES3B (Mario Kar
 Maximum Tune 5, 5DX+, 6) ; Raw Thrills avant Cruis'n Blast (Batman, Cars, Dirty Drivin, H2 Overdrive) ; Konami (GTI
 Club Super Mini Fiesta, Road Fighters 3D) ; autres (Crazy Ride, CrazySpeed, Frenzy Express, Storm Rider, Wasteland
 Racers 2071).
+
+## Cartes réelles et modes d'affichage (23/10)
+
+- **Passthrough série** (F10 > Options du jeu > Cartes) : carte moteur du volant, carte de mouvement d'OutRun SP
+  SDX et carte JVS, chacune « Émulée » ou « Vraie carte sur COMn » ; sous Windows le port COM est réglé comme le
+  jeu règle son port Linux. Vérifié sur OutRun SDX avec un faux boîtier de l'autre côté d'une paire virtuelle
+  (COM10/COM11) : la carte moteur et le JVS dialoguent, les pièces s'affichent. Pas encore essayé avec de vraies
+  cartes.
+- **Description des jeux** : carte d'E/S des contrôles et carte moteur de chaque jeu (sélecteur, Options du jeu).
+- **Affichage** : `BORDERLESS` et `BORDERLESS_STRETCH` (plein écran fenêtré) ; `FULLSCREEN` change désormais la
+  résolution de l'écran pour celle du jeu.
 
 ## Synthèse par jeu et par fonction
 
@@ -192,9 +203,15 @@ Racers 2071).
   de sa mémoire (`hasp.bin`, numéro de série et compteur des cartes, gardés), l'horloge de la clé celle de Windows.
 - **Cartes** : N2 émulée par `deadHeatIo.c` (bloc d'état de la `n2jvio` de Nirin) ; calibrage en centre et course ;
   carte Kickback en type de couple 0 (auto-test passé), ses champs ailleurs que ceux de Dead Heat.
-- **Lecteur-imprimante de cartes** (V337, port série) pas encore émulé : CARD CHECK en erreur E51 tant que
-  GAME OPTIONS → CARD R/W est à ON ; à OFF (réglage d'exploitant, gardé dans `tmp/data/testmode.lua`), la partie se
-  joue sans carte (« Card reader not functional »).
+- **Lecteur-imprimante de cartes** (`hardware/namco/n2CardPrinter.c`) émulé sur son port série (`/dev/ttyM2`) : avec
+  CARD R/W à ON dans GAME OPTIONS, CARD CHECK passe ; « Do you have a card? » attend la carte (touche CardInsert, F7) ;
+  sans carte, « Purchase a new card? » en donne une neuve (distributeur), le jeu y écrit le joueur (constructeur,
+  voiture, couleur, boîte, nom) et l'imprime ; elle est enregistrée dans `[Cards] CARDFILE_01` (`Card_01.crd`), au
+  format texte .RAW des émulateurs de cartes. Relue à la partie suivante : « Card data confirmed », AAAAA 00-01,
+  Skyline GT-R V-Spec II, 60 parties. La carte d'exemple du dossier `Card Data` est refusée (éjectée) : faite pour
+  une autre borne ou version. Le premier démarrage avec CARD R/W à ON attend la liaison entre bornes (~5 min,
+  « DATA MERGE »), les suivants non. Pas encore vu : l'écriture et l'éjection de fin de course (la voiture du mode
+  agent reste au point mort contre le mur).
 - **Contrôles** (mode agent, SWITCH TEST) : pièces (2 pour 1 crédit), Test et Service (menus), volant (RIGHT OK),
   accélérateur (OK), frein, View Change (bouton 9), Intrude Change (bouton 10, Boost) ; le levier en H à six
   vitesses (quatre contacts) est mené par Gear Up et Gear Down (neutre au départ, de N à 6).
@@ -207,7 +224,8 @@ Racers 2071).
   alignée sur 16 octets que leur thread n'a pas toujours (plantage une fois sur deux vers la 27e seconde).
 - Paramètres : `tmp/data/testmode.lua`, `bookkeeping.lua`, `cardbackup.lua` écrits dans le dossier du jeu.
 - **Options du jeu** (F10) : « Jouer sans le lecteur de cartes », coché par défaut : le jeu se joue sans carte
-  dès la première fois, sans passer par CARD R/W dans son menu de test (`[Game.mt3] NO_CARD_READER`).
+  dès la première fois, sans passer par CARD R/W dans son menu de test (`[Game.mt3] NO_CARD_READER`). Décoché, c'est
+  CARD R/W qui décide (à ON : les cartes ci-dessus).
 - **Build MSVC** : démarrage, menu de test, démo et menus comme MinGW, mais la course se bloque au chargement :
   le thread de course tourne sans fin dans `CSectionManager::GetSectInfo_InterArea` (`while (x < 0)` sur la
   position d'une voiture rivale devenue NaN). La précision x87 n'en est pas la cause (essayé à 64 bits comme sous
