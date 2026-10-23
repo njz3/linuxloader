@@ -21,6 +21,8 @@
 #include "../config/config.h"
 #include "../hardware/lindbergh/securityBoard.h"
 #include "../hardware/namco/deadHeatIo.h"
+#include "../hardware/namco/namcoHasp.h"
+#include "../hardware/namco/n2Sound.h"
 #include "../redirections/filesystemShared.h"
 #include "../elfLoader/elfCall.h"
 #include "../hardware/gaelco/gaelcoIo.h"
@@ -32,6 +34,7 @@
 #include "../graphics/shaderPatches.h"
 #include "../graphics/customCursor.h"
 #include "../graphics/glutBridge.h"
+#include "../graphics/admBridge.h"
 #include "flowControl.h"
 #include "patchNetwork.h"
 
@@ -2790,6 +2793,16 @@ int initPatch()
             sharedMkdir("save0", 0755);
             sharedMkdir("save1", 0755);
             deadHeatIoInstall(); // the N2 I/O board, as Dead Heat's
+        }
+        break;
+        case WANGAN_MIDNIGHT_MT3:
+        {
+            // NVIDIA's arcade driver is built into the program: its display calls and OpenGL entry points go to the
+            // loader's window and OpenGL
+            admBridgeInstall();
+            namcoHaspInstall();  // its HASP key, from a memory image beside the game
+            n2SoundInstall();    // NVIDIA's OpenAL in the program: OpenAL Soft's
+            deadHeatIoInstall(); // the N2 I/O board as Nirin's, the Kickback wheel board as Dead Heat's
         }
         break;
         case RING_RIDERS:

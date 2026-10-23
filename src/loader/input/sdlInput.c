@@ -658,6 +658,15 @@ void remapPerGame()
             gJvsMap[PLAYER_1][LA_ViewChange] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_2};
             gJvsMap[PLAYER_1][LA_Boost] = (JVSActionMapping){JVS_CALL_NONE, NONE};
         }
+        if (gId == WANGAN_MIDNIGHT_MT3)
+        {
+            // Gear up and gear down move its H shifter (buttons 7 and 8, deadHeatIo.c); view change on button 9, its
+            // intrude change (the other players' challenges) on button 10 as Boost (its switch test)
+            gJvsMap[PLAYER_1][LA_GearUp] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_7};
+            gJvsMap[PLAYER_1][LA_GearDown] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_8};
+            gJvsMap[PLAYER_1][LA_ViewChange] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_9};
+            gJvsMap[PLAYER_1][LA_Boost] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_10};
+        }
     }
     else if (gGrp == GROUP_GAELCO)
     {
@@ -710,7 +719,7 @@ void initActionProperties()
     gActionProperties[PLAYER_1][LA_Flying_Y].isCentering = true;
     gActionProperties[PLAYER_1][LA_Throttle].isCentering = true;
     // Namco's cabinets have a test switch that stays on: the test menu lasts while it is on
-    if (gGrp == GROUP_DEAD_HEAT)
+    if (gGrp == GROUP_DEAD_HEAT && gId != WANGAN_MIDNIGHT_MT3) // Maximum Tune 3's Test is a button, its menu's Enter
         gActionProperties[SYSTEM][LA_Test].isToggle = true;
 }
 

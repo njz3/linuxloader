@@ -1,5 +1,6 @@
 // Namco's Dead Heat (US DRIVE rev. 6273) on its cabinet's boards, emulated where the game reads them. Maximum Heat 3D
-// (Dead Heat's engine), Dead Heat Riders (its successor) and Nirin (an older n2jvio, no Kickback board) use them too.
+// (Dead Heat's engine), Dead Heat Riders (its successor), Nirin (an older n2jvio, no Kickback board) and Maximum Tune 3
+// (Nirin's n2jvio, a six-speed H shifter) use them too.
 //
 // The N2 I/O board: the game talks to it over a serial port (Namco's n2Jvio library) and keeps what it reports in a
 // state block, clSystemN2's, that its input device and coin counter read: the switches in the JVS layout (the loader's
@@ -47,45 +48,63 @@ typedef struct
     // In the state block: the system byte, the player's switches, the first coin counter and the distance to the
     // next one, the analogue channels (wheel, accelerator, brake)
     uint16_t systemSwitches, playerSwitches, coinSlot, coinStride, analogue;
-    // The four-gear lever on buttons 6 to 9 (Dead Heat), the brake also as a contact on button 3 (STR_BRAKE_DIGITAL of
-    // Dead Heat and Dead Heat Riders), and the brake's calibration as rest and travel (Nirin, Dead Heat Riders: rest
-    // and floored)
-    bool gearLever, brakeContact, brakeTravel;
+    // The gearbox (GEARBOX_*), the brake also as a contact on button 3 (STR_BRAKE_DIGITAL of Dead Heat and Dead Heat
+    // Riders), and the brake's calibration as rest and travel (Nirin, Dead Heat Riders: rest and floored)
+    uint8_t gearbox;
+    bool brakeContact, brakeTravel;
     // What replaces the read of the torque type (xor eax, eax and nops of its length), the distance between the
     // calibration's fields, and n2JvioAckTxVsync when the game calls it besides clSystemN2 (0: not)
     const char *torqueTypePatch;
     uint8_t calibrationStride;
     uintptr_t ackTxVsync;
+    // The Kickback instance's spring, viscosity and reflect bytes and centre offset (clKickback's setters)
+    uint8_t kickbackSpring, kickbackViscosity, kickbackReflect, kickbackCentre;
+    // Maximum Tune 3's calibration (clInputDeviceJamma's statics): each pedal's travel and rest, the brake's first,
+    // then the wheel's half travel and centre
+    bool centreWidth;
 } DeadHeatAddresses;
+
+#define GEARBOX_NONE 0
+#define GEARBOX_LEVER 1 // Dead Heat's four-gear lever, one of buttons 6 to 9
+#define GEARBOX_H 2     // Maximum Tune 3's six speeds: left, right, up and down on buttons 5, 6, 3 and 4
 
 static const DeadHeatAddresses deadHeatUs = {
     0x0808BF50, 0x0808B5F0, 0x0808B8F0, 0x0808B7B0, 0x0808B790, 0x0808B5C0, 0x08092360, 0x0808C060, 0x0809FC64,
     0x0902BB04, 0x0902BB08, 0x0902BAFC, 0x0902BAE8, 0x09033340, 0x087E5ABC, 0x087E5588, 0x09035980,
-    0x13C,      0x140,      0x160,      0x1C,       0x200,      true,       true,       true,
-    "31c09090", 4,          0,
+    0x13C,      0x140,      0x160,      0x1C,       0x200,      GEARBOX_LEVER, true,    true,
+    "31c09090", 4,          0,          0x48,       0x49,       0x4A,       0x2C,       false,
 };
 
 static const DeadHeatAddresses maximumHeat3d = {
     0x080AFC40, 0x080AEF50, 0x080AF4A0, 0x080AF240, 0x080AF220, 0x080AEF20, 0x080B4110, 0x080AFD50, 0x080BDEF7,
     0x0917083C, 0x09170840, 0x09170830, 0x0917081C, 0x09178080, 0x0891E120, 0x0891DBC8, 0x0917A6C0,
-    0x13C,      0x140,      0x160,      0x1C,       0x200,      true,       true,       true,
-    "31c09090", 4,          0,
+    0x13C,      0x140,      0x160,      0x1C,       0x200,      GEARBOX_LEVER, true,    true,
+    "31c09090", 4,          0,          0x48,       0x49,       0x4A,       0x2C,       false,
 };
 
 // No gear lever; its main flow and boot also send the I/O board a frame of their own (n2JvioAckTxVsync, n2JvioTxPl)
 static const DeadHeatAddresses deadHeatRiders = {
     0x080A5C50, 0x080A5F80, 0x080A5F60, 0x080A5D90, 0x080A5CC0, 0x080A5D40, 0x080ABCB0, 0x080A61D0, 0x080B1CE4,
     0x08F94AA0, 0x08F94AA1, 0x08F94AE8, 0x08F94AF0, 0x08F9C2A0, 0x086A9320, 0x086B2320, 0x08F9E920,
-    0x13C,      0x140,      0x160,      0x1C,       0x200,      false,      true,       false,
-    "31c090",   0x10,       0x080AA4B0,
+    0x13C,      0x140,      0x160,      0x1C,       0x200,      GEARBOX_NONE, true,     false,
+    "31c090",   0x10,       0x080AA4B0, 0x48,       0x49,       0x4A,       0x2C,       false,
 };
 
 // Its second counter (0x178) is the service credits' (clCoin::addService)
 static const DeadHeatAddresses nirin = {
     0x08093AF0, 0x08093200, 0x080931E0, 0x08093130, 0x08093250, 0x080930F0, 0x08099430, 0,          0,
     0x091A6700, 0x091A6701, 0x091A6748, 0x091A674C, 0x091ACF40, 0x083F1168, 0,          0,
-    0x104,      0x108,      0x128,      0x50,       0x1A8,      false,      false,      false,
-    NULL,       4,          0,
+    0x104,      0x108,      0x128,      0x50,       0x1A8,      GEARBOX_NONE, false,    false,
+    NULL,       4,          0,          0,          0,          0,          0,          false,
+};
+
+// Maximum Tune 3 (2007): Nirin's state block, its clSystemN2 the same functions (init has no restart), its Kickback
+// on its own port with its fields elsewhere, a six-speed H shifter, the calibration as centres and travels
+static const DeadHeatAddresses maximumTune3 = {
+    0x0852EAB8, 0x0852EB78, 0x0852EBE4, 0x0852E08C, 0x0852DCFC, 0x0852E258, 0x08478734, 0x0852D900, 0x0852F698,
+    0x09B669E1, 0x09B669E0, 0x09B66A4C, 0x09B66A64, 0x09B5CEE0, 0x09AD8120, 0,          0x09B66A80,
+    0x104,      0x108,      0x128,      0x50,       0x1A8,      GEARBOX_H,  false,      false,
+    "31c090",   4,          0,          0x3D,       0x3E,       0x3F,       0x20,       true,
 };
 
 static const DeadHeatAddresses *game = &deadHeatUs;
@@ -114,6 +133,13 @@ extern uint32_t gId;
 #define CAL_BRAKE_REST CALIBRATION(7)
 #define CAL_BRAKE_TRAVEL CALIBRATION(8)
 #define CAL_BRAKE_FULL CALIBRATION(8)
+// Maximum Tune 3's: counts = rest (or centre) + position x travel (the wheel: -1..1 of its half travel)
+#define CW_BRAKE_TRAVEL CALIBRATION(0)
+#define CW_BRAKE_REST CALIBRATION(1)
+#define CW_ACCEL_TRAVEL CALIBRATION(2)
+#define CW_ACCEL_REST CALIBRATION(3)
+#define CW_WHEEL_TRAVEL CALIBRATION(4)
+#define CW_WHEEL_CENTRE CALIBRATION(5)
 
 #define CONFIG_INSTANCE (*(uint8_t *volatile *)game->config) // clConfig: byte 1 USE_JAMMA_DEVICE, 2 USE_CAMERA_DEVICE
 #define KICKBACK_INSTANCE (*(uint8_t *volatile *)game->kickback)
@@ -122,6 +148,24 @@ extern uint32_t gId;
 #define SWITCH_GEAR_UP BUTTON_2
 #define SWITCH_GEAR_DOWN BUTTON_10
 #define SWITCH_GEARS (BUTTON_6 | BUTTON_7 | BUTTON_8 | BUTTON_9)
+// Maximum Tune 3's: gear up and gear down on buttons 7 and 8, the H pattern's four contacts
+#define SWITCH_H_GEAR_UP BUTTON_7
+#define SWITCH_H_GEAR_DOWN BUTTON_8
+#define SWITCH_H_LEFT BUTTON_5
+#define SWITCH_H_RIGHT BUTTON_6
+#define SWITCH_H_UP BUTTON_3
+#define SWITCH_H_DOWN BUTTON_4
+
+// Neutral, then first to sixth: the contacts the lever closes in each
+static const int hPattern[7] = {
+    0,
+    SWITCH_H_LEFT | SWITCH_H_UP,
+    SWITCH_H_LEFT | SWITCH_H_DOWN,
+    SWITCH_H_UP,
+    SWITCH_H_DOWN,
+    SWITCH_H_RIGHT | SWITCH_H_UP,
+    SWITCH_H_RIGHT | SWITCH_H_DOWN,
+};
 
 static int gear = 1;
 static int lastSwitches = 0;
@@ -136,6 +180,25 @@ static uint16_t clampCount(float value)
 // left, 18112 at the right)
 static void calibrationCheck(void)
 {
+    if (game->centreWidth)
+    {
+        if (CW_WHEEL_TRAVEL <= 0)
+        {
+            CW_WHEEL_CENTRE = 31100;
+            CW_WHEEL_TRAVEL = 24576;
+        }
+        if (CW_ACCEL_TRAVEL <= 0)
+        {
+            CW_ACCEL_REST = 35000;
+            CW_ACCEL_TRAVEL = 20480;
+        }
+        if (CW_BRAKE_TRAVEL <= 0)
+        {
+            CW_BRAKE_REST = 29000;
+            CW_BRAKE_TRAVEL = 20480;
+        }
+        return;
+    }
     bool leftLow = CAL_WHEEL_LEFT < CAL_WHEEL_CENTRE && CAL_WHEEL_CENTRE < CAL_WHEEL_RIGHT;
     bool leftHigh = CAL_WHEEL_LEFT > CAL_WHEEL_CENTRE && CAL_WHEEL_CENTRE > CAL_WHEEL_RIGHT;
     if (!leftLow && !leftHigh)
@@ -166,7 +229,18 @@ static void n2Update(void)
 {
     JVSIO *io = getJVSIO();
     int switches = io->state.inputSwitch[PLAYER_1];
-    if (game->gearLever)
+    if (game->gearbox == GEARBOX_H)
+    {
+        int pressed = switches & ~lastSwitches;
+        lastSwitches = switches;
+        if ((pressed & SWITCH_H_GEAR_UP) && gear < 6)
+            gear++;
+        if ((pressed & SWITCH_H_GEAR_DOWN) && gear > 0)
+            gear--;
+        switches &= ~(SWITCH_H_GEAR_UP | SWITCH_H_GEAR_DOWN | hPattern[1] | hPattern[6]);
+        switches |= hPattern[gear];
+    }
+    if (game->gearbox == GEARBOX_LEVER)
     {
         int pressed = switches & ~lastSwitches;
         lastSwitches = switches;
@@ -186,13 +260,22 @@ static void n2Update(void)
         switches |= BUTTON_3;
 
     calibrationCheck();
-    float centre = (float)CAL_WHEEL_CENTRE;
-    float wheelCount = wheel < 0.5f ? centre - (0.5f - wheel) * 2.0f * (centre - (float)CAL_WHEEL_LEFT)
-                                    : centre + (wheel - 0.5f) * 2.0f * ((float)CAL_WHEEL_RIGHT - centre);
-    N2_ANALOGUE[0] = clampCount(wheelCount);
-    N2_ANALOGUE[1] = clampCount((float)CAL_ACCEL_REST + accel * (float)(CAL_ACCEL_FULL - CAL_ACCEL_REST));
-    float brakeTravel = game->brakeTravel ? (float)CAL_BRAKE_TRAVEL : (float)(CAL_BRAKE_FULL - CAL_BRAKE_REST);
-    N2_ANALOGUE[2] = clampCount((float)CAL_BRAKE_REST + brake * brakeTravel);
+    if (game->centreWidth)
+    {
+        N2_ANALOGUE[0] = clampCount((float)CW_WHEEL_CENTRE + (wheel * 2.0f - 1.0f) * (float)CW_WHEEL_TRAVEL);
+        N2_ANALOGUE[1] = clampCount((float)CW_ACCEL_REST + accel * (float)CW_ACCEL_TRAVEL);
+        N2_ANALOGUE[2] = clampCount((float)CW_BRAKE_REST + brake * (float)CW_BRAKE_TRAVEL);
+    }
+    else
+    {
+        float centre = (float)CAL_WHEEL_CENTRE;
+        float wheelCount = wheel < 0.5f ? centre - (0.5f - wheel) * 2.0f * (centre - (float)CAL_WHEEL_LEFT)
+                                        : centre + (wheel - 0.5f) * 2.0f * ((float)CAL_WHEEL_RIGHT - centre);
+        N2_ANALOGUE[0] = clampCount(wheelCount);
+        N2_ANALOGUE[1] = clampCount((float)CAL_ACCEL_REST + accel * (float)(CAL_ACCEL_FULL - CAL_ACCEL_REST));
+        float brakeTravel = game->brakeTravel ? (float)CAL_BRAKE_TRAVEL : (float)(CAL_BRAKE_FULL - CAL_BRAKE_REST);
+        N2_ANALOGUE[2] = clampCount((float)CAL_BRAKE_REST + brake * brakeTravel);
+    }
 
     *N2_PLAYER_SWITCHES = (uint16_t)switches;
     *N2_SYSTEM_SWITCHES = (uint8_t)(io->state.inputSwitch[SYSTEM] & 0xFF);
@@ -248,10 +331,10 @@ static void kickbackUpdate(void)
         sent.spring = sent.viscosity = sent.reflect = sent.centre = -1000;
     }
     // Scales of clGameInput::update: spring, viscosity 0..127, reflect -127..127, centre offset -511..511
-    int spring = kickback[0x48] & 0x7F;
-    int viscosity = kickback[0x49] & 0x7F;
-    int reflect = (int8_t)kickback[0x4A];
-    int centre = *(const int32_t *)(kickback + 0x2C) / 4;
+    int spring = kickback[game->kickbackSpring] & 0x7F;
+    int viscosity = kickback[game->kickbackViscosity] & 0x7F;
+    int reflect = (int8_t)kickback[game->kickbackReflect];
+    int centre = *(const int32_t *)(kickback + game->kickbackCentre) / 4;
     centre = centre < -127 ? -127 : centre > 127 ? 127 : centre;
     if (spring != sent.spring)
         servoFrame(0x8B, spring, 0x00);
@@ -326,7 +409,10 @@ void deadHeatIoInstall(void)
     game = gId == MAXIMUM_HEAT_3D ? &maximumHeat3d
            : gId == DEAD_HEAT_RIDERS ? &deadHeatRiders
            : gId == NIRIN            ? &nirin
+           : gId == WANGAN_MIDNIGHT_MT3 ? &maximumTune3
                                      : &deadHeatUs;
+    if (game->gearbox == GEARBOX_H)
+        gear = 0; // neutral, as the lever rests: in the menus, up and down would move the cursor
     detourFunction(game->init, n2Init);
     detourFunction(game->exec, n2Exec);
     detourFunction(game->execSystemN2, n2Exec);
