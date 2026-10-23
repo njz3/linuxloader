@@ -167,7 +167,7 @@ int sharedRemove(const char *path)
         return _remove(path);
     }
 
-    if (strncmp(path, "/tmp/", 5) == 0 && gGrp == GROUP_ID5)
+    if (strncmp(path, "/tmp/", 5) == 0) // the game folder's tmp, as open, unlink and mkdir take it
     {
         path += 1;
 #ifdef _WIN32
@@ -546,7 +546,7 @@ FILE *sharedFopen(const char *restrict pathname, const char *restrict mode)
         }
     }
 
-    if (strncmp(pathname, "/tmp/", 5) == 0 && gGrp == GROUP_ID5)
+    if (strncmp(pathname, "/tmp/", 5) == 0) // the game folder's tmp, as open, unlink and mkdir take it
     {
         pathname += 1;
     }
@@ -722,6 +722,10 @@ FILE *sharedFopen64(const char *pathname, const char *mode)
             }
     }
 
+    // The game folder's tmp, as open, unlink and mkdir take it (Maximum Tune 3 saves its settings through C++ streams)
+    if (strncmp(pathname, "/tmp/", 5) == 0)
+        pathname += 1;
+
     log_debug("fopen64: %s with mode %s", pathname, mode);
     return _fopen64(pathname, mode);
 }
@@ -817,6 +821,14 @@ int sharedClose(int fd)
 }
 
 static char *(*_fgets)(char *str, int n, FILE *stream) = NULL;
+// The cpuinfo sharedFgets answers ends after its four lines (Maximum Tune 3 reads it until feof)
+int sharedFeof(FILE *stream)
+{
+    if (stream && stream == fileHooks[CPUINFO])
+        return fileRead[CPUINFO] == 4;
+    return feof(stream);
+}
+
 char *sharedFgets(char *str, int n, FILE *stream)
 {
     if (_fgets == NULL)

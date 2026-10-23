@@ -2377,6 +2377,9 @@ void *GLHooks_GetProcAddress(const char *procName)
         return (void *)&wrap_glCompressedTexSubImage2DARB;
     if (strcmp(procName, "glCompressedTexImage2D") == 0)
         return (void *)&wrap_glCompressedTexImage2D;
+    // Maximum Tune 3 reads its cars' compressed textures back to paint them the colour chosen
+    if (strcmp(procName, "glGetCompressedTexImageARB") == 0)
+        return (void *)&wrap_glGetCompressedTexImage;
     if (strcmp(procName, "glActiveTexture") == 0)
         return (void *)&wrap_glActiveTexture;
     if (strcmp(procName, "glActiveTextureARB") == 0)

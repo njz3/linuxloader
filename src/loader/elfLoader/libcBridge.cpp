@@ -18,6 +18,7 @@
 #include <ctime>
 #include <filesystem>
 #include <string>
+#include <mutex>
 #include <vector>
 #include <setjmp.h>
 #include <process.h>
@@ -56,6 +57,164 @@ namespace LibcBridge
     FILE *native_stdin = stdin;
     FILE *native_stdout = stdout;
     FILE *native_stderr = stderr;
+
+    // --- Maximum Tune 3's signals, timers, processes and memory locks
+
+    // No signal mask is kept: the old one is empty
+    static int bridgeSigprocmask(int how, const void *set, void *oldset)
+    {
+        (void)how;
+        (void)set;
+        if (oldset)
+            memset(oldset, 0, 128); // Linux's sigset_t
+        return 0;
+    }
+
+    // No Linux signal reaches the game: its signal thread waits for ever
+    static int bridgeSigwait(const void *set, int *sig)
+    {
+        (void)set;
+        (void)sig;
+        for (;;)
+            Sleep(INFINITE);
+    }
+
+    static void bridgePsignal(int sig, const char *text)
+    {
+        fprintf(stderr, "%s%ssignal %d\n", text ? text : "", text && *text ? ": " : "", sig);
+    }
+
+    static int bridgeSetitimer(int which, const void *value, void *old)
+    {
+        log_warn("setitimer(%d) ignored: no SIGALRM", which);
+        (void)value;
+        if (old)
+            memset(old, 0, 16); // struct itimerval
+        return 0;
+    }
+
+    static int bridgeSetpgid(int pid, int pgid)
+    {
+        (void)pid;
+        (void)pgid;
+        return 0;
+    }
+
+    static int bridgeSetsid(void)
+    {
+        return _getpid();
+    }
+
+    static int bridgeGetppid(void)
+    {
+        return 1; // init's
+    }
+
+    static int bridgeExecl(const char *path, const char *arg, ...)
+    {
+        (void)arg;
+        log_warn("execl(%s) refused", path ? path : "NULL");
+        errno = ENOENT;
+        return -1;
+    }
+
+    // The clock is Windows': TIME_OK, nothing adjusted
+    static int bridgeAdjtimex(void *timex)
+    {
+        (void)timex;
+        return 0;
+    }
+
+    static int bridgeChown(const char *path, int owner, int group)
+    {
+        (void)path;
+        (void)owner;
+        (void)group;
+        return 0;
+    }
+
+    // sbrk: a break of its own, the heap being Windows'. Maximum Tune 3's Alchemy grows its memory pools with it
+    // only (55 MB at start): a large region is reserved, its pages committed as the break passes them.
+    static void *bridgeSbrk(intptr_t increment)
+    {
+        static std::mutex lock;
+        static char *arena = NULL;
+        static size_t size = 0, used = 0, committed = 0;
+        std::lock_guard<std::mutex> guard(lock);
+        for (size_t megabytes = 768; !arena && megabytes >= 64; megabytes /= 2)
+            if ((arena = (char *)VirtualAlloc(NULL, megabytes << 20, MEM_RESERVE, PAGE_READWRITE)) != NULL)
+                size = megabytes << 20;
+        if (!arena || (increment > 0 && used + (size_t)increment > size) || (increment < 0 && (size_t)-increment > used))
+        {
+            log_warn("sbrk(%d) refused: %zu of %zu bytes used", (int)increment, used, size);
+            errno = ENOMEM;
+            return (void *)-1;
+        }
+        size_t end = (used + increment + 0xFFFF) & ~(size_t)0xFFFF;
+        if (end > committed)
+        {
+            if (!VirtualAlloc(arena + committed, end - committed, MEM_COMMIT, PAGE_READWRITE))
+            {
+                errno = ENOMEM;
+                return (void *)-1;
+            }
+            committed = end;
+        }
+        char *previous = arena + used;
+        used += increment;
+        return previous;
+    }
+
+    static const char *bridgeGnuGetLibcVersion(void)
+    {
+        return "2.3.6";
+    }
+
+    // The offset is 64-bit: the files mapped are small
+    static void *bridgeMmap64(void *addr, size_t length, int prot, int flags, int fd, uint32_t offsetLow, uint32_t offsetHigh)
+    {
+        (void)offsetHigh;
+        return bridgeMmap(addr, length, prot, flags, fd, (off_t)offsetLow);
+    }
+
+    // i386's va_list is a pointer to the arguments, on both sides
+    static int bridgeVfscanf(FILE *stream, const char *format, va_list args)
+    {
+        return stream ? vfscanf(stream, format, args) : 0;
+    }
+
+    static long bridgeWcstolInternal(const uint32_t *nptr, uint32_t **endptr, int base, int group)
+    {
+        (void)group;
+        return bridgeWcstol(nptr, endptr, base);
+    }
+
+    static int bridgeIswalpha(uint32_t c)
+    {
+        return c < 0x10000 ? iswalpha((wint_t)c) : 0;
+    }
+
+    // Linux's 4-byte characters through the narrow format (Boost.Regex formats numbers with it)
+    static int bridgeSwprintf(uint32_t *out, size_t n, const uint32_t *format, ...)
+    {
+        char narrow[512];
+        size_t i = 0;
+        for (; format[i] && i < sizeof(narrow) - 1; i++)
+            narrow[i] = (char)format[i];
+        narrow[i] = 0;
+        char text[1024];
+        va_list args;
+        va_start(args, format);
+        int len = vsnprintf(text, sizeof(text), narrow, args);
+        va_end(args);
+        if (len < 0 || !out || n == 0)
+            return -1;
+        size_t count = (size_t)len < n - 1 ? (size_t)len : n - 1;
+        for (size_t k = 0; k < count; k++)
+            out[k] = (unsigned char)text[k];
+        out[count] = 0;
+        return (size_t)len < n ? len : -1;
+    }
 
     void initBridges()
     {
@@ -162,6 +321,15 @@ namespace LibcBridge
 
         MAP("getpid", _getpid);
         MAP("getuid", bridgeGetuid);
+        MAP("geteuid", bridgeGetuid);
+        MAP("getppid", bridgeGetppid);
+        MAP("setpgid", bridgeSetpgid);
+        MAP("setsid", bridgeSetsid);
+        MAP("execl", bridgeExecl);
+        MAP("adjtimex", bridgeAdjtimex);
+        MAP("chown", bridgeChown);
+        MAP("gnu_get_libc_version", bridgeGnuGetLibcVersion);
+        MAP("vfscanf", bridgeVfscanf);
         MAP("waitpid", bridgeWaitpid);
         MAP("fork", bridgeFork);
         MAP("vfork", bridgeVfork);
@@ -188,6 +356,10 @@ namespace LibcBridge
         MAP("sigemptyset", bridgeSigemptyset);
         MAP("sigaddset", bridgeSigaddset);
         MAP("sigaction", bridgeSigaction);
+        MAP("sigprocmask", bridgeSigprocmask);
+        MAP("sigwait", bridgeSigwait);
+        MAP("psignal", bridgePsignal);
+        MAP("setitimer", bridgeSetitimer);
         MAP("alarm", bridgeStubSuccess);
         // R-Tuned mounts its media and traces its allocations: nothing to do here
         MAP("mount", bridgeStubSuccess);
@@ -225,6 +397,11 @@ namespace LibcBridge
         MAP("getpagesize", bridgeGetpagesize);
         MAP("mmap", bridgeMmap);
         MAP("munmap", bridgeMunmap);
+        MAP("mmap64", bridgeMmap64);
+        MAP("sbrk", bridgeSbrk);
+        MAP("mlock", bridgeStubSuccess);
+        MAP("munlock", bridgeStubSuccess);
+        MAP("msync", bridgeStubSuccess);
 
         MAP("nice", bridgeNice);
 
@@ -255,6 +432,9 @@ namespace LibcBridge
         MAP("wcsstr", bridgeWcsstr);
         MAP("wcstod", bridgeWcstod);
         MAP("wcstol", bridgeWcstol);
+        MAP("__wcstol_internal", bridgeWcstolInternal);
+        MAP("iswalpha", bridgeIswalpha);
+        MAP("swprintf", bridgeSwprintf);
         MAP("wctob", bridgeWctob);
         MAP("wctype", bridgeWctype);
         MAP("wcsrtombs", bridgeWcsrtombs);
@@ -1184,6 +1364,27 @@ namespace LibcBridge
             int status = namcoFindList(command);
             if (status >= 0)
                 return status;
+        }
+        // Maximum Tune 3's prepend-n2.pl: the work disk is tmp/data in the game's folder, made as the script makes it,
+        // with the sound it copies to /tmp (the clock, the dongle daemon and the network are Windows')
+        if (strncmp(command, "perl prepend-n2.pl", 18) == 0)
+        {
+            static const char *const folders[] = {"/tmp", "/tmp/data", "/tmp/data/target", "/tmp/data/target/old",
+                                                  "/tmp/data/ranking", "/tmp/data/card"};
+            for (const char *folder : folders)
+                sharedMkdir(folder, 0755);
+            char readPath[MAX_PATH];
+            FILE *in = fopen(writeDirForRead("data\\sound\\bgm\\maxi3\\sys_04.wav", readPath, sizeof(readPath)), "rb");
+            FILE *out = in ? writeDirFopen("tmp\\sys_04.wav", "wb") : NULL;
+            char block[65536];
+            size_t count;
+            while (out && (count = fread(block, 1, sizeof(block), in)) > 0)
+                fwrite(block, 1, count, out);
+            if (out)
+                fclose(out);
+            if (in)
+                fclose(in);
+            return 0;
         }
         static const struct
         {

@@ -56,6 +56,9 @@ namespace MathBridge
     extern "C" double bridge_ceil(double x);
     extern "C" double bridge_floor(double x);
     extern "C" float bridge_log2f(float x);
+    extern "C" double bridge_log2(double x);
+    extern "C" float bridge_ceilf(float x);
+    extern "C" long bridge_lrint(double x);
     extern "C" void bridge_sincos(double x, double *s, double *c);
     extern "C" void bridge_sincosf(float x, float *s, float *c);
     extern "C" float bridge_strtof(const char *text, char **end);

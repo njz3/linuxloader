@@ -176,6 +176,33 @@ SymbolResolver::SymbolResolver()
     m_VTables["fputc"] = reinterpret_cast<void *>(fputc);
 }
 
+// A Linux symbolic link copied to Windows becomes a small file holding the target's name (Maximum Tune 3's
+// libso/libz.so.1 holds "libz.so"): the library is that target, beside the link
+static std::string FollowLinkFile(std::string path)
+{
+    for (int depth = 0; depth < 8; depth++)
+    {
+        std::ifstream file(path.c_str(), std::ios::binary);
+        char text[256];
+        file.read(text, sizeof(text));
+        std::streamsize size = file.gcount();
+        if (size < 4 || size >= (std::streamsize)sizeof(text) || memcmp(text, "\x7f" "ELF", 4) == 0)
+            return path;
+        std::string target(text, (size_t)size);
+        while (!target.empty() && (target.back() == '\n' || target.back() == '\r'))
+            target.pop_back();
+        if (target.empty() || target.find('\0') != std::string::npos)
+            return path;
+        size_t slash = path.find_last_of("\\/");
+        std::string next = target[0] == '/' || slash == std::string::npos ? target : path.substr(0, slash + 1) + target;
+        if (GetFileAttributesA(next.c_str()) == INVALID_FILE_ATTRIBUTES)
+            return path;
+        log_info("%s is a link to %s", path.c_str(), target.c_str());
+        path = next;
+    }
+    return path;
+}
+
 void SymbolResolver::InitSearchPaths(const std::string &libraryPathParam, const std::string &gameElfPath)
 {
     m_LibrarySearchPaths.clear();
@@ -263,7 +290,8 @@ void SymbolResolver::InitSearchPaths(const std::string &libraryPathParam, const 
         m_LibrarySearchPaths.push_back(gameElfPath);
         m_LibrarySearchPaths.push_back(gameElfPath + "\\lib");
         m_LibrarySearchPaths.push_back(gameElfPath + "\\utils"); // Raw Thrills' FMOD (Cruis'n Blast)
-        log_info("Added library search paths (ELF dir): %s and its lib and utils folders", gameElfPath.c_str());
+        m_LibrarySearchPaths.push_back(gameElfPath + "\\libso"); // Namco's Maximum Tune 3: Boost, Cg
+        log_info("Added library search paths (ELF dir): %s and its lib, utils and libso folders", gameElfPath.c_str());
     }
     log_info("Initialized %zu library search paths", m_LibrarySearchPaths.size());
     log_info("DLL search base set to: %s", m_DllSearchBase.c_str());
@@ -417,6 +445,9 @@ void SymbolResolver::LoadNeededLibrary(const std::string &linuxName)
             fullPath = targetName;
         }
     }
+
+    if (found)
+        fullPath = FollowLinkFile(fullPath);
 
     if (found)
     {

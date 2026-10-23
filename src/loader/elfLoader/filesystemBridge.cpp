@@ -14,6 +14,7 @@
 #include <direct.h>
 #include <cstdarg>
 #include "../config/config.h"
+#include "../agent/agent.h"
 
 extern std::string g_absoluteElfPath;
 
@@ -23,6 +24,54 @@ static char g_dlErrorBuf[256];
 
 static_assert(sizeof(linux_stat_ver3) == 88, "Linux stat ver3 size mismatch");
 static_assert(sizeof(linux_stat64_safe) == 96, "Linux stat64 size mismatch");
+
+// glibc's struct aiocb on i386 (Maximum Tune 3 reads its data with it): the read is done at once
+struct LinuxAiocb
+{
+    int fildes;
+    int lioOpcode;
+    int reqprio;
+    void *buf;
+    uint32_t nbytes;
+    uint8_t sigevent[64];
+    void *nextPrio;
+    int absPrio;
+    int policy;
+    int errorCode;
+    int returnValue;
+    int32_t offset;
+};
+
+static int bridgeAioRead(LinuxAiocb *cb)
+{
+    if (lseek(cb->fildes, cb->offset, SEEK_SET) < 0)
+    {
+        cb->errorCode = errno;
+        cb->returnValue = -1;
+        return 0;
+    }
+    int count = (int)sharedRead(cb->fildes, cb->buf, cb->nbytes);
+    cb->errorCode = count < 0 ? errno : 0;
+    cb->returnValue = count;
+    return 0;
+}
+
+static int bridgeAioError(const LinuxAiocb *cb)
+{
+    return cb->errorCode;
+}
+
+static int bridgeAioCancel(int fd, LinuxAiocb *cb)
+{
+    (void)fd;
+    (void)cb;
+    return 2; // AIO_ALLDONE
+}
+
+static int bridgeFtruncate(int fd, int32_t length)
+{
+    return _chsize(fd, length);
+}
 
 namespace FileSystemBridge
 {
@@ -80,6 +129,10 @@ namespace FileSystemBridge
 
         // file IO
         MAP("fsync", bridgeFsync);
+        MAP("aio_read", bridgeAioRead);
+        MAP("aio_error", bridgeAioError);
+        MAP("aio_cancel", bridgeAioCancel);
+        MAP("ftruncate", bridgeFtruncate);
         MAP("sync", bridgeSync);
         MAP("fdatasync", bridgeFdatasync);
         MAP("access", bridgeAccess);
@@ -134,7 +187,7 @@ namespace FileSystemBridge
     int bridgeFeof(FILE *stream)
     {
         log_trace("Intercepted feof: %p", stream);
-        return feof(stream);
+        return sharedFeof(stream);
     }
 
     int bridgeFgetc(FILE *stream)
@@ -655,6 +708,11 @@ extern "C"
     int bridgeRename(const char *oldpath, const char *newpath)
     {
         log_debug("rename(\" % s\", \" % s\")", oldpath, newpath);
+        // /tmp is the game folder's, as for open and unlink (Maximum Tune 3 renames testmode.tmp over testmode.lua)
+        if (strncmp(oldpath, "/tmp/", 5) == 0)
+            oldpath += 1;
+        if (strncmp(newpath, "/tmp/", 5) == 0)
+            newpath += 1;
         char winOld[MAX_PATH];
         char winNew[MAX_PATH];
         ConvertPath(winOld, oldpath, MAX_PATH);
@@ -878,9 +936,19 @@ extern "C"
         return 0;
     }
 
+    // Standard input made non-blocking (Alchemy's keyboard, in Maximum Tune 3, reads a character a frame from it)
+    static bool stdinNonBlocking = false;
+
     int bridgeFcntl(int fd, int cmd, ...)
     {
         log_debug("fcntl(fd=%d, cmd=%d)", fd, cmd);
+        if (fd == 0 && cmd == 4) // F_SETFL
+        {
+            va_list args;
+            va_start(args, cmd);
+            stdinNonBlocking = (va_arg(args, int) & 04000) != 0; // O_NONBLOCK
+            va_end(args);
+        }
         return 0;
     }
 
@@ -914,9 +982,16 @@ extern "C"
         return ret;
     }
 
+    // Non-blocking standard input has nothing to read: the keys come through the loader's window, and with --agent
+    // the standard input is the agent's
     int bridgeGetc(FILE *stream)
     {
         log_trace("Intercepted getc: %p", stream);
+        if (stream == stdin && (stdinNonBlocking || agentActive()))
+        {
+            errno = EAGAIN;
+            return EOF;
+        }
         return fgetc(stream);
     }
 

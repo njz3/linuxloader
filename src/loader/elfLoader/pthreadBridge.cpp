@@ -63,6 +63,44 @@ namespace PthreadBridge
 
     }
 
+    // glibc's pthread_cleanup_push and pop (Maximum Tune 3's threads): no thread is cancelled, the handler runs
+    // only when the game pops it with execute
+    struct CleanupBuffer
+    {
+        void (*routine)(void *);
+        void *arg;
+        int canceltype;
+        CleanupBuffer *prev;
+    };
+
+    static void bridgeCleanupPush(CleanupBuffer *buffer, void (*routine)(void *), void *arg)
+    {
+        buffer->routine = routine;
+        buffer->arg = arg;
+    }
+
+    static void bridgeCleanupPop(CleanupBuffer *buffer, int execute)
+    {
+        if (execute && buffer->routine)
+#ifdef _MSC_VER
+            elfCall1((const void *)buffer->routine, (uintptr_t)buffer->arg);
+#else
+            buffer->routine(buffer->arg);
+#endif
+    }
+
+    static int bridgeSetcanceltype(int type, int *oldtype)
+    {
+        (void)type;
+        if (oldtype)
+            *oldtype = 0; // PTHREAD_CANCEL_DEFERRED
+        return 0;
+    }
+
+    static void bridgeTestcancel(void)
+    {
+    }
+
     void initBridges()
     {
         log_info("Initializing Pthread Emulation...");
@@ -77,6 +115,10 @@ namespace PthreadBridge
         MAP("pthread_self", PthreadEmu::pthreadSelf);
         MAP("pthread_equal", PthreadEmu::pthreadEqual);
         MAP("pthread_cancel", PthreadEmu::pthreadCancel);
+        MAP("_pthread_cleanup_push", bridgeCleanupPush);
+        MAP("_pthread_cleanup_pop", bridgeCleanupPop);
+        MAP("pthread_setcanceltype", bridgeSetcanceltype);
+        MAP("pthread_testcancel", bridgeTestcancel);
 
         // Thread attributes
         MAP("pthread_attr_init", PthreadEmu::pthreadAttrInit);

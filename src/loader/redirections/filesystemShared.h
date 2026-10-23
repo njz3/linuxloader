@@ -47,6 +47,7 @@ FILE *sharedFopen64(const char *pathname, const char *mode);
 int sharedFclose(FILE *stream);
 int sharedClose(int fd);
 char *sharedFgets(char *str, int n, FILE *stream);
+int sharedFeof(FILE *stream);
 ssize_t sharedRead(int fd, void *buf, size_t count);
 size_t sharedFread(void *buf, size_t size, size_t count, FILE *stream);
 long int sharedFtell(FILE *stream);

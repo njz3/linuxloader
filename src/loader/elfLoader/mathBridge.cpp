@@ -66,6 +66,9 @@ namespace MathBridge
         MAP("ceil", bridge_ceil);
         MAP("floor", bridge_floor);
         MAP("log2f", bridge_log2f);
+        MAP("log2", bridge_log2);
+        MAP("ceilf", bridge_ceilf);
+        MAP("lrint", bridge_lrint);
         MAP("sincos", bridge_sincos);
         MAP("sincosf", bridge_sincosf);
         MAP("strtof", bridge_strtof);
@@ -301,6 +304,21 @@ extern "C" double bridge_floor(double x)
 extern "C" float bridge_log2f(float x)
 {
     return ::log2f(x);
+}
+
+extern "C" double bridge_log2(double x)
+{
+    return ::log2(x);
+}
+
+extern "C" float bridge_ceilf(float x)
+{
+    return ::ceilf(x);
+}
+
+extern "C" long bridge_lrint(double x)
+{
+    return ::lrint(x);
 }
 
 // glibc's, not in Windows' C library
