@@ -20,6 +20,7 @@
 #include "libcBridge.hpp"
 #include "symbolResolver.hpp"
 #include "../log/log.h"
+#include "../config/config.h"
 
 #define MAP(name, func) SymbolResolver::GetInstance().RegisterVTable(name, reinterpret_cast<void *>(func))
 
@@ -567,8 +568,16 @@ extern "C" int bridgeGetpeername(int fd, struct sockaddr *address, int *length)
     return 0;
 }
 
-// --- libusb 1.0 (Dead Heat Riders looks for its I/O board on USB): a bus without any device
+// --- libusb 1.0: Dead Heat Riders' USB key, the only device, found by its ids and the serial number string it reads
+// (clHASP::Check: 0B9A:0C10, a serial beginning "2706", then "2", then "01" at the seventh character); for any
+// other game, a bus without any device
 static int usbContext;
+static int usbKey; // the key's device and its handle
+
+static bool usbKeyPresent(void)
+{
+    return getConfig()->crc32 == DEAD_HEAT_RIDERS;
+}
 
 extern "C" int bridgeLibusbInit(void **context)
 {
@@ -586,15 +595,46 @@ extern "C" int bridgeLibusbGetDeviceList(void *context, void ***list)
 {
     (void)context;
     static void *none[1] = {NULL};
+    static void *key[2] = {&usbKey, NULL};
     if (list)
-        *list = none;
-    log_info("libusb: no USB device");
+        *list = usbKeyPresent() ? key : none;
+    return usbKeyPresent() ? 1 : 0;
+}
+
+extern "C" int bridgeLibusbGetDeviceDescriptor(void *device, uint8_t *descriptor)
+{
+    if (device != &usbKey)
+        return -4; // LIBUSB_ERROR_NO_DEVICE
+    memset(descriptor, 0, 18);
+    descriptor[0] = 18;                         // bLength
+    descriptor[1] = 1;                          // bDescriptorType: device
+    *(uint16_t *)(descriptor + 2) = 0x0200;     // bcdUSB
+    descriptor[7] = 8;                          // bMaxPacketSize0
+    *(uint16_t *)(descriptor + 8) = 0x0B9A;     // idVendor
+    *(uint16_t *)(descriptor + 10) = 0x0C10;    // idProduct
+    descriptor[16] = 3;                         // iSerialNumber
+    descriptor[17] = 1;                         // bNumConfigurations
     return 0;
 }
 
-extern "C" int bridgeLibusbNoDevice(void)
+extern "C" int bridgeLibusbOpen(void *device, void **handle)
 {
-    return -4; // LIBUSB_ERROR_NO_DEVICE
+    if (device != &usbKey)
+        return -4;
+    *handle = &usbKey;
+    return 0;
+}
+
+extern "C" int bridgeLibusbGetStringDescriptorAscii(void *handle, uint8_t index, char *data, int length)
+{
+    static const char serial[] = "270620010001";
+    if (handle != &usbKey || index != 3 || length <= 0)
+        return -4;
+    int count = length - 1 < (int)sizeof(serial) - 1 ? length - 1 : (int)sizeof(serial) - 1;
+    memcpy(data, serial, count);
+    data[count] = '\0';
+    log_info("libusb: Dead Heat Riders' key, serial %s", serial);
+    return count;
 }
 
 extern "C" void bridgeLibusbClose(void *handle)
@@ -676,9 +716,9 @@ namespace SysBridge
         MAP("libusb_init", bridgeLibusbInit);
         MAP("libusb_exit", bridgeLibusbExit);
         MAP("libusb_get_device_list", bridgeLibusbGetDeviceList);
-        MAP("libusb_get_device_descriptor", bridgeLibusbNoDevice);
-        MAP("libusb_open", bridgeLibusbNoDevice);
-        MAP("libusb_get_string_descriptor_ascii", bridgeLibusbNoDevice);
+        MAP("libusb_get_device_descriptor", bridgeLibusbGetDeviceDescriptor);
+        MAP("libusb_open", bridgeLibusbOpen);
+        MAP("libusb_get_string_descriptor_ascii", bridgeLibusbGetStringDescriptorAscii);
         MAP("libusb_close", bridgeLibusbClose);
         MAP("if_indextoname", bridgeIfIndextoname);
         MAP("inet_ntop", bridgeInetNtop);

@@ -650,6 +650,14 @@ void remapPerGame()
         gJvsMap[PLAYER_2][LA_Boost] = (JVSActionMapping){JVS_CALL_NONE, NONE};
         gJvsMap[PLAYER_2][LA_GearUp] = (JVSActionMapping){JVS_CALL_NONE, NONE};
         gJvsMap[PLAYER_2][LA_GearDown] = (JVSActionMapping){JVS_CALL_NONE, NONE};
+        if (gId == NIRIN)
+        {
+            // Its shift up and shift down on buttons 3 and 4 (its switch test), no nitro, no gear lever
+            gJvsMap[PLAYER_1][LA_GearUp] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_3};
+            gJvsMap[PLAYER_1][LA_GearDown] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_4};
+            gJvsMap[PLAYER_1][LA_ViewChange] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_2};
+            gJvsMap[PLAYER_1][LA_Boost] = (JVSActionMapping){JVS_CALL_NONE, NONE};
+        }
     }
     else if (gGrp == GROUP_GAELCO)
     {

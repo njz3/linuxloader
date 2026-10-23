@@ -53,6 +53,7 @@ static const GameData gameData[] = {
     {TOKYO_COP, "Tokyo Cop", "tokyocop", "", "GAELCO", "2003", "640x480", WORKING, SEGA_TYPE_3, DRIVING, 640, 480, GROUP_GAELCO, 0, 0, 0, 0, 0, 0, YELLOW},
     {DEAD_HEAT_RIDERS, "Dead Heat Riders", "deadheatriders", "DH RIDERS", "N2", "2013", "1360x768", NOT_WORKING, SEGA_TYPE_3, DRIVING, 1360, 768, GROUP_DEAD_HEAT, 0, 0, 0, 0, 0, 0, YELLOW},
     {MAXIMUM_HEAT_3D, "Maximum Heat 3D", "maxheat3d", "US DRIVE", "ES1", "2011", "1360x768", WORKING, SEGA_TYPE_3, DRIVING, 1360, 768, GROUP_DEAD_HEAT, 0, 0, 0, 0, 0, 0, YELLOW},
+    {NIRIN, "Nirin", "nirin", "NRN100", "ES1", "2009", "1360x768", NOT_WORKING, SEGA_TYPE_3, DRIVING, 1360, 768, GROUP_DEAD_HEAT, 0, 0, 0, 0, 0, 0, YELLOW},
     {R_TUNED_SBQW, "R-Tuned: Ultimate Street Racing", "r-tuned", "DVP-0060", "SBQW", "2008", "640x480", WORKING, SEGA_TYPE_3, DRIVING, 640, 480, -1, 0, 1, 0, 1, 0, 0, YELLOW},
     {SEGABOOT_2_4, "Segaboot 2.4", "segaboot-24", "", "", "", "", WORKING, SEGA_TYPE_3, DIGITAL, 640, 480, -1, 0, 0, 0, 0, 0, 0, YELLOW},
     {SEGABOOT_2_4_SYM, "Segaboot 2.4 with symbols", "segaboot-24-sym", "", "", "", "", WORKING, SEGA_TYPE_3, DIGITAL, 640, 480, -1, 0, 0, 0, 0, 0, 0, YELLOW},

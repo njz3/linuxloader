@@ -1,4 +1,5 @@
-// Namco's Dead Heat (US DRIVE rev. 6273) on its cabinet's boards, emulated where the game reads them.
+// Namco's Dead Heat (US DRIVE rev. 6273) on its cabinet's boards, emulated where the game reads them. Maximum Heat 3D
+// (Dead Heat's engine), Dead Heat Riders (its successor) and Nirin (an older n2jvio, no Kickback board) use them too.
 //
 // The N2 I/O board: the game talks to it over a serial port (Namco's n2Jvio library) and keeps what it reports in a
 // state block, clSystemN2's, that its input device and coin counter read: the switches in the JVS layout (the loader's
@@ -32,25 +33,59 @@
 #include "../../patching/flowControl.h"
 
 // The game's addresses. Maximum Heat 3D (US DRIVE rev. 8807) is Dead Heat's engine: the same functions, blocks and
-// fields, elsewhere (its symbols give them)
+// fields, elsewhere (its symbols give them). Dead Heat Riders (2013) keeps them, its calibration's fields 16 bytes
+// apart. Nirin (2009) has an older n2jvio: the same functions, its state block laid out otherwise, no Kickback board
+// and no gear lever
 typedef struct
 {
     // clSystemN2's init, exec, execSystemN2, execSystemN2Step2, execFirstStep and final, n2JvioTxPl,
-    // clSerialN2::open, and clKickback::setTRQPowerType's read of the type
+    // clSerialN2::open, and clKickback::setTRQPowerType's read of the type (0: none)
     uintptr_t init, exec, execSystemN2, execStep2, execFirstStep, final, jvioTxPl, serialOpen, torqueTypeRead;
     // clSystemN2's flags and error count, n2jvio (the board's state block), clInputDeviceJamma::sm_handle_center
-    // (the calibration's first field), and the clConfig and clKickback instances
+    // (the calibration's first field), and the clConfig and clKickback instances (0: none)
     uintptr_t initFlag, jammaFlag, jvsError, errorCount, n2jvio, calibration, config, kickback;
+    // In the state block: the system byte, the player's switches, the first coin counter and the distance to the
+    // next one, the analogue channels (wheel, accelerator, brake)
+    uint16_t systemSwitches, playerSwitches, coinSlot, coinStride, analogue;
+    // The four-gear lever on buttons 6 to 9 (Dead Heat), the brake also as a contact on button 3 (STR_BRAKE_DIGITAL of
+    // Dead Heat and Dead Heat Riders), and the brake's calibration as rest and travel (Nirin, Dead Heat Riders: rest
+    // and floored)
+    bool gearLever, brakeContact, brakeTravel;
+    // What replaces the read of the torque type (xor eax, eax and nops of its length), the distance between the
+    // calibration's fields, and n2JvioAckTxVsync when the game calls it besides clSystemN2 (0: not)
+    const char *torqueTypePatch;
+    uint8_t calibrationStride;
+    uintptr_t ackTxVsync;
 } DeadHeatAddresses;
 
 static const DeadHeatAddresses deadHeatUs = {
     0x0808BF50, 0x0808B5F0, 0x0808B8F0, 0x0808B7B0, 0x0808B790, 0x0808B5C0, 0x08092360, 0x0808C060, 0x0809FC64,
     0x0902BB04, 0x0902BB08, 0x0902BAFC, 0x0902BAE8, 0x09033340, 0x087E5ABC, 0x087E5588, 0x09035980,
+    0x13C,      0x140,      0x160,      0x1C,       0x200,      true,       true,       true,
+    "31c09090", 4,          0,
 };
 
 static const DeadHeatAddresses maximumHeat3d = {
     0x080AFC40, 0x080AEF50, 0x080AF4A0, 0x080AF240, 0x080AF220, 0x080AEF20, 0x080B4110, 0x080AFD50, 0x080BDEF7,
     0x0917083C, 0x09170840, 0x09170830, 0x0917081C, 0x09178080, 0x0891E120, 0x0891DBC8, 0x0917A6C0,
+    0x13C,      0x140,      0x160,      0x1C,       0x200,      true,       true,       true,
+    "31c09090", 4,          0,
+};
+
+// No gear lever; its main flow and boot also send the I/O board a frame of their own (n2JvioAckTxVsync, n2JvioTxPl)
+static const DeadHeatAddresses deadHeatRiders = {
+    0x080A5C50, 0x080A5F80, 0x080A5F60, 0x080A5D90, 0x080A5CC0, 0x080A5D40, 0x080ABCB0, 0x080A61D0, 0x080B1CE4,
+    0x08F94AA0, 0x08F94AA1, 0x08F94AE8, 0x08F94AF0, 0x08F9C2A0, 0x086A9320, 0x086B2320, 0x08F9E920,
+    0x13C,      0x140,      0x160,      0x1C,       0x200,      false,      true,       false,
+    "31c090",   0x10,       0x080AA4B0,
+};
+
+// Its second counter (0x178) is the service credits' (clCoin::addService)
+static const DeadHeatAddresses nirin = {
+    0x08093AF0, 0x08093200, 0x080931E0, 0x08093130, 0x08093250, 0x080930F0, 0x08099430, 0,          0,
+    0x091A6700, 0x091A6701, 0x091A6748, 0x091A674C, 0x091ACF40, 0x083F1168, 0,          0,
+    0x104,      0x108,      0x128,      0x50,       0x1A8,      false,      false,      false,
+    NULL,       4,          0,
 };
 
 static const DeadHeatAddresses *game = &deadHeatUs;
@@ -61,21 +96,24 @@ extern uint32_t gId;
 #define N2_JAMMA_FLAG ((volatile uint8_t *)game->jammaFlag)
 #define N2_JVS_ERROR ((volatile uint8_t *)game->jvsError)
 #define N2_ERROR_COUNT ((volatile int32_t *)game->errorCount)
-#define N2_SYSTEM_SWITCHES ((volatile uint8_t *)(game->n2jvio + 0x13C))
-#define N2_PLAYER_SWITCHES ((volatile uint16_t *)(game->n2jvio + 0x140))
-#define N2_COIN_SLOT(slot) ((volatile uint8_t *)(game->n2jvio + 0x160 + (slot) * 0x1C)) // count, two errors, condition
-#define N2_ANALOGUE ((volatile uint16_t *)(game->n2jvio + 0x200))                      // wheel, accelerator, brake
+#define N2_SYSTEM_SWITCHES ((volatile uint8_t *)(game->n2jvio + game->systemSwitches))
+#define N2_PLAYER_SWITCHES ((volatile uint16_t *)(game->n2jvio + game->playerSwitches))
+// count, two errors, condition
+#define N2_COIN_SLOT(slot) ((volatile uint8_t *)(game->n2jvio + game->coinSlot + (slot) * game->coinStride))
+#define N2_ANALOGUE ((volatile uint16_t *)(game->n2jvio + game->analogue)) // wheel, accelerator, brake
 
 // clInputDeviceJamma's calibration, set by the test menu: the counts of the wheel's centre and ends, the accelerator
-// at rest and floored, the brake at rest and its travel
-#define CALIBRATION(offset) (*(volatile int32_t *)(game->calibration + (offset)))
-#define CAL_WHEEL_CENTRE CALIBRATION(0x00)
-#define CAL_WHEEL_LEFT CALIBRATION(0x04)
-#define CAL_WHEEL_RIGHT CALIBRATION(0x08)
-#define CAL_ACCEL_REST CALIBRATION(0x14)
-#define CAL_ACCEL_FULL CALIBRATION(0x18)
-#define CAL_BRAKE_REST CALIBRATION(0x1C)
-#define CAL_BRAKE_TRAVEL CALIBRATION(0x20)
+// at rest and floored, the brake at rest and its travel (Nirin, Dead Heat Riders: floored); fields 3 and 4 are the
+// wheel's normalisation, derived from the others by the game
+#define CALIBRATION(field) (*(volatile int32_t *)(game->calibration + (field) * game->calibrationStride))
+#define CAL_WHEEL_CENTRE CALIBRATION(0)
+#define CAL_WHEEL_LEFT CALIBRATION(1)
+#define CAL_WHEEL_RIGHT CALIBRATION(2)
+#define CAL_ACCEL_REST CALIBRATION(5)
+#define CAL_ACCEL_FULL CALIBRATION(6)
+#define CAL_BRAKE_REST CALIBRATION(7)
+#define CAL_BRAKE_TRAVEL CALIBRATION(8)
+#define CAL_BRAKE_FULL CALIBRATION(8)
 
 #define CONFIG_INSTANCE (*(uint8_t *volatile *)game->config) // clConfig: byte 1 USE_JAMMA_DEVICE, 2 USE_CAMERA_DEVICE
 #define KICKBACK_INSTANCE (*(uint8_t *volatile *)game->kickback)
@@ -94,10 +132,13 @@ static uint16_t clampCount(float value)
 }
 
 // A save never calibrated (zeros, from a machine without the board) gets the game's own defaults back; a calibration
-// made in the test menu is kept
+// made in the test menu is kept, the wheel's left end below its centre or above it (Nirin's handlebar: 61056 at the
+// left, 18112 at the right)
 static void calibrationCheck(void)
 {
-    if (CAL_WHEEL_LEFT >= CAL_WHEEL_CENTRE || CAL_WHEEL_RIGHT <= CAL_WHEEL_CENTRE)
+    bool leftLow = CAL_WHEEL_LEFT < CAL_WHEEL_CENTRE && CAL_WHEEL_CENTRE < CAL_WHEEL_RIGHT;
+    bool leftHigh = CAL_WHEEL_LEFT > CAL_WHEEL_CENTRE && CAL_WHEEL_CENTRE > CAL_WHEEL_RIGHT;
+    if (!leftLow && !leftHigh)
     {
         CAL_WHEEL_CENTRE = 28600;
         CAL_WHEEL_LEFT = 4000;
@@ -108,10 +149,15 @@ static void calibrationCheck(void)
         CAL_ACCEL_REST = 5900;
         CAL_ACCEL_FULL = 60000;
     }
-    if (CAL_BRAKE_TRAVEL <= 0 || CAL_BRAKE_REST <= 0)
+    if (game->brakeTravel && (CAL_BRAKE_TRAVEL <= 0 || CAL_BRAKE_REST <= 0))
     {
         CAL_BRAKE_REST = 29000;
         CAL_BRAKE_TRAVEL = 20480;
+    }
+    if (!game->brakeTravel && CAL_BRAKE_FULL <= CAL_BRAKE_REST)
+    {
+        CAL_BRAKE_REST = 27500;
+        CAL_BRAKE_FULL = 40000;
     }
 }
 
@@ -120,20 +166,23 @@ static void n2Update(void)
 {
     JVSIO *io = getJVSIO();
     int switches = io->state.inputSwitch[PLAYER_1];
-    int pressed = switches & ~lastSwitches;
-    lastSwitches = switches;
-    if ((pressed & SWITCH_GEAR_UP) && gear < 4)
-        gear++;
-    if ((pressed & SWITCH_GEAR_DOWN) && gear > 1)
-        gear--;
-    switches &= ~(SWITCH_GEAR_UP | SWITCH_GEAR_DOWN | SWITCH_GEARS);
-    switches |= BUTTON_6 >> (gear - 1);
+    if (game->gearLever)
+    {
+        int pressed = switches & ~lastSwitches;
+        lastSwitches = switches;
+        if ((pressed & SWITCH_GEAR_UP) && gear < 4)
+            gear++;
+        if ((pressed & SWITCH_GEAR_DOWN) && gear > 1)
+            gear--;
+        switches &= ~(SWITCH_GEAR_UP | SWITCH_GEAR_DOWN | SWITCH_GEARS);
+        switches |= BUTTON_6 >> (gear - 1);
+    }
 
     float max = (float)((1 << io->capabilities.analogueInBits) - 1);
     float wheel = (float)io->state.analogueChannel[ANALOGUE_1] / max; // 0 at the left
     float accel = (float)io->state.analogueChannel[ANALOGUE_2] / max;
     float brake = (float)io->state.analogueChannel[ANALOGUE_3] / max;
-    if (brake > 0.5f)
+    if (game->brakeContact && brake > 0.5f)
         switches |= BUTTON_3;
 
     calibrationCheck();
@@ -142,7 +191,8 @@ static void n2Update(void)
                                     : centre + (wheel - 0.5f) * 2.0f * ((float)CAL_WHEEL_RIGHT - centre);
     N2_ANALOGUE[0] = clampCount(wheelCount);
     N2_ANALOGUE[1] = clampCount((float)CAL_ACCEL_REST + accel * (float)(CAL_ACCEL_FULL - CAL_ACCEL_REST));
-    N2_ANALOGUE[2] = clampCount((float)CAL_BRAKE_REST + brake * (float)CAL_BRAKE_TRAVEL);
+    float brakeTravel = game->brakeTravel ? (float)CAL_BRAKE_TRAVEL : (float)(CAL_BRAKE_FULL - CAL_BRAKE_REST);
+    N2_ANALOGUE[2] = clampCount((float)CAL_BRAKE_REST + brake * brakeTravel);
 
     *N2_PLAYER_SWITCHES = (uint16_t)switches;
     *N2_SYSTEM_SWITCHES = (uint8_t)(io->state.inputSwitch[SYSTEM] & 0xFF);
@@ -185,7 +235,7 @@ static void servoCentred(uint8_t command, int value)
 
 static void kickbackUpdate(void)
 {
-    const uint8_t *kickback = KICKBACK_INSTANCE;
+    const uint8_t *kickback = game->kickback ? KICKBACK_INSTANCE : NULL;
     if (!kickback)
         return;
     if (!sent.started)
@@ -228,7 +278,7 @@ static int n2Init(int jamma, int restart)
     *N2_JAMMA_FLAG = 1;
     *N2_JVS_ERROR = 0;
     *N2_ERROR_COUNT = 0;
-    if (CONFIG_INSTANCE)
+    if (game->config && CONFIG_INSTANCE)
     {
         CONFIG_INSTANCE[1] = 1;
         CONFIG_INSTANCE[2] = 0; // USE_CAMERA_DEVICE: no /dev/video0 here (Maximum Heat 3D's config.csv has it on)
@@ -258,6 +308,12 @@ static int n2TxNothing(void)
     return 0;
 }
 
+// n2JvioAckTxVsync: the board's acknowledgement of a frame, there at once
+static int n2AckNow(void)
+{
+    return 1;
+}
+
 // clSerialN2::open: the Kickback board's port stays closed
 static int serialOpenNone(void *serial)
 {
@@ -267,7 +323,10 @@ static int serialOpenNone(void *serial)
 
 void deadHeatIoInstall(void)
 {
-    game = gId == MAXIMUM_HEAT_3D ? &maximumHeat3d : &deadHeatUs;
+    game = gId == MAXIMUM_HEAT_3D ? &maximumHeat3d
+           : gId == DEAD_HEAT_RIDERS ? &deadHeatRiders
+           : gId == NIRIN            ? &nirin
+                                     : &deadHeatUs;
     detourFunction(game->init, n2Init);
     detourFunction(game->exec, n2Exec);
     detourFunction(game->execSystemN2, n2Exec);
@@ -275,7 +334,11 @@ void deadHeatIoInstall(void)
     detourFunction(game->execFirstStep, n2Nothing);
     detourFunction(game->final, n2Nothing);
     detourFunction(game->jvioTxPl, n2TxNothing);
-    detourFunction(game->serialOpen, serialOpenNone);
-    patchMemoryFromString(game->torqueTypeRead, "31c09090"); // clKickback::setTRQPowerType: the type read as 0
-    log_info("Dead Heat engine: N2 I/O and Kickback boards emulated");
+    if (game->serialOpen)
+        detourFunction(game->serialOpen, serialOpenNone);
+    if (game->torqueTypeRead) // clKickback::setTRQPowerType: the type read as 0
+        patchMemoryFromString(game->torqueTypeRead, (char *)game->torqueTypePatch);
+    if (game->ackTxVsync)
+        detourFunction(game->ackTxVsync, n2AckNow);
+    log_info("Namco N2 I/O board emulated%s", game->kickback ? ", and the Kickback wheel board" : "");
 }

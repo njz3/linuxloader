@@ -21,6 +21,8 @@
 #include "../config/config.h"
 #include "../hardware/lindbergh/securityBoard.h"
 #include "../hardware/namco/deadHeatIo.h"
+#include "../redirections/filesystemShared.h"
+#include "../elfLoader/elfCall.h"
 #include "../hardware/gaelco/gaelcoIo.h"
 #include "../hardware/lindbergh/forceFeedback.h"
 #include "../hardware/lindbergh/netOutputs.h"
@@ -86,6 +88,26 @@ static int dhLinkGroupId(int object, int other)
     (void)object;
     (void)other;
     return 1;
+}
+
+// Nirin without its handlebar's calibration (save0/testmode/handle_setting.lua, which only its test menu writes):
+// clHandleSetting::read leaves zeros, and the input device's limits come out empty (both ends steer left). The test
+// menu's reset is done then, as on a new cabinet: clHandleSetting::clear copies the default file of data/save through
+// the save system and reads it; clHandleSetting::init then hands the values to the input device
+static void nirinHandleRead(void)
+{
+    static const uintptr_t handleRead = 0x08089A20, handleClear = 0x08089F20;
+    volatile int32_t *leftMax = (volatile int32_t *)0x091266AC, *rightMax = (volatile int32_t *)0x091266A8;
+#ifdef _MSC_VER
+    elfCall0((const void *)handleRead);
+    if (*leftMax == *rightMax)
+        elfCall0((const void *)handleClear);
+#else
+    ((void (*)(void))handleRead)();
+    if (*leftMax == *rightMax)
+        ((void (*)(void))handleClear)();
+#endif
+    log_info("Nirin: handlebar calibration %d (left) to %d (right)", *leftMax, *rightMax);
 }
 
 // Initial D 4's feedback board (cFeedbackSCI): the Sega servo board's 4-byte frames (84 torque, 85 vibration, 86
@@ -2747,6 +2769,27 @@ int initPatch()
             patchMemoryFromString(0x0845D9D0, "c3"); // the network object's teardown
             patchMemoryFromString(0x08465C70, "c3"); // the audio object's teardown
             deadHeatIoInstall();                     // the cabinet's I/O and wheel boards
+        }
+        break;
+        case DEAD_HEAT_RIDERS:
+        {
+            // Its USB key is answered by the libusb bridge (sysBridge.cpp); its N2 I/O and Kickback boards as Dead
+            // Heat's
+            deadHeatIoInstall();
+        }
+        break;
+        case NIRIN:
+        {
+            // Its HASP key answered as Dead Heat's (clHASP::check: login, a read, its decryption only shown as the
+            // serial number)
+            detourFunction(0x083455C0, dhHaspLogin);
+            detourFunction(0x083463B8, dhHaspRead);
+            detourFunction(0x08345838, dhHaspDecrypt);
+            replaceCallAtAddress(0x0808A016, nirinHandleRead); // clHandleSetting::init's read
+            // Its cabinet's postmount script makes the two save folders beside a.elf (the game makes what is inside)
+            sharedMkdir("save0", 0755);
+            sharedMkdir("save1", 0755);
+            deadHeatIoInstall(); // the N2 I/O board, as Dead Heat's
         }
         break;
         case RING_RIDERS:

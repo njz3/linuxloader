@@ -60,6 +60,7 @@
 #define LETS_GO_JUNGLE_SBLU_REVA 0xc697c4fb                       // DVP-0011A
 #define LETS_GO_JUNGLE_SBNR_SPECIAL 0x240beedc                    // DVP-0036A
 #define MAXIMUM_HEAT_3D 0xf932e88e                                // Namco ES1, US DRIVE rev. 8807
+#define NIRIN 0x71e72ff6                                          // Namco ES1, NRN100-4-NA-DAT0-A37
 #define MJ4_SBPN_REVG 0x57813a7                                   // DVP-0049G
 #define MJ4_EVO_SBTA 0xb785a0e9                                   // DVP-0081
 #define OUTRUN_2_SP_SDX_SBMB 0x92c196d5                           // DVP-0015
@@ -151,7 +152,7 @@ typedef enum
 {
     GROUP_UNKNOWN,
     GROUP_ABC,
-    GROUP_DEAD_HEAT, // Namco: Dead Heat, Maximum Heat 3D, Dead Heat Riders
+    GROUP_DEAD_HEAT, // Namco: Dead Heat, Maximum Heat 3D, Dead Heat Riders, Nirin
     GROUP_GAELCO,    // Gaelco PC: Ring Riders, Tokyo Cop, Championship Tuning Race
     GROUP_HOD4,
     GROUP_HOD4_TEST,
