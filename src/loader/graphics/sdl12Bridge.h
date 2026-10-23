@@ -27,6 +27,7 @@ int sdl12JoystickEventState(int state);
 int sdl12JoystickNumAxes(void *joystick);
 int sdl12JoystickNumButtons(void *joystick);
 int16_t sdl12JoystickGetAxis(void *joystick, int axis);
+uint8_t sdl12JoystickGetButton(void *joystick, int button);
 int sdl12PushEvent(void *event);
 
 // What Raw Thrills' Cruis'n Blast calls more

@@ -259,6 +259,13 @@ int16_t sdl12JoystickGetAxis(void *joystick, int axis)
     return 0;
 }
 
+uint8_t sdl12JoystickGetButton(void *joystick, int button)
+{
+    (void)joystick;
+    (void)button;
+    return 0;
+}
+
 int sdl12PollEvent(void *event)
 {
     (void)event;

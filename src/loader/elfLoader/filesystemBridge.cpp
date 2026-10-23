@@ -659,7 +659,21 @@ extern "C"
         char winNew[MAX_PATH];
         ConvertPath(winOld, oldpath, MAX_PATH);
         ConvertPath(winNew, newpath, MAX_PATH);
-        return writeDirActive() ? writeDirRename(winOld, winNew) : rename(winOld, winNew);
+        if (writeDirActive())
+            return writeDirRename(winOld, winNew);
+        // As Linux's: an existing file replaced (Nirin saves through name.tmp renamed over name)
+        if (MoveFileExA(winOld, winNew, MOVEFILE_REPLACE_EXISTING))
+            return 0;
+        errno = GetLastError() == ERROR_FILE_NOT_FOUND || GetLastError() == ERROR_PATH_NOT_FOUND ? ENOENT : EACCES;
+        return -1;
+    }
+
+    // Linux's st_ctime is the last change of the file, a write included, so never before st_mtime; Windows' is its
+    // creation. Nirin compares a ghost file's ctime with a ranking file's mtime and starts its data again when they
+    // are a minute apart.
+    static __time64_t linuxCtime(const struct _stat64 &src)
+    {
+        return src.st_mtime > src.st_ctime ? src.st_mtime : src.st_ctime;
     }
 
     static void CopyStatVer3(const struct _stat64 &src, void *dst_ptr)
@@ -678,7 +692,7 @@ extern "C"
         dst->st_blocks = (int32_t)((src.st_size + 511) / 512);
         dst->st_atime = (uint32_t)src.st_atime;
         dst->st_mtime = (uint32_t)src.st_mtime;
-        dst->st_ctime = (uint32_t)src.st_ctime;
+        dst->st_ctime = (uint32_t)linuxCtime(src);
 
         dst->st_mode = 0;
         if (src.st_mode & _S_IFDIR)
@@ -720,7 +734,7 @@ extern "C"
         dst.st_atim.tv_nsec = 0;
         dst.st_mtim.tv_sec = (int32_t)src.st_mtime;
         dst.st_mtim.tv_nsec = 0;
-        dst.st_ctim.tv_sec = (int32_t)src.st_ctime;
+        dst.st_ctim.tv_sec = (int32_t)linuxCtime(src);
         dst.st_ctim.tv_nsec = 0;
 
         dst.st_ino = (unsigned long)(src.st_ino & 0xFFFFFFFF);

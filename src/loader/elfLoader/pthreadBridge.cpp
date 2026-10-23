@@ -94,6 +94,7 @@ namespace PthreadBridge
         MAP("pthread_attr_setschedpolicy", LibcBridge::bridgeStubSuccess);
         MAP("sched_getaffinity", LibcBridge::bridgeStubSuccess);
         MAP("sched_setaffinity", LibcBridge::bridgeStubSuccess);
+        MAP("pthread_setaffinity_np", LibcBridge::bridgeStubSuccess);
 
         // Mutex functions
         MAP("pthread_mutex_init", PthreadEmu::pthreadMutexInit);

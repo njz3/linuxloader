@@ -43,6 +43,7 @@ namespace GraphicsBridge
         MAP("SDL_JoystickNumAxes", sdl12JoystickNumAxes);
         MAP("SDL_JoystickNumButtons", sdl12JoystickNumButtons);
         MAP("SDL_JoystickGetAxis", sdl12JoystickGetAxis);
+        MAP("SDL_JoystickGetButton", sdl12JoystickGetButton);
         MAP("SDL_PushEvent", sdl12PushEvent);
         // Raw Thrills' Cruis'n Blast
         MAP("SDL_GetVideoInfo", sdl12GetVideoInfo);

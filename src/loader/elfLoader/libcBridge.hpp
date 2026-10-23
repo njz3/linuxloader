@@ -50,6 +50,10 @@ namespace LibcBridge
 {
     void initBridges();
     int bridgeSetjmp(int *env);
+    void bridgeLongjmp(int *env, int val);
+    int bridgePutenv(char *assignment);
+    int bridgeMkstemp(char *pathTemplate);
+    FILE *bridgeTmpfile();
 
     // STDIO interceptions
     int bridgePrintf(const char *format, ...);

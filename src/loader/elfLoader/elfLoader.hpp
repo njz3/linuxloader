@@ -66,4 +66,6 @@ class ElfLoader
     void *m_BaseAddress = nullptr;
     void *m_ImageBase = nullptr;
     uint32_t m_LoadBias = 0;
+    // Its thread-local storage's module id (PT_TLS), 0 without
+    uint32_t m_TlsModule = 0;
 };

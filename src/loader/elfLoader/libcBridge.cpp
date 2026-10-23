@@ -3,6 +3,7 @@
 #include "memoryManager.hpp"
 #include "libcBridge.hpp"
 #include "../redirections/libcShared.h"
+#include "../redirections/writeDir.h"
 #include "../log/log.h"
 #include "gccBridge.hpp"
 #include "symbolResolver.hpp"
@@ -11,9 +12,13 @@
 #ifdef _MSC_VER
 #include <intrin.h> // _ReturnAddress
 #endif
+#include <algorithm>
 #include <cstdarg>
 #include <cstdio>
 #include <ctime>
+#include <filesystem>
+#include <string>
+#include <vector>
 #include <setjmp.h>
 #include <process.h>
 #include <sys/time.h>
@@ -145,6 +150,10 @@ namespace LibcBridge
         MAP("_setjmp", bridgeSetjmp);
         MAP("__sigsetjmp", bridgeSetjmp); // savemask is ignored, like the signal mask itself
         MAP("siglongjmp", bridgeSiglongjmp);
+        MAP("longjmp", bridgeLongjmp);
+        MAP("_longjmp", bridgeLongjmp);
+        MAP("mkstemp", bridgeMkstemp);
+        MAP("tmpfile", bridgeTmpfile);
         MAP("setrlimit", bridgeStubSuccess);
         MAP("__xpg_basename", bridgeXpgBasename);
 
@@ -163,6 +172,7 @@ namespace LibcBridge
         MAP("getenv", sharedGetenv);
         MAP("setenv", sharedSetenv);
         MAP("unsetenv", sharedUnsetenv);
+        MAP("putenv", bridgePutenv);
 
         MAP("syslog", bridgeSyslog);
         MAP("openlog", bridgeOpenlog);
@@ -297,6 +307,85 @@ namespace LibcBridge
     }
 #endif
 
+    // Back to bridgeSetjmp's caller with the registers it saved (Lua's errors, Nirin), val or 1 as its return value
+#ifdef _MSC_VER
+    __declspec(naked) void bridgeLongjmp(int *env, int val)
+    {
+        __asm {
+            mov edx, [esp + 4]
+            mov eax, [esp + 8]
+            test eax, eax
+            jnz restore
+            inc eax
+        restore:
+            mov ebx, [edx]
+            mov esi, [edx + 4]
+            mov edi, [edx + 8]
+            mov ebp, [edx + 12]
+            mov esp, [edx + 16]
+            jmp dword ptr [edx + 20]
+        }
+    }
+#else
+    void __attribute__((naked)) bridgeLongjmp(int *env, int val)
+    {
+        asm volatile("mov 4(%esp), %edx\n\t"
+                     "mov 8(%esp), %eax\n\t"
+                     "test %eax, %eax\n\t"
+                     "jnz 1f\n\t"
+                     "inc %eax\n\t"
+                     "1:\n\t"
+                     "mov (%edx), %ebx\n\t"
+                     "mov 4(%edx), %esi\n\t"
+                     "mov 8(%edx), %edi\n\t"
+                     "mov 12(%edx), %ebp\n\t"
+                     "mov 16(%edx), %esp\n\t"
+                     "jmp *20(%edx)\n\t");
+    }
+#endif
+
+    // putenv("NAME=VALUE"), or "NAME" alone to remove it
+    int bridgePutenv(char *assignment)
+    {
+        if (!assignment)
+            return -1;
+        const char *equals = strchr(assignment, '=');
+        if (!equals)
+            return sharedUnsetenv(assignment);
+        std::string name(assignment, equals - assignment);
+        return sharedSetenv(name.c_str(), equals + 1, 1);
+    }
+
+    // The template's XXXXXX replaced until a new file opens, through the game's paths (sharedOpen)
+    int bridgeMkstemp(char *pathTemplate)
+    {
+        size_t length = pathTemplate ? strlen(pathTemplate) : 0;
+        if (length < 6 || strcmp(pathTemplate + length - 6, "XXXXXX") != 0)
+            return -1;
+        static const char letters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        for (int attempt = 0; attempt < 100; attempt++)
+        {
+            for (size_t i = length - 6; i < length; i++)
+                pathTemplate[i] = letters[rand() % (sizeof(letters) - 1)];
+            int fd = sharedOpen(pathTemplate, 02 | 0100 | 0200, 0600); // Linux O_RDWR | O_CREAT | O_EXCL
+            if (fd >= 0)
+                return fd;
+        }
+        return -1;
+    }
+
+    // A file deleted when closed: Windows' own, or one in the game's tmp folder
+    FILE *bridgeTmpfile()
+    {
+        FILE *file = tmpfile();
+        if (file)
+            return file;
+        static int count;
+        char path[64];
+        snprintf(path, sizeof(path), "tmp\\tmpfile_%d_%d", _getpid(), count++);
+        return fopen(path, "w+bD");
+    }
+
     void bridgeAbort()
     {
 #ifdef _MSC_VER
@@ -355,9 +444,23 @@ namespace LibcBridge
         MemoryManager::customFree(thrown_exception);
     }
 
+    // The C library's locale as a Linux program sees it: Linux's category numbers (LC_CTYPE 0 to LC_MESSAGES 5, LC_ALL
+    // 6, which Windows' setlocale refuses: Dead Heat Riders' libstdc++ then took strlen of NULL reading a float), the
+    // names it sets answered back. The process's own stays "C": "" would bring the user's, a decimal comma in France,
+    // to every number the loader and the game read or print
     char *bridgeSetlocale(int category, const char *locale)
     {
-        return setlocale(category, locale);
+        static char names[7][64] = {"C", "C", "C", "C", "C", "C", "C"};
+        if (category < 0 || category > 6)
+            return NULL;
+        if (locale)
+        {
+            const char *name = locale[0] ? locale : "C"; // "": the environment's, the C locale here
+            for (int i = 0; i < 7; i++)
+                if (i == category || category == 6)
+                    snprintf(names[i], sizeof(names[i]), "%s", name);
+        }
+        return names[category];
     }
 
     struct FakeLocaleStruct
@@ -1005,13 +1108,83 @@ namespace LibcBridge
         return 0; // no Linux program headers to walk
     }
 
-    // The commands a game runs: the ones below, translated for cmd.exe; the others are Linux ones (Dead Heat's
-    // su -c 'date ...', sudo route, sudo ifconfig, sudo rm, sudo mount...), which cmd would at best answer with errors
-    // and, with Windows' own sudo enabled, run in part elevated. They are not run, and answered as /bin/sh answers a
-    // command it cannot find (exit status 127).
+    // A name against find's -name pattern: * and ? wildcards
+    static bool nameMatches(const char *pattern, const char *name)
+    {
+        if (*pattern == '\0')
+            return *name == '\0';
+        if (*pattern == '*')
+            return nameMatches(pattern + 1, name) || (*name && nameMatches(pattern, name + 1));
+        return *name && (*pattern == '?' || *pattern == *name) && nameMatches(pattern + 1, name + 1);
+    }
+
+    // Namco's (Nirin) file lists: find DIR -path "*/.svn*" -o -type f -a [-name "PATTERN" -a] -print | sort >FILE.
+    // The files under DIR, both sides of the write folder, Subversion's left out, written sorted as find prints them
+    static int namcoFindList(const char *command)
+    {
+        char dir[MAX_PATH], pattern[64] = "*", output[MAX_PATH];
+        const char *name = strstr(command, "-name \"");
+        const char *redirect = strrchr(command, '>');
+        if (sscanf(command, "find %259s", dir) != 1 || !redirect || !strstr(command, "| sort") ||
+            (name && sscanf(name, "-name \"%63[^\"]\"", pattern) != 1) || sscanf(redirect + 1, " %259s", output) != 1)
+            return -1;
+
+        std::string prefix = dir;
+        if (prefix.back() != '/')
+            prefix += '/';
+        char winDir[MAX_PATH], writeSide[MAX_PATH], gameSide[MAX_PATH];
+        ConvertPath(winDir, dir, MAX_PATH);
+        std::vector<std::string> roots;
+        if (writeDirSides(winDir, writeSide, gameSide, MAX_PATH))
+            roots = {writeSide, gameSide};
+        else
+            roots = {winDir};
+
+        std::vector<std::string> files;
+        for (const std::string &root : roots)
+        {
+            std::error_code error;
+            for (auto it = std::filesystem::recursive_directory_iterator(root, error);
+                 !error && it != std::filesystem::recursive_directory_iterator(); it.increment(error))
+            {
+                std::string relative = std::filesystem::relative(it->path(), root, error).generic_string();
+                if (relative.find(".svn") != std::string::npos || !it->is_regular_file(error))
+                    continue;
+                if (nameMatches(pattern, it->path().filename().string().c_str()))
+                    files.push_back(prefix + relative);
+            }
+        }
+        std::sort(files.begin(), files.end());
+        files.erase(std::unique(files.begin(), files.end()), files.end());
+
+        char winOutput[MAX_PATH];
+        ConvertPath(winOutput, output, MAX_PATH);
+        FILE *list = writeDirFopen(winOutput, "wb"); // lines ending in \n alone: the game keeps a \r in the names
+        if (!list)
+            return 1 << 8;
+        for (const std::string &file : files)
+            fprintf(list, "%s\n", file.c_str());
+        fclose(list);
+        log_debug("find: %zu files under %s in %s", files.size(), dir, output);
+        return 0;
+    }
+
+    // The commands a game runs: the ones below, translated for cmd.exe or done here; the others are Linux ones (Dead
+    // Heat's su -c 'date ...', sudo route, sudo ifconfig, sudo rm, sudo mount...), which cmd would at best answer with
+    // errors and, with Windows' own sudo enabled, run in part elevated. They are not run, and answered as /bin/sh
+    // answers a command it cannot find (exit status 127).
     int bridgeSystem(const char *command)
     {
         log_debug("system(\"%s\")", command);
+        // mkdir FOLDER (Nirin's save folders): one folder, through the game's paths
+        if (strncmp(command, "mkdir ", 6) == 0 && !strpbrk(command + 6, " ;|&<>"))
+            return sharedMkdir(command + 6, 0755) == 0 || errno == EEXIST ? 0 : 1 << 8;
+        if (strncmp(command, "find ", 5) == 0)
+        {
+            int status = namcoFindList(command);
+            if (status >= 0)
+                return status;
+        }
         static const struct
         {
             const char *game;

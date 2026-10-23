@@ -787,6 +787,13 @@ int sharedClose(int fd)
     if (sysVirtualFd(fd))
         return sysVirtualClose(fd);
 #endif
+    // The standard streams stay the loader's: the agent's commands and answers, the log. Dead Heat Riders' camera
+    // library closes descriptor 0 when no camera opened (its descriptor still at 0); Ring Riders closes stdout
+    if (fd >= 0 && fd <= 2)
+    {
+        log_info("close(%d) by the game: kept open", fd);
+        return 0;
+    }
 
 
     for (size_t i = 0; i < (sizeof hooks / sizeof hooks[0]); i++)

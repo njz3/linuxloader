@@ -2044,6 +2044,31 @@ extern "C" void __attribute__((cdecl)) wrap_glMultiTexCoord4f(GLenum target, GLf
         glad_glMultiTexCoord4f(target, s, t, r, q);
 }
 
+// Nirin's
+extern "C" void __attribute__((cdecl)) wrap_glMultiTexCoord4fv(GLenum target, const GLfloat *v)
+{
+    if (glad_glMultiTexCoord4fv)
+        glad_glMultiTexCoord4fv(target, v);
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glColor4d(GLdouble r, GLdouble g, GLdouble b, GLdouble a)
+{
+    if (glad_glColor4d)
+        glad_glColor4d(r, g, b, a);
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glVertex3d(GLdouble x, GLdouble y, GLdouble z)
+{
+    if (glad_glVertex3d)
+        glad_glVertex3d(x, y, z);
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glVertex2fv(const GLfloat *v)
+{
+    if (glad_glVertex2fv)
+        glad_glVertex2fv(v);
+}
+
 extern "C" void __attribute__((cdecl)) wrap_glVertexAttrib4fv(GLuint index, const GLfloat *v)
 {
     if (glad_glVertexAttrib4fv)
@@ -2964,6 +2989,14 @@ void *GLHooks_GetProcAddress(const char *procName)
         return (void *)&wrap_glGetTexParameteriv;
     if (strcmp(procName, "glMultiTexCoord4f") == 0)
         return (void *)&wrap_glMultiTexCoord4f;
+    if (strcmp(procName, "glMultiTexCoord4fv") == 0)
+        return (void *)&wrap_glMultiTexCoord4fv;
+    if (strcmp(procName, "glColor4d") == 0)
+        return (void *)&wrap_glColor4d;
+    if (strcmp(procName, "glVertex3d") == 0)
+        return (void *)&wrap_glVertex3d;
+    if (strcmp(procName, "glVertex2fv") == 0)
+        return (void *)&wrap_glVertex2fv;
     if (strcmp(procName, "glVertexAttrib4fv") == 0)
         return (void *)&wrap_glVertexAttrib4fv;
     if (strcmp(procName, "glDeleteQueries") == 0)

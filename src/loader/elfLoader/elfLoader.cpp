@@ -11,6 +11,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <cstdio>
+#include <mutex>
 #include <unordered_set>
 #include <vector>
 #include <windows.h>
@@ -20,6 +21,80 @@
 using namespace ELFIO;
 
 static std::vector<void *> s_PendingEhFrames;
+
+// --- Thread-local storage, the dynamic model of shared objects (Dead Heat Riders' libstdc++.so.6.0.14: the variables
+// of std::call_once): each object's PT_TLS block is a module, its R_386_TLS_DTPMOD32 and R_386_TLS_DTPOFF32 give the
+// module and the variable's offset, and __tls_get_addr gives the variable's address in the calling thread's copy of the
+// block, made from the object's image the first time the thread asks
+namespace
+{
+    struct TlsModule
+    {
+        const uint8_t *image;
+        size_t fileSize, memSize, align;
+    };
+    struct TlsIndex
+    {
+        uint32_t module, offset;
+    };
+    std::vector<TlsModule> s_TlsModules; // module n at n - 1
+    std::mutex s_TlsLock;
+    thread_local std::vector<uint8_t *> t_TlsBlocks;
+} // namespace
+
+static uint32_t TlsRegisterModule(const uint8_t *image, size_t fileSize, size_t memSize, size_t align)
+{
+    std::lock_guard<std::mutex> lock(s_TlsLock);
+    s_TlsModules.push_back({image, fileSize, memSize, align});
+    return static_cast<uint32_t>(s_TlsModules.size());
+}
+
+extern "C" void *ElfTlsGetAddr(const TlsIndex *index)
+{
+    uint32_t module = index->module;
+    if (module >= t_TlsBlocks.size())
+        t_TlsBlocks.resize(module + 1, nullptr);
+    uint8_t *&block = t_TlsBlocks[module];
+    if (!block)
+    {
+        TlsModule tls;
+        {
+            std::lock_guard<std::mutex> lock(s_TlsLock);
+            if (module == 0 || module > s_TlsModules.size())
+            {
+                log_error("__tls_get_addr: no TLS module %u", module);
+                return nullptr;
+            }
+            tls = s_TlsModules[module - 1];
+        }
+        size_t align = tls.align > 16 ? tls.align : 16;
+        block = static_cast<uint8_t *>(_aligned_malloc(tls.memSize ? tls.memSize : 1, align));
+        memcpy(block, tls.image, tls.fileSize);
+        memset(block + tls.fileSize, 0, tls.memSize - tls.fileSize);
+    }
+    return block + index->offset;
+}
+
+// ___tls_get_addr, i386's: the index in eax
+#ifdef _MSC_VER
+extern "C" __declspec(naked) void ElfTlsGetAddrEax(void)
+{
+    __asm {
+        push eax
+        call ElfTlsGetAddr
+        add esp, 4
+        ret
+    }
+}
+#else
+extern "C" void __attribute__((naked)) ElfTlsGetAddrEax(void)
+{
+    asm volatile("push %eax\n\t"
+                 "call _ElfTlsGetAddr\n\t"
+                 "add $4, %esp\n\t"
+                 "ret\n\t");
+}
+#endif
 
 // The unwinder's registration functions, which a program may define itself
 static bool IsOwnUnwinderSymbol(const std::string &name)
@@ -346,6 +421,17 @@ bool ElfLoader::MapSegmentsToMemory()
             log_trace("Mapped PT_LOAD segment to %p, size %zu", dest, (size_t)memsz);
         }
     }
+    for (Elf_Half i = 0; i < segmentsNum; ++i)
+    {
+        segment *pSegment = m_Elfio->segments[i];
+        if (pSegment->get_type() == PT_TLS)
+        {
+            m_TlsModule = TlsRegisterModule(reinterpret_cast<const uint8_t *>(pSegment->get_virtual_address() + m_LoadBias),
+                                            pSegment->get_file_size(), pSegment->get_memory_size(), pSegment->get_align());
+            log_info("TLS block of %s: module %u, %llu bytes", m_Path.c_str(), m_TlsModule,
+                     (unsigned long long)pSegment->get_memory_size());
+        }
+    }
     {
         for (Elf_Half i = 0; i < m_Elfio->sections.size(); ++i)
         {
@@ -370,6 +456,9 @@ bool ElfLoader::LoadDependencies()
     if (!librariesRegistered)
     {
         librariesRegistered = true;
+
+        SymbolResolver::GetInstance().RegisterVTable("___tls_get_addr", reinterpret_cast<void *>(ElfTlsGetAddrEax));
+        SymbolResolver::GetInstance().RegisterVTable("__tls_get_addr", reinterpret_cast<void *>(ElfTlsGetAddr));
 
         SymbolResolver::GetInstance().RegisterLibrary("libopenal.so.0", "openal32.dll");
         SymbolResolver::GetInstance().RegisterLibrary("libopenal.so.1", "openal32.dll");
@@ -589,6 +678,17 @@ bool ElfLoader::ProcessRelocations()
                         }
                         *patchAddr += m_LoadBias;
                         log_trace("Applied R_386_RELATIVE at %p (offset: 0x%llx), new val: 0x%08X", patchAddr, offset, *patchAddr);
+                        continue;
+                    }
+
+                    // This object's own thread-local variables (another object's would need its module)
+                    if (type == R_386_TLS_DTPMOD32 || type == R_386_TLS_DTPOFF32)
+                    {
+                        if (symShndx == SHN_UNDEF && !symbolName.empty())
+                            log_warn("TLS relocation of %s, defined elsewhere: not supported", symbolName.c_str());
+                        uint32_t inlineAddend = (pSection->get_type() == SHT_REL) ? *patchAddr : static_cast<uint32_t>(addend);
+                        *patchAddr = type == R_386_TLS_DTPMOD32 ? m_TlsModule
+                                                               : static_cast<uint32_t>(symDefinition) + inlineAddend;
                         continue;
                     }
 
