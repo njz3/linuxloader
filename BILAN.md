@@ -14,7 +14,8 @@ Légende : ✅ vérifié · ⚠️ partiel ou non vérifié · ❌ ne marche pas
 |:--|:--|:--|:--|:--|:--|:--|:--|
 | Initial D 4 Export FR (Rev D) | ✅ | ✅ 1360×768 plein cadre | ✅ pièces, Start, volant, gaz, frein | ✅ partie menée par vJoy, retour de force reçu | ✅ couple 84, amortisseur 86, vibrations 85 | ✅ menu complet, navigation, test des sorties | menus et démo en français |
 | Maximum Heat 3D | ✅ contrôle du link passé (borne seule) | ✅ 1360×768 | ✅ pièces, menus à l'accélérateur, volant, frein, vue | ✅ partie menée par vJoy, retour de force reçu | ✅ ressort, amortisseur, couple (carte Kickback) | ✅ menu de test, test des E/S, retour au jeu | caméra coupée (pas de /dev/video0) |
-| Dead Heat Riders | ⛔ s'arrête sur « DONGLE ERROR 1, E193 » | ✅ (écran de démarrage) | ⏳ | ⏳ | ⏳ | ⏳ | clé HASP USB exigée (`clHASP::Check` par libusb) : non contournée, décision à prendre |
+| Dead Heat Riders | ✅ (environ 70 s : réseau, caméra absente) | ✅ 1360×768 (MinGW et MSVC) | ✅ pièces, Nitro (DECIDE), Vue, Enter, guidon, accélérateur, frein (contact) ; test des commandes juste | ✅ course menée par vJoy (pièces, Nitro, guidon, accélérateur, frein), retour de force reçu | ✅ carte Kickback : ressort, amortisseur, couple | ✅ menu de test, I/O TEST, SWITCH TEST | clé USB présentée par la libusb du loader ; photos absentes (pas de caméra) |
+| Nirin | ✅ | ✅ 1360×768 (MinGW et MSVC) | ✅ pièces, OK (View), Select (pencher), guidon, poignée, frein, shift up/down ; test des commandes juste | ✅ course menée par vJoy | — (pas de moteur) | ✅ menu de test, I/O TEST, SWITCH TEST | clé HASP répondue comme celle de Dead Heat |
 | Ring Riders | ✅ | ✅ sur GPU NVIDIA (blanc sur Intel : register combiners) | ✅ pièces, Start, guidon (sens corrigé), poignée, frein | ✅ course menée par vJoy (pièce, Start, Service, guidon, poignée, frein), retour de force reçu | ✅ moteur du guidon (rappel au centre, sens corrigé) et vibreur | ✅ menu TEST, Input/Output, mire | son émulé (carte son Gaelco) ; plateforme de mouvement absente (« MOTION SYSTEM ERROR LOG ») |
 | Tokyo Cop | ✅ | ✅ sur GPU NVIDIA | ✅ pièces, klaxon (Start), volant (sens corrigé), accélérateur, frein (contact, nouveau), sirène, vue | ✅ poursuite menée par vJoy (pièce, klaxon, volant, accélérateur, sirène, frein), retour de force reçu | ✅ moteur du volant (rappel au centre, sens corrigé) | ✅ menu TEST (code de touche 0x14), Controls Test, mire | son émulé ; « MOTION SYSTEM ERROR! » (siège mobile absent) |
 | Gaelco Championship Tuning Race | ✅ (dérouleur C++ du jeu) | ✅ 720×540 natif | ✅ pièces, Start, volant, accélérateur, frein, vue, palettes (boîte manuelle) | ✅ course menée par vJoy (pièce, Start, volant, accélérateur, frein, vue), retour de force reçu | ✅ moteur du volant (rappel au centre) | ✅ menu Test, Controls Test (toutes les commandes affichées justes) | son émulé ; plateforme de mouvement absente ; « Control de produccion » (écran d'usine) fait quitter le jeu |
@@ -22,8 +23,9 @@ Légende : ✅ vérifié · ⚠️ partiel ou non vérifié · ❌ ne marche pas
 
 ## Bilan par fonction (22/10)
 
-- **Démarrage** : 6 jeux sur 7 démarrent et se jouent (ID4 FR, Maximum Heat 3D, Dead Heat, Ring Riders, Tokyo Cop,
-  Gaelco Tuning). Dead Heat Riders s'arrête sur sa clé HASP USB : la contourner est une décision à prendre.
+- **Démarrage** : les 8 jeux démarrent et se jouent (ID4 FR, Maximum Heat 3D, Dead Heat, Dead Heat Riders, Nirin,
+  Ring Riders, Tokyo Cop, Gaelco Tuning) ; les clés de Dead Heat Riders et de Nirin sont répondues par le loader
+  (demande du 22/10 au soir).
 - **Affichage** : chaque jeu à sa résolution native (1360×768 pour Namco et ID4, 640×480 Ring Riders et Tokyo Cop,
   720×540 Gaelco Tuning), mise à l'échelle par le loader ; ASPECT_RATIO aligné sur windowsloader ; GPU dédié demandé
   (indispensable aux jeux Gaelco, qui dessinent avec les register combiners NVIDIA).
@@ -98,9 +100,37 @@ Légende : ✅ vérifié · ⚠️ partiel ou non vérifié · ❌ ne marche pas
 - libstdc++ plus récente (GLIBCXX_3.4.14) : le loader choisit maintenant `libstdc++.so.6.0.N` selon ce que le jeu
   demande ; `libstdc++.so.6.0.14` ajoutée aux dépendances (reprise de `ElfLdr2\libs` de TeknoParrot) ; `fgetpos`,
   `fsetpos`, `strtof`, `strtold`, `strtoul`, `frexpl`, libusb sans périphérique.
-- Démarre jusqu'à « DEADHEAT RIDERS PCB BOOT UP », puis **« DONGLE ERROR 1, E193 »** : il cherche sa clé HASP sur USB
-  (`clHASP::Check`). La contourner, c'est un contournement de protection par rétro-ingénierie : pas fait, à décider
-  (comme pour Cruis'n Blast).
+- Sa clé (un appareil USB 0B9A:0C10 dont seul le numéro de série est lu) est présentée par la libusb du loader.
+- **Démarrage** (environ 70 s) : contrôle du réseau d'une borne seule (60 s), I/O CHECK « CONNECTING OK », attente de
+  la caméra (10 s, abandonnée seule), démo.
+- **Cartes** : N2 et Kickback émulées par `deadHeatIo.c` (même bloc que Dead Heat, calibrage espacé de 16 octets,
+  type de couple à 0, auto-test passé). Pas de levier de vitesses.
+- **Contrôles** (mode agent, SWITCH TEST) : Nitro sur Boost (aussi « DECIDE » des menus), View Change, Service, Enter
+  (Start), guidon -300/+300 (LEFT OK/RIGHT OK), accélérateur +1000, frein en contact.
+- **Course** : San Francisco, de la 7e à la 3e place, 198 km/h avec la nitro ; retour de force : ressort, amortisseur,
+  couple constant en virage. MinGW et MSVC.
+- **vJoy** : partie menée par vJoy dans une fenêtre visible (pièces, Nitro = bouton 7 de vJoy, guidon, accélérateur,
+  frein) jusqu'à 207 km/h ; vJoy reçoit 307 forces constantes et 469 conditions.
+- Photos des joueurs absentes (pas de caméra).
+
+### Nirin (Namco ES1, NRN100, 2009)
+- Entrée de jeu (CRC partiel 0x71E72FF6), groupe Dead Heat (shaders, interrupteur Test qui reste enclenché) ; six
+  fonctions de libc et une de SDL ajoutées (dont un vrai `longjmp`).
+- **Démarrage** : contrôles BACKUP DATA, JV I/O et CLOCK passés ; démo et écran titre. Carte d'E/S N2 émulée par
+  `deadHeatIo.c` (bloc d'état d'une `n2jvio` plus ancienne, sans carte Kickback). Sauvegardes : `save0`/`save1`
+  créés, `mkdir` et `find ... | sort` du jeu faits par le loader, `rename` qui remplace comme sous Linux.
+- **Contrôles** (mode agent) : pièces comptées (CREDIT 2/2) ; dans le SWITCH TEST : Test, Service, Select (haut),
+  Enter (Start), shift up (GearUp), shift down (GearDown), guidon dans les deux sens.
+- **Menu de service** : interrupteur Test enclenché : MENU, I/O TEST, SWITCH TEST.
+- **Clé HASP** répondue comme celle de Dead Heat (login, lecture, déchiffrement qui ne sert qu'au numéro de série).
+- **Partie** : « Insert 2 Coin(s) », OK des menus = bouton View, choix du mode, de la moto, de la boîte, du circuit ;
+  course : tour complet, jusqu'à 249 km/h, la moto penche avec le guidon. MinGW et MSVC ; menée aussi par vJoy dans
+  une fenêtre visible (BACKUP DATA OK, JV I/O OK, CLOCK OK au démarrage).
+- **Calibrage** : le défaut de `data/save/testmode/handle_setting.lua` chargé par la remise à zéro du jeu quand il
+  manque (sinon le guidon tournait à gauche des deux côtés) ; test des commandes : CENTER/LEFT/RIGHT OK, ACCEL et
+  BRAKE de MIN à MAX.
+- Plus de « BACKUP ERROR » au démarrage (liste `find` et `st_ctime` corrigés).
+- Retour de force : le guidon de Nirin n'a pas de moteur (pas de carte Kickback dans le jeu).
 
 - **C++ des programmes à dérouleur propre** : un programme qui lie son propre dérouleur d'exceptions (le runtime C++
   d'Intel, Gaelco Tuning) enregistre son `.eh_frame` par son propre `__register_frame_info`, appelé par la PLT ; le

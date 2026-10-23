@@ -81,6 +81,11 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 70 | 22/10 | Recadré : montrer quand même les parties coupées, comprimées sur les bords comme sur un cylindre (taille de la zone centrale, rayon de courbure) | ✅ `CROP_BARREL`, `BARREL_CENTER` (%), `BARREL_RADIUS` (%) ; dans F10 (case et deux curseurs, compilé, pas encore vu à l'écran) ; vérifié sur Dead Heat Riders (4:3 recadré) et Tuning (16:9 recadré), MinGW et MSVC compilés |
 | 71 | 22/10 | Réglages par jeu et en ligne de commande | ✅ `<nom court>.ini` à côté de `linuxloader.ini` lu à sa place pour ce jeu ; bouton F10 « Sauvegarder pour ce jeu » (copie du fichier commun la première fois, puis les sauvegardes y vont ; compilé, pas encore vu à l'écran) ; `--set SECTION.CLE=VALEUR` répétable, par-dessus le fichier lu ; vérifié en mode agent (fichier du jeu, `--set`, les deux ensemble) |
 | 72 | 22/10 | Demander à windowsloader, Flycast, Supermodel et sm2-emu les mêmes réglages d'aspect, de sauvegarde par jeu et de ligne de commande | ✅ spécification envoyée aux quatre sessions (windowsloader en file d'attente) |
+| 73 | 22/10 | Que reste-t-il à faire ? | ✅ réponse : Nirin, Maximum Tune 3 et 3DX+, la clé de Dead Heat Riders, des vérifications à l'écran |
+| 74 | 22/10 | Poursuivre avec les jeux de la borne | 🔄 Nirin : démarre jusqu'à l'écran titre (contrôles du démarrage, sauvegardes, pièces, menu de test, test des commandes), puis « USB DONGLE ERROR » : clé HASP, contournement à décider ; Maximum Tune 3 et 3DX+ ensuite |
+| 75 | 22/10 | Pause pour redémarrer le PC, puis commit et push | ✅ `0b377d3` poussé (avec les fichiers de Cruis'n Blast, au choix de l'utilisateur) |
+| 76 | 22/10 | Reprendre | ✅ voir 74 |
+| 77 | 22/10 | Retirer l'utilisation du dongle (Nirin, Dead Heat Riders) | ✅ les deux jouables : Nirin (clé HASP répondue comme celle de Dead Heat, course menée en mode agent et par vJoy) ; Dead Heat Riders (sa clé USB présentée par la libusb du loader, cartes N2 et Kickback émulées, course menée en mode agent, MinGW et MSVC) ; voir journal |
 
 ## État des jeux (build MSVC, GPU Intel, vJoy)
 
@@ -97,12 +102,75 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 |:--|:--|:--|
 | Initial D 4 Export FR | ✅ partie, FFB, menu de service, vJoy | `id4.elf originallllll` (ELF traduit) non essayé |
 | Maximum Heat 3D | ✅ partie, FFB, menu de test, vJoy | caméra coupée (pas de `/dev/video0`) |
-| Dead Heat Riders | ⛔ « DONGLE ERROR 1, E193 » | clé HASP USB (`clHASP::Check`) : contournement à décider |
+| Dead Heat Riders | ✅ course, nitro, FFB (carte Kickback), menu de test et test des commandes, vJoy | démarrage d'environ 70 s (contrôle du réseau, caméra absente) |
+| Nirin | ✅ course (MinGW et MSVC), menu de test, test des commandes, vJoy | pas de moteur de guidon ; son non écouté |
 | Ring Riders | ✅ course, FFB, menu TEST (GPU NVIDIA) | son émulé ; joué par vJoy |
 | Tokyo Cop | ✅ poursuite, FFB, menu de test | son émulé ; joué par vJoy |
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Nirin et Dead Heat Riders sans dongle (demande 77)
+- **Nirin** : `clHASP::check` fait `hasp_login`, `hasp_read` de 64 octets puis `hasp_decrypt`, dont le résultat ne
+  sert qu'au numéro de série affiché : les trois fonctions de la bibliothèque HASP liée au jeu sont répondues comme
+  celles de Dead Heat (`dhHaspLogin`, `dhHaspRead`, `dhHaspDecrypt`). Le jeu passe l'écran titre ; « Insert 2 Coin(s) »
+  ; OK des menus = bouton View (bouton 2), Select = pencher la moto. Course : tour complet, jusqu'à 249 km/h.
+- **Calibrage du guidon de Nirin** : sans `save0/testmode/handle_setting.lua` (écrit seulement par son menu de
+  test), `clHandleSetting::read` laisse des zéros et le guidon tourne à gauche des deux côtés. Le loader appelle
+  alors la remise à zéro du menu de test (`clHandleSetting::clear` : copie du fichier par défaut de `data/save` par
+  le système de sauvegarde, puis lecture). Valeurs du jeu : -1 à gauche, +1 à droite, accélérateur et frein 0 à 1.
+- **« BACKUP ERROR » à chaque démarrage de Nirin** : deux causes, corrigées pour tous les jeux (ci-dessous) : la
+  liste `find` écrite en mode texte (le `\r` dans les noms) et `st_ctime` de Windows (date de création) que le jeu
+  compare à `st_mtime` (« ghost initialize because of Time Diff »).
+- **Dead Heat Riders** : sa « clé HASP » est un appareil USB (0B9A:0C10) dont `clHASP::Check` lit seulement le
+  numéro de série (commençant par 2706, puis 2, puis 01) ; la libusb du loader présente cette clé pour ce jeu.
+- **Cartes de Dead Heat Riders** : `n2jvio` et `clSystemN2` comme Dead Heat (bloc d'état à 0x08F9C2A0, même
+  disposition), champs du calibrage espacés de 16 octets, frein au repos et à fond ; carte Kickback sur son propre
+  port série, type de couple lu à 0 (`setTRQPowerType` : `mov eax,[ebp+0xc]` → `xor eax,eax`), auto-test passé ;
+  `n2JvioAckTxVsync` répond aussi (appels directs du flux principal). Pas de levier : boutons de `l_as_dhb_list` :
+  Nitro (Boost, bouton 4, aussi « DECIDE »), Vue (bouton 5), Enter (bouton 1), frein en contact (bouton 3).
+- **Démarrage de Dead Heat Riders** : environ 60 s dans le contrôle du réseau (borne seule : minuterie de conflit
+  de 3 600 images), puis 10 s d'attente de la caméra (`nmUVCCamera`, pas de `/dev/video0` : elle abandonne seule ;
+  ensuite son `nmUVCCameraExit` ferme le descripteur 0, d'où la règle sur `close(0..2)`).
+- **Course de Dead Heat Riders** : villes, choix de la moto, photo (sans caméra), course à San Francisco jusqu'à
+  198 km/h, nitro, retour de force (ressort, amortisseur, couple constant en virage). MinGW et MSVC. Menée aussi par
+  vJoy dans une fenêtre visible (jusqu'à 207 km/h ; 307 forces constantes et 469 conditions reçues par vJoy).
+- **Corrections pour tous les jeux** (trouvées avec ces deux jeux) :
+  - `rename` remplace un fichier existant, comme Linux (sans dossier d'écriture, le CRT refusait) ;
+  - `st_ctime` de `stat` vaut au moins `st_mtime` (sous Windows c'est la date de création) ;
+  - `system("mkdir X")` et `system("find ... | sort > F")` faits par le loader ; la liste est écrite avec des
+    fins de ligne `\n` seules (en mode texte, le `\r` restait dans les noms : `fopen` échouait, EINVAL) ;
+  - `setlocale` répond comme la libc de Linux (ses numéros de catégorie : `LC_ALL` = 6, refusé par Windows, d'où un
+    `strlen(NULL)` dans la libstdc++ de Dead Heat Riders en lisant un nombre) et garde la locale du processus à
+    « C » (`setlocale(LC_ALL, "")` aurait mis la virgule décimale d'un PC français partout) ;
+  - `close(0)`, `close(1)`, `close(2)` d'un jeu sont ignorés (l'entrée et la sortie de l'agent, le journal) ;
+  - stockage local aux threads des objets partagés (PT_TLS, relocations 35 et 36, `__tls_get_addr` et
+    `___tls_get_addr`) : les variables de `std::call_once` de `libstdc++.so.6.0.14` ;
+  - `putenv`, un vrai `longjmp`/`_longjmp`, `mkstemp`, `tmpfile`, `pthread_setaffinity_np`,
+    `SDL_JoystickGetButton`, `glColor4d`, `glVertex3d`, `glVertex2fv`, `glMultiTexCoord4fv`.
+
+### Nirin (demande 74)
+- Namco ES1, 2009 (`NRN100-4-NA-DAT0-A37`, application `v351`) : `exec/a.elf` avec ses symboles, SDL 1.2, OpenAL ;
+  copié de racecab1 dans `games/nirin` (1,65 Go, 8 678 fichiers ; `teknoparrot.ini` et `BudgieLoader.exe.stackdump`
+  mis à la Corbeille). Entrée de jeu `NIRIN` (CRC partiel 0x71E72FF6), groupe Dead Heat.
+- Fonctions ajoutées : `putenv`, `longjmp`/`_longjmp` (un vrai retour à `_setjmp`, pour les erreurs Lua),
+  `mkstemp`, `tmpfile`, `pthread_setaffinity_np`, `SDL_JoystickGetButton`.
+- **Carte d'E/S N2** : la même bibliothèque `n2jvio` que Dead Heat, plus ancienne : son bloc d'état est rangé
+  autrement (système 0x104, joueur 0x108, monnayeur 0x128, crédits de service 0x178, analogiques 0x1A8), sans carte
+  Kickback ni levier de vitesses. `deadHeatIo.c` prend ces positions dans sa table par jeu ; le service de la carte
+  (`execSystemN2Step2`) est appelé par un thread de signal du jeu, remplacé comme les autres.
+- **Sauvegardes** : le script `postmount` de la borne crée `save0` et `save1` à côté de `a.elf` ; le loader les crée.
+  Le jeu y range ses fichiers par `system()` : `mkdir save0/...` (fait par le loader) et
+  `find DOSSIER ... | sort > ./save0/tmp/find.txt` (listes de fichiers, faites par le loader des deux côtés du
+  dossier d'écriture). Il écrit `nom.tmp` puis le renomme sur `nom` : sans dossier d'écriture, `rename` du loader
+  refusait de remplacer un fichier existant (CRT Windows) ; il remplace maintenant, comme Linux.
+- **Commandes** : boutons du bloc → boutons du jeu par `l_as_list` : Service, Enter (bouton 1, Start du loader),
+  Select (haut/bas), shift up (bouton 3) et shift down (bouton 4, vérifiés dans le test des commandes) ; guidon,
+  accélérateur et frein en comptes calibrés. Le guidon de Nirin est calibré gauche en haut (`handle_setting.lua` :
+  gauche 61056, centre 40768, droite 18112) : la vérification de calibrage accepte les deux sens.
+- **Essais** (mode agent, MinGW et MSVC) : contrôles du démarrage passés (BACKUP DATA, JV I/O, CLOCK), démo, pièces
+  comptées (CREDIT 2/2), interrupteur Test (enclenché) : menu de test, I/O TEST, SWITCH TEST.
+- Ensuite bloqué par sa clé HASP (« USB DONGLE ERROR ») : levé à la demande 77 (ci-dessus).
 
 ### Six jeux non protégés (demandes 55 à 59)
 - Copiés de `\\racecab1\C\racecab\Games` par robocopy (`/R:600 /W:30 /MT:4`, le partage décroche) : `initiald4fr`
