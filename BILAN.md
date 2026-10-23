@@ -206,6 +206,8 @@ Racers 2071).
   démo, moteur et musique en course. Les mixeurs SSE d'OpenAL Soft sont coupés pour ce jeu : ils supposent une pile
   alignée sur 16 octets que leur thread n'a pas toujours (plantage une fois sur deux vers la 27e seconde).
 - Paramètres : `tmp/data/testmode.lua`, `bookkeeping.lua`, `cardbackup.lua` écrits dans le dossier du jeu.
+- **Options du jeu** (F10) : « Jouer sans le lecteur de cartes », coché par défaut : le jeu se joue sans carte
+  dès la première fois, sans passer par CARD R/W dans son menu de test (`[Game.mt3] NO_CARD_READER`).
 - **Build MSVC** : démarrage, menu de test, démo et menus comme MinGW, mais la course se bloque au chargement :
   le thread de course tourne sans fin dans `CSectionManager::GetSectInfo_InterArea` (`while (x < 0)` sur la
   position d'une voiture rivale devenue NaN). La précision x87 n'en est pas la cause (essayé à 64 bits comme sous

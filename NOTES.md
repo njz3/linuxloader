@@ -88,6 +88,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 77 | 22/10 | Retirer l'utilisation du dongle (Nirin, Dead Heat Riders) | ✅ les deux jouables : Nirin (clé HASP répondue comme celle de Dead Heat, course menée en mode agent et par vJoy) ; Dead Heat Riders (sa clé USB présentée par la libusb du loader, cartes N2 et Kickback émulées, course menée en mode agent, MinGW et MSVC) ; voir journal |
 | 78 | 23/10 | Commit et push, puis continuer avec Maximum Tune 3 | 🔄 `ea5690e` poussé ; Maximum Tune 3 jouable (démarrage, menu de test, partie, FFB, son en capture WAV ; MinGW, et MSVC jusqu'à la course qui s'y bloque) ; lecteur-imprimante de cartes pas encore émulé (CARD R/W OFF dans GAME OPTIONS) ; 3DX+ ensuite |
 | 79 | 23/10 | Inventaire des jeux Linux de racecab1 (refait) | ✅ 65 dossiers parcourus : 18 jeux Linux (7 Lindbergh, 3 Namco ES1, 3 Namco N2, 2 Cruis'n Blast, 3 Gaelco), 47 Windows ; 15 se jouent, restent MT3DX+ (à copier), les cartes de MT3, Cruis'n Blast (abandonné) ; tableau dans `BILAN.md` |
+| 81 | 23/10 | Page de réglages du jeu en cours dans F10, remplie selon le jeu lancé (lecteur de cartes de MT3, mode Pro de Battle Gear 4 côté windowsloader…) | ✅ onglet « Options du jeu », section `[Game.<nom court>]`, même disposition que windowsloader (convenue avec lui) ; options de MT3 et des jeux Lindbergh ; vérifié sur MT3, MinGW et MSVC |
 | 80 | 23/10 | Mettre à jour l'état des jeux dans `gameData.c` | ✅ Dead Heat Riders et Nirin en `WORKING` (« Working » dans le sélecteur) ; Maximum Tune 3 reste `NOT_WORKING` |
 
 ## État des jeux (build MSVC, GPU Intel, vJoy)
@@ -113,6 +114,28 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Options du jeu dans F10 (demande 81)
+- Onglet « Options du jeu » de la fenêtre des paramètres, en jeu seulement : le titre du jeu, où c'est enregistré
+  (« Dans [Game.mt3] de linuxloader.ini, pour ce jeu seulement »), puis ses options, ou « Aucune option pour ce jeu ».
+  Case à cocher, liste ou curseur ; « (au prochain lancement) » sur celles qui attendent le redémarrage, et un rappel
+  en bas quand l'une diffère de la valeur du lancement.
+- Fichier : section `[Game.<nom court>]` du fichier de réglages utilisé (le commun ou `<nom court>.ini`), lue après
+  les autres sections : elle passe par-dessus les clés générales (`[Emulation] EMULATE_DRIVEBOARD`, `[GameSpecific]`…)
+  pour ce jeu seulement. Les deux boutons « Sauvegarder » l'écrivent. `--set Game.CLE=VALEUR` vise la section du jeu
+  lancé. Disposition convenue avec windowsloader (même section, même onglet, mêmes types, même rappel).
+- Déclaration : `config/gameOptions.c`, une table (clé, libellé et aide en anglais traduits par `tr()`, type, champ
+  de `EmulatorConfig`, bornes ou liste, prochain lancement ou non, prédicat « s'applique à ce jeu ») ; page dans
+  `gui/guiGameOptions.cpp`.
+- Options : Maximum Tune 3 `NO_CARD_READER` (vrai par défaut : `clTestMode::isNoUseCardDevice` rend vrai, le jeu se
+  joue comme avec CARD R/W à OFF sans passer par son menu de test) ; carte servo des jeux de conduite Lindbergh ;
+  contrôles de borne d'OutRun ; scintillement de Hummer ; lecteurs de cartes d'Initial D et HW210 (VT3, VF5,
+  R-Tuned) ; course du volant d'Initial D (tout de suite) ; chinois d'ID5 ; Let's Go Jungle (Mesa) ; Primeval Hunt
+  (écrans, menu de test, Zink) ; MJ4 et AxA à toute heure ; Rambo ; Harley ; viseurs de Ghost Squad Evolution.
+- Vérifié sur Maximum Tune 3 (MinGW et MSVC) : page affichée (capture faite hors écran par une aide de test, retirée
+  ensuite), rappel après un changement, sauvegarde dans `[Game.mt3]` d'une copie du fichier ; lecture au démarrage
+  vue dans la mémoire du jeu (`isNoUseCardDevice` détourné par défaut, intact avec `[Game.mt3] NO_CARD_READER = false`
+  ou `--set Game.NO_CARD_READER=false`). Les pages des jeux Lindbergh ne sont pas vues (pas de copie locale).
 
 ### Maximum Tune 3 (demande 78)
 - Copié de racecab1 (16 145 fichiers, 4,6 Go), nettoyé des fichiers TeknoParrot. Programme `main` (CRC partiel
