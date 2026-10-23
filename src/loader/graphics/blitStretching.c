@@ -72,7 +72,7 @@ static int blitDisplayMode(void)
 static bool blitStretched(void)
 {
     int mode = blitDisplayMode();
-    return mode == DISPLAY_WINDOW_STRETCH || mode == DISPLAY_FULLSCREEN_STRETCH;
+    return mode == DISPLAY_WINDOW_STRETCH || mode == DISPLAY_FULLSCREEN_STRETCH || mode == DISPLAY_BORDERLESS_STRETCH;
 }
 
 // The frame's shape, for a game rendering renderW x renderH: the picture keeps its own shape inside it, fills it

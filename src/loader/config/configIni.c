@@ -38,7 +38,9 @@ int createDefaultIni(const char *filePath)
     fprintf(file, "# BARREL_RADIUS: the cylinder's radius in %% of the frame (small bends hard at the edge, large compresses evenly)\n");
     fprintf(file, "CROP_BARREL = false\nBARREL_CENTER = 60\nBARREL_RADIUS = 50\n\n");
     fprintf(file, "# WINDOW (window at the aspect ratio, square pixels), WINDOW_STRETCH (the picture fills the window),\n");
-    fprintf(file, "# FULLSCREEN (full screen at the aspect ratio) or FULLSCREEN_STRETCH (the picture fills the screen).\n");
+    fprintf(file, "# FULLSCREEN (full screen at the aspect ratio, the screen set to the game's resolution), FULLSCREEN_STRETCH\n");
+    fprintf(file, "# (the picture fills the screen), BORDERLESS (a borderless window over the screen at the desktop's resolution,\n");
+    fprintf(file, "# the aspect ratio) or BORDERLESS_STRETCH (the picture fills it).\n");
     fprintf(file, "# Takes over FULLSCREEN when set.\nDISPLAY_MODE = %s\n\n", defaults.fullscreen ? "FULLSCREEN" : "WINDOW");
     fprintf(file, "# Set to true if you\'d like to add a border for optical light gun tracking\n");
     fprintf(file, "BORDER_ENABLED = %s\n\n", defaults.borderEnabled ? "true" : "false");

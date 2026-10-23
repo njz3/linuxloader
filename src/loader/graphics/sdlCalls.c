@@ -59,6 +59,8 @@ int glutInitialized = 0;
 
 bool isFullScreen = false;
 bool sdlFontInit = false;
+
+static void sdlFullscreenMode(void);
 SDL_Renderer *fontRenderer;
 TTF_Font *font;
 
@@ -242,7 +244,7 @@ void startSDL()
 
     if (getConfig()->fullscreen)
     {
-        SDL_SetWindowFullscreenMode(g_SdlWindow, NULL);
+        sdlFullscreenMode();
         SDL_SetWindowFullscreen(g_SdlWindow, true);
         isFullScreen = true;
     }
@@ -343,6 +345,28 @@ void sdlQuit()
     exit(0);
 }
 
+// The full screen of DISPLAY_MODE: FULLSCREEN and FULLSCREEN_STRETCH set the screen to the game's resolution (the
+// closest mode the screen has; none: as BORDERLESS), BORDERLESS and BORDERLESS_STRETCH keep the desktop's, the window
+// borderless over it (also when only FULLSCREEN = true was given)
+static void sdlFullscreenMode(void)
+{
+    int mode = getConfig()->displayMode;
+    if (mode == DISPLAY_FULLSCREEN || mode == DISPLAY_FULLSCREEN_STRETCH)
+    {
+        SDL_DisplayMode closest;
+        if (SDL_GetClosestFullscreenDisplayMode(SDL_GetDisplayForWindow(g_SdlWindow), gWidth, gHeight, 0.0f, false,
+                                                &closest) &&
+            SDL_SetWindowFullscreenMode(g_SdlWindow, &closest))
+        {
+            log_info("Full screen at %dx%d, %.2f Hz", closest.w, closest.h, closest.refresh_rate);
+            return;
+        }
+        log_warn("No screen mode for %dx%d (%s): borderless full screen at the desktop's resolution", gWidth, gHeight,
+                 SDL_GetError());
+    }
+    SDL_SetWindowFullscreenMode(g_SdlWindow, NULL);
+}
+
 // ASPECT_RATIO and DISPLAY_MODE changed while the game runs (F10 settings): the picture follows them at the next
 // frame, the window here.
 void sdlApplyDisplaySettings(void)
@@ -350,6 +374,8 @@ void sdlApplyDisplaySettings(void)
     if (!g_SdlWindow || gameIsOutrunChihiroMode)
         return;
     bool fullscreen = getConfig()->fullscreen != 0;
+    if (fullscreen)
+        sdlFullscreenMode(); // the screen's mode follows FULLSCREEN and BORDERLESS, also while in full screen
     if (fullscreen != isFullScreen && SDL_SetWindowFullscreen(g_SdlWindow, fullscreen))
         isFullScreen = fullscreen;
     if (!isFullScreen)
@@ -408,6 +434,7 @@ void pollEvents()
                         }
                         else
                         {
+                            sdlFullscreenMode();
                             if (!SDL_SetWindowFullscreen(g_SdlWindow, true))
                             {
                                 log_error("Error setting fullscreen mode: %s\n", SDL_GetError());

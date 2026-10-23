@@ -81,6 +81,8 @@ const std::unordered_map<std::string, const char *> &frenchTexts()
         {"Window, stretched", "Fenêtre étirée"},
         {"Full screen", "Plein écran"},
         {"Full screen, stretched", "Plein écran étiré"},
+        {"Borderless fullscreen window", "Plein écran fenêtré (sans bordure)"},
+        {"Borderless fullscreen window, stretched", "Plein écran fenêtré étiré"},
         {"Original: the shape of the game's render resolution.", "Original : la forme de la résolution de rendu du jeu."},
         {"4:3, black bars", "4:3, bandes noires"},
         {"16:9, black bars", "16:9, bandes noires"},
@@ -395,7 +397,8 @@ struct Resolution
 };
 const Resolution internalResolutions[] = {{640, 480},  {800, 600},   {1024, 768},  {1280, 720},  {1280, 768},
                                           {1360, 768}, {1600, 900},  {1920, 1080}, {2560, 1440}, {3840, 2160}};
-const char *displayModeNames[] = {"WINDOW", "WINDOW_STRETCH", "FULLSCREEN", "FULLSCREEN_STRETCH"};
+const char *displayModeNames[] = {"WINDOW",     "WINDOW_STRETCH", "FULLSCREEN", "FULLSCREEN_STRETCH",
+                                  "BORDERLESS", "BORDERLESS_STRETCH"};
 
 int currentDisplayMode()
 {
@@ -648,9 +651,11 @@ void drawSettings(bool *open, std::string &configFile, bool inGame)
             ImGui::TextDisabled("%s", tr("Black bars: the frame's shape, with the whole picture inside at its own shape and black bars where the shapes differ. Stretched: the picture fills the frame, deformed. Cropped: the picture fills the frame at its own shape, cut on the sides (or above and below); the crop position moves the part kept. The display mode then fits the frame to the window or the screen, or stretches it."));
             ImGui::PopTextWrapPos();
 
-            const char *modeLabels[] = {tr("Window, square pixels"), tr("Window, stretched"), tr("Full screen"), tr("Full screen, stretched")};
+            const char *modeLabels[] = {tr("Window, square pixels"), tr("Window, stretched"), tr("Full screen"),
+                                        tr("Full screen, stretched"), tr("Borderless fullscreen window"),
+                                        tr("Borderless fullscreen window, stretched")};
             int mode = currentDisplayMode();
-            if (ImGui::Combo(tr("Display mode"), &mode, modeLabels, 4))
+            if (ImGui::Combo(tr("Display mode"), &mode, modeLabels, IM_ARRAYSIZE(modeLabels)))
             {
                 cfg->displayMode = mode;
                 cfg->fullscreen = mode >= DISPLAY_FULLSCREEN;
@@ -810,7 +815,7 @@ bool saveSettings(const std::string &configFile)
                                      {"Display", "BARREL_RADIUS", std::to_string(cfg->barrelRadius)},
                                      {"Display", "WIDTH", cfg->internalWidth > 0 ? std::to_string(cfg->internalWidth) : "AUTO"},
                                      {"Display", "HEIGHT", cfg->internalHeight > 0 ? std::to_string(cfg->internalHeight) : "AUTO"},
-                                     {"Display", "DISPLAY_MODE", displayModeNames[std::clamp(mode, 0, 3)]},
+                                     {"Display", "DISPLAY_MODE", displayModeNames[std::clamp(mode, 0, IM_ARRAYSIZE(displayModeNames) - 1)]},
                                      {"Display", "FULLSCREEN", mode >= DISPLAY_FULLSCREEN ? "true" : "false"},
                                      {"Display", "FPS_LIMITER_ENABLED", cfg->fpsLimiter ? "true" : "false"},
                                      {"Display", "FPS_TARGET", number},

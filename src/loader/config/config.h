@@ -19,8 +19,10 @@
 // DISPLAY_MODE
 #define DISPLAY_WINDOW 0             // a window at the aspect ratio, square pixels
 #define DISPLAY_WINDOW_STRETCH 1     // the picture fills the window
-#define DISPLAY_FULLSCREEN 2         // full screen at the aspect ratio
+#define DISPLAY_FULLSCREEN 2         // full screen at the aspect ratio, the screen set to the game's resolution
 #define DISPLAY_FULLSCREEN_STRETCH 3 // the picture fills the screen
+#define DISPLAY_BORDERLESS 4         // a borderless window over the screen at the desktop's resolution, the aspect ratio
+#define DISPLAY_BORDERLESS_STRETCH 5 // the picture fills it
 #define INPUT_STRING_LENGTH 256
 
 #define AFTER_BURNER_CLIMAX_SBLR 0xa3c246e2                       // DVP-0009

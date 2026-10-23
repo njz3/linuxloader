@@ -387,6 +387,10 @@ void applyIniConfig(EmulatorConfig *config, const IniConfig *ini)
         config->displayMode = DISPLAY_FULLSCREEN;
     else if (strcmp(displayValue, "fullscreen_stretch") == 0)
         config->displayMode = DISPLAY_FULLSCREEN_STRETCH;
+    else if (strcmp(displayValue, "borderless") == 0)
+        config->displayMode = DISPLAY_BORDERLESS;
+    else if (strcmp(displayValue, "borderless_stretch") == 0)
+        config->displayMode = DISPLAY_BORDERLESS_STRETCH;
     if (config->displayMode >= 0) // DISPLAY_MODE takes over FULLSCREEN
         config->fullscreen = config->displayMode >= DISPLAY_FULLSCREEN;
     config->borderEnabled = getInt(ini, "Display", "BORDER_ENABLED", config->borderEnabled);
