@@ -86,6 +86,9 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 75 | 22/10 | Pause pour redémarrer le PC, puis commit et push | ✅ `0b377d3` poussé (avec les fichiers de Cruis'n Blast, au choix de l'utilisateur) |
 | 76 | 22/10 | Reprendre | ✅ voir 74 |
 | 77 | 22/10 | Retirer l'utilisation du dongle (Nirin, Dead Heat Riders) | ✅ les deux jouables : Nirin (clé HASP répondue comme celle de Dead Heat, course menée en mode agent et par vJoy) ; Dead Heat Riders (sa clé USB présentée par la libusb du loader, cartes N2 et Kickback émulées, course menée en mode agent, MinGW et MSVC) ; voir journal |
+| 78 | 23/10 | Commit et push, puis continuer avec Maximum Tune 3 | 🔄 `ea5690e` poussé ; Maximum Tune 3 jouable (démarrage, menu de test, partie, FFB, son en capture WAV ; MinGW, et MSVC jusqu'à la course qui s'y bloque) ; lecteur-imprimante de cartes pas encore émulé (CARD R/W OFF dans GAME OPTIONS) ; 3DX+ ensuite |
+| 79 | 23/10 | Inventaire des jeux Linux de racecab1 (refait) | ✅ 65 dossiers parcourus : 18 jeux Linux (7 Lindbergh, 3 Namco ES1, 3 Namco N2, 2 Cruis'n Blast, 3 Gaelco), 47 Windows ; 15 se jouent, restent MT3DX+ (à copier), les cartes de MT3, Cruis'n Blast (abandonné) ; tableau dans `BILAN.md` |
+| 80 | 23/10 | Mettre à jour l'état des jeux dans `gameData.c` | ✅ Dead Heat Riders et Nirin en `WORKING` (« Working » dans le sélecteur) ; Maximum Tune 3 reste `NOT_WORKING` |
 
 ## État des jeux (build MSVC, GPU Intel, vJoy)
 
@@ -104,11 +107,58 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Maximum Heat 3D | ✅ partie, FFB, menu de test, vJoy | caméra coupée (pas de `/dev/video0`) |
 | Dead Heat Riders | ✅ course, nitro, FFB (carte Kickback), menu de test et test des commandes, vJoy | démarrage d'environ 70 s (contrôle du réseau, caméra absente) |
 | Nirin | ✅ course (MinGW et MSVC), menu de test, test des commandes, vJoy | pas de moteur de guidon ; son non écouté |
+| Wangan Midnight Maximum Tune 3 | ✅ course (MinGW), FFB (carte Kickback), menu de test, SWITCH TEST, son (capture WAV) | lecteur-imprimante de cartes (CARD R/W OFF en attendant) ; course bloquée en MSVC ; vJoy pas encore |
 | Ring Riders | ✅ course, FFB, menu TEST (GPU NVIDIA) | son émulé ; joué par vJoy |
 | Tokyo Cop | ✅ poursuite, FFB, menu de test | son émulé ; joué par vJoy |
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Maximum Tune 3 (demande 78)
+- Copié de racecab1 (16 145 fichiers, 4,6 Go), nettoyé des fichiers TeknoParrot. Programme `main` (CRC partiel
+  0xEC016AFD), moteur Alchemy (Gap) de 2007, 50 000 symboles.
+- **Bibliothèques** : `libso` (Boost 1.33.1, Cg) cherché ; les liens symboliques copiés sous Windows (fichiers de
+  quelques octets qui contiennent le nom de la cible) suivis par `FollowLinkFile` (`symbolResolver.cpp`).
+- **libc** : `sigprocmask`, `sigwait`, `psignal`, `setitimer`, `setpgid`, `setsid`, `getppid`, `geteuid`, `execl`,
+  `adjtimex`, `chown`, `sbrk` (région de 768 Mo réservée, engagée au fur et à mesure : Alchemy y prend ses pools,
+  55 Mo d'emblée), `mmap64`, `mlock`/`munlock`/`msync`, `vfscanf`, `gnu_get_libc_version`, `__wcstol_internal`,
+  `iswalpha`, `swprintf` ; sémaphores System V et `ftok` (`ipcBridge.cpp`) ; `aio_read`/`aio_error`/`aio_cancel`
+  (lecture faite tout de suite) et `ftruncate` ; `_pthread_cleanup_push/pop`, `pthread_setcanceltype`,
+  `pthread_testcancel` ; `ceilf`, `log2`, `lrint`.
+- **Démarrage** : `system("perl prepend-n2.pl")` fait par le loader (dossiers `tmp/data/...`, `sys_04.wav`) ;
+  `feof` du faux `/proc/cpuinfo` (Alchemy le lit en `while (!feof)`) ; `getc` sur l'entrée standard rendue non
+  bloquante par `fcntl` rend EOF (clavier d'Alchemy ; en mode agent elle est au client).
+- **Affichage** (`graphics/admBridge.c`) : les fonctions `adm*` du pilote NVIDIA lié dans le programme répondues par
+  la fenêtre du loader (`sdl12SetVideoMode`, le swap de SDL 1.2) ; les 1 102 emplacements OpenGL de `.writetext`
+  (table lue dans le code d'`admGetProcAddress`) sautent aux fonctions de `glHooks`, ou à un bout de code qui signale
+  la fonction absente. `LL_ADM_TRACE=1` compte les appels de chaque fonction (journal toutes les 600 images) : c'est
+  ce qui a montré `glGetCompressedTexImageARB`, absente, derrière les voitures noires.
+- **Clé HASP** (`hardware/namco/namcoHasp.c`) : `hasp_login/read/write/encrypt/decrypt/get_rtc/legacy_set_rtc` et
+  `clHasp::isAvail` remplacés ; image de 4 Ko (`hasp.bin`) : numéro de série en 12 chiffres ASCII à 0xD00 (somme et
+  complément en fin de bloc), bloc du jeu à 0 (compteur des cartes) ; l'image est en clair.
+- **E/S** (`deadHeatIo.c`) : table `maximumTune3` (bloc de Nirin, `init(bool)`), calibrage en centre et course
+  (`centreWidth`), champs de la Kickback par jeu, levier en H (`GEARBOX_H`) : Gear Up/Down (boutons 7 et 8) font
+  N→1→…→6 sur les contacts gauche, droite, haut, bas (boutons 5, 6, 3, 4) ; View Change bouton 9, Intrude Change
+  bouton 10 (Boost) ; Test n'est pas un interrupteur à bascule pour ce jeu (c'est l'Enter de son menu).
+- **/tmp** : `fopen`, `fopen64`, `remove` et `rename` le prennent maintenant dans le dossier du jeu comme `open`,
+  `unlink` et `mkdir` (les réglages du menu de test, écrits par flux C++ en `testmode.tmp` renommé, se perdaient).
+- **Son** (`hardware/namco/n2Sound.c`) : 69 fonctions `al*`/`alc*` de l'OpenAL NVIDIA du programme renvoyées à
+  `openal32.dll` (OpenAL Soft) ; en mode agent, sortie nulle, ou `LL_SOUND_WAV` (écrivain WAV d'OpenAL Soft par un
+  fichier de configuration temporaire, `ALSOFT_CONF`). Plantage d'OpenAL Soft une fois sur deux vers 27 s (MinGW) :
+  `movdqa` sur une pile alignée à 4 dans ses mixeurs SSE ; `disable-cpu-exts = all` pour ce jeu (6 essais sur 6
+  sans plantage ensuite).
+- **Essais** (mode agent, MinGW) : démarrage, menu de test (GAME OPTIONS : CARD R/W mis à OFF), démo, partie
+  Story jusqu'à la course, FFB lu par l'agent, SWITCH TEST.
+- **MSVC** : tout pareil jusqu'au chargement de la course, puis le thread de course boucle dans
+  `CSectionManager::GetSectInfo_InterArea` : `while (x < 0) { MoveToPrev; x += longueur; }` avec un `x` NaN
+  (la position d'une voiture rivale). Contrôle x87 lu : 53 bits sous MSVC, 64 bits pour une partie des threads
+  sous MinGW, 64 bits sous Linux ; passé à 64 bits sur tous les threads du jeu : sans effet, retiré. À chercher
+  d'où vient le NaN (une fonction mathématique du pont, une donnée non initialisée selon l'ordre des threads).
+- Reste : le lecteur-imprimante de cartes (`clCardPrinter` sur le port 2 de `clSerialN2`, protocole Sanwa : trame
+  STX, longueur, commande, trois octets d'état, données, ETX, XOR ; ACK puis ENQ ; commandes 10 init, 20 état, 33
+  lecture, 53 écriture, 7A/7C/7D/78 impression, 80 éjection, A0 nettoyage, B0 distributeur, 40 annulation, F5
+  pile ; état : position de la carte '0' à '4', erreur, fin de travail), la course en MSVC, vJoy, l'écoute du
+  son ; puis Maximum Tune 3DX+.
 
 ### Nirin et Dead Heat Riders sans dongle (demande 77)
 - **Nirin** : `clHASP::check` fait `hasp_login`, `hasp_read` de 64 octets puis `hasp_decrypt`, dont le résultat ne
