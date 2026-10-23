@@ -180,7 +180,8 @@ int serialPortOpen(const char *path, int linuxFlags)
     char name[SERIAL_PORT_NAME], device[SERIAL_PORT_NAME + 4];
     if (!port || !serialPortName(path, name, sizeof(name)))
     {
-        log_error("Serial passthrough: %s is not a COM port", path ? path : "(none)");
+        // The settings' Linux default (/dev/ttyS0) when no real board was chosen: the port stays closed, as before
+        log_info("Serial passthrough: %s is not a COM port, the port stays closed", path ? path : "(none)");
         return -1;
     }
     snprintf(device, sizeof(device), "\\\\.\\%s", name);
