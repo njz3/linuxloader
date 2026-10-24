@@ -154,6 +154,11 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   `SETTINGS_MENU = false` : lu (journal « --set Launcher.SETTINGS_MENU = false »), pas vu à l'écran (fenêtre noire
   à la capture dans les deux essais, image normale en mode agent).
 - Exemple de `WRITE_DIR` aligné sur la convention de l'image : `C:\Racecab\Saves\linuxloader_single`.
+- Release : `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261024-2-njz3-win32.zip` (commit `74fe305`, même
+  procédure), 18,3 Mo ; SHA-256 du zip `b3fe1eef1712ddcf2b91b9aeff8064d25a3467880c8d8de57681c16fd2abe029`, de
+  `linuxloader.exe` `701b0fd9024ebc499b9949f56d6aba9964d31ef802832c8f7824fb4109544e04` ; `ll-deps` identique à la
+  release du matin. Testée depuis le zip extrait dans un dossier vierge : `--version`, `--create config`
+  (`SETTINGS_MENU = true`, nouvel exemple de `WRITE_DIR`), OutRun en mode agent.
 
 ### Release Windows du 24/10 (demande 97)
 - Même procédure que les demandes 19 et 30 : build MinGW Release recompilé de zéro (`build-mingw`, Ninja), version
