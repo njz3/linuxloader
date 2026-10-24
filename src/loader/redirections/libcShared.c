@@ -176,8 +176,12 @@ void *sharedDlopen(const char *filename, int flags)
     if (!filename)
         return (void *)-1; // RTLD_DEFAULT handle
 
+    // Only a name with a slash is a path, as on Linux: a bare one (libCg.so) is a library looked up by name, which
+    // through the write folder became a missing file there and lost its Windows DLL
     char redirected[MAX_PATH];
-    bridgeLoadNeededLibrary(writeDirForRead(filename, redirected, sizeof(redirected)));
+    if (strchr(filename, '/') || strchr(filename, '\\'))
+        filename = writeDirForRead(filename, redirected, sizeof(redirected));
+    bridgeLoadNeededLibrary(filename);
 
     return (void *)0xDEADBEEF;
 #else
