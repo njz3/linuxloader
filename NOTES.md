@@ -175,8 +175,8 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   comme Flycast, windowsloader et Supermodel (consigne du propriétaire relayée par Image borne). `[Launcher]
   SETTINGS_MENU = false` le coupe (borne publique) : Tab va alors au jeu. Textes et commentaires suivent (F10 → Tab).
   Vérifié à l'écran : Tab ouvre « Jeu en pause - Tab : fermer les paramètres », Tab referme et le jeu reprend.
-  `SETTINGS_MENU = false` : lu (journal « --set Launcher.SETTINGS_MENU = false »), pas vu à l'écran (fenêtre noire
-  à la capture dans les deux essais, image normale en mode agent).
+  `SETTINGS_MENU = false` : vérifié à l'écran une fois l'affichage du PC reconnecté (il était déconnecté pendant
+  les deux premiers essais, d'où une fenêtre noire) : Tab deux fois, aucun menu, OutRun continue sa démo.
 - Exemple de `WRITE_DIR` aligné sur la convention de l'image : `C:\Racecab\Saves\linuxloader_single`.
 - Release : `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261024-2-njz3-win32.zip` (commit `74fe305`, même
   procédure), 18,3 Mo ; SHA-256 du zip `b3fe1eef1712ddcf2b91b9aeff8064d25a3467880c8d8de57681c16fd2abe029`, de
