@@ -1160,10 +1160,38 @@ const char *sharedEth0SetAddress(void)
     return eth0Set[0] ? eth0Set : NULL;
 }
 
+// SEGA Race TV's address (SRTV_IPADDRESS, empty: loopback) must be one of the PC's, or the game dies in
+// klib::lan::GetLanParam: one no socket binds to (the default file's 192.168.1.2 on another network) becomes loopback
+const char *sharedSrtvAddress(void)
+{
+    static char address[16] = "";
+    if (!address[0])
+    {
+        snprintf(address, sizeof(address), "%s", getConfig()->srtvIP[0] ? getConfig()->srtvIP : "127.0.0.1");
+        WSADATA data;
+        if (WSAStartup(MAKEWORD(2, 2), &data) == 0)
+        {
+            SOCKET probe = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+            struct sockaddr_in local = {0};
+            local.sin_family = AF_INET;
+            local.sin_addr.s_addr = inet_addr(address);
+            if (probe != INVALID_SOCKET && bind(probe, (struct sockaddr *)&local, sizeof(local)) != 0)
+            {
+                log_warn("SRTV_IPADDRESS %s is not one of this PC's addresses: 127.0.0.1 taken instead", address);
+                strcpy(address, "127.0.0.1");
+            }
+            if (probe != INVALID_SOCKET)
+                closesocket(probe);
+            WSACleanup();
+        }
+    }
+    return address;
+}
+
 static const char *eth0Address(void)
 {
     if (getConfig()->crc32 == SEGA_RACE_TV_SBPF && strcmp(getConfig()->srtvIP, "") != 0)
-        return getConfig()->srtvIP;
+        return sharedSrtvAddress();
     if (eth0Set[0])
         return eth0Set;
     return "127.0.0.1";

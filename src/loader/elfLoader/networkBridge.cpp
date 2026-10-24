@@ -240,7 +240,7 @@ namespace NetworkBridge
                     strcmp("192.168.49.4", cp) == 0)
                 {
                     // An IP that is not the PC's makes the game crash in klib::lan::GetLanParam
-                    cp = strcmp(getConfig()->srtvIP, "") != 0 ? getConfig()->srtvIP : "127.0.0.1";
+                    cp = sharedSrtvAddress();
                 }
             }
         }

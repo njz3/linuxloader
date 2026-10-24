@@ -60,6 +60,7 @@ const char *sharedEth0SetAddress(void);
 int sharedSelect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout);
 #ifdef _WIN32
 const char *sharedBinaryMode(const char *mode, char *buffer, size_t size);
+const char *sharedSrtvAddress(void);
 #endif
 
 #ifdef __cplusplus

@@ -218,7 +218,8 @@ int createDefaultIni(const char *filePath)
     fprintf(file, "IP_CAB1 = \"192.168.1.2\"\nIP_CAB2 = \"192.168.1.3\"\nIP_CAB3 = \"192.168.1.4\"\nIP_CAB4 = \"192.168.1.5\"\n\n");
     fprintf(file, "# Sets the IP address of each cabinet for network play in 2Spicy\n");
     fprintf(file, "2SPICY_IP_CAB1 = \"192.168.1.2\"\n2SPICY_IP_CAB2 = \"192.168.1.3\"\n\n");
-    fprintf(file, "# Sets the IP address for SRTV\nSRTV_IPADDRESS = \"192.168.1.2\"\n\n");
+    fprintf(file, "# SEGA Race TV's IP address: one of this PC's for a link, empty for a cabinet alone (127.0.0.1; an address\n");
+    fprintf(file, "# that is not the PC's is replaced by it)\nSRTV_IPADDRESS = \"\"\n\n");
 
     // [EVDEV]
     fprintf(file, "[EVDEV]\n");
