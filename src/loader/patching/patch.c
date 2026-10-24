@@ -139,6 +139,37 @@ static void idFeedbackInstall(void)
         log_warn("Initial D: _sSCI::send not found, no force feedback");
 }
 
+// Maximum Tune 3 and 3DX+, story mode: the real-time movie before a race is a period without a race, whose rival has
+// no character (NONE). CConfigLoader::GetStoryRivalFeature finds no "ECharacter_NONE" in
+// data/carconfig/ytConfigStory.txt, reads on to its end and, when its "%d%d%d" sscanf of the start position fails,
+// prints a message then stores three locals it never set anyway. On the cabinet the stack happens to hold harmless
+// values there; here it holds the loader's leftovers (pointers read as floats): the rival starts at 1e12, the race
+// thread loops on a NaN odometer (Maximum Tune 3, MSVC) or crashes in the movie (3DX+). The failed read now keeps
+// the zeros the function begins with, as a found "StartConfig" would have overwritten.
+static void mt3RivalFeatureFix(void)
+{
+    const uint8_t *function = findStaticFnAddr("_ZN2yt13CConfigLoader20GetStoryRivalFeatureEPKc10ECharacteri");
+    if (!function)
+    {
+        log_warn("Maximum Tune: GetStoryRivalFeature not found, its start position read not patched");
+        return;
+    }
+    // cmp eax, 3 ; je +0x0c (over the message) ; mov dword ptr [esp], message
+    static const uint8_t pattern[] = {0x83, 0xF8, 0x03, 0x74, 0x0C, 0xC7, 0x04, 0x24};
+    for (size_t i = 0; i < 2900; i++)
+    {
+        if (memcmp(function + i, pattern, sizeof(pattern)) != 0)
+            continue;
+        const uint8_t *je = function + i + 3;
+        if (je[2 + 0x3D] != 0xE9) // the jump that follows the three stores
+            break;
+        patchMemoryFromString((size_t)je, "753d"); // jne over the stores when fewer than three numbers were read
+        log_info("Maximum Tune: a rival without a character keeps a zero start position (GetStoryRivalFeature)");
+        return;
+    }
+    log_warn("Maximum Tune: GetStoryRivalFeature's start position read not recognized, not patched");
+}
+
 int amDongleInit()
 {
     return 0;
@@ -2805,6 +2836,7 @@ int initPatch()
             n2SoundInstall();    // NVIDIA's OpenAL in the program: OpenAL Soft's
             deadHeatIoInstall(); // the N2 I/O board as Nirin's, the Kickback wheel board as Dead Heat's
             n2CardPrinterInstall(); // the card reader-printer on its serial port, its cards in files
+            mt3RivalFeatureFix();   // the real-time movie's rival without a character: no garbage start position
             // [Game.mt3] NO_CARD_READER: played as with the test menu's CARD R/W OFF (clTestMode::isNoUseCardDevice);
             // isEnableCardDevice gives 0 then, as it does with CARD R/W OFF (3DX+ asks it for its card screens)
             void *noCardDevice = findStaticFnAddr("_ZNK10clTestMode17isNoUseCardDeviceEv");
