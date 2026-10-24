@@ -378,12 +378,19 @@ int sharedOpen64(const char *pathname, int flags, ...)
 static FILE *(*_fopen)(const char *restrict pathname, const char *restrict mode) = NULL;
 #ifdef _WIN32
 // Linux has no text mode: a stream opened "r" or "w" reads and writes the bytes as they are. Windows' would turn CRLF
-// into LF, and a file read into a buffer of its size would leave the end unwritten (Dead Heat's CRLF shaders).
+// into LF, and a file read into a buffer of its size would leave the end unwritten (Dead Heat's CRLF shaders). A 't'
+// in the mode (Maximum Tune 3's "rt" for its movie table) is ignored by glibc; it becomes the 'b', since MSVC's C
+// library refuses "rtb" and returns no file, where MinGW's accepts it.
 const char *sharedBinaryMode(const char *mode, char *buffer, size_t size)
 {
     if (!mode || strchr(mode, 'b') || strlen(mode) + 2 > size)
         return mode;
-    snprintf(buffer, size, "%sb", mode);
+    size_t length = 0;
+    for (const char *c = mode; *c; c++)
+        buffer[length++] = *c == 't' ? 'b' : *c;
+    if (!memchr(buffer, 'b', length))
+        buffer[length++] = 'b';
+    buffer[length] = 0;
     return buffer;
 }
 #endif
