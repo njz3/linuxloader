@@ -1,6 +1,6 @@
 #pragma once
 
-// Shared pieces of the picker and of the F10 overlay: the ImGui context, the style, the translations and the
+// Shared pieces of the picker and of the Tab overlay: the ImGui context, the style, the translations and the
 // settings window.
 
 #include <string>

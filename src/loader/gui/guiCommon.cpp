@@ -1,4 +1,4 @@
-// Shared pieces of the game picker and of the F10 settings overlay.
+// Shared pieces of the game picker and of the Tab settings overlay.
 //
 // The interface is modelled on sm2-emu's (https://github.com/dmanlfc/sm2-emu), a Sega Model 2 emulator by Daniel
 // Martin (dmanlfc) and the sm2-emu contributors, GPL-3.0-or-later: its dark style, its scaling with the window, its
@@ -216,9 +216,9 @@ const std::unordered_map<std::string, const char *> &frenchTexts()
         {"Controls page organised as Flycast's, the Dreamcast, Naomi and Atomiswave emulator:",
          "Page des contrôles organisée comme celle de Flycast, l'émulateur Dreamcast, Naomi et Atomiswave :"},
         {"Select a game", "Choisissez un jeu"},
-        {"Enter: launch   F10: settings   F9: quit", "Entrée : lancer   F10 : paramètres   F9 : quitter"},
-        {"No game was found in %s. Set the games folder in Settings (F10) > Picker.",
-         "Aucun jeu trouvé dans %s. Réglez le dossier des jeux dans Paramètres (F10) > Catalogue."},
+        {"Enter: launch   Tab: settings   F9: quit", "Entrée : lancer   Tab : paramètres   F9 : quitter"},
+        {"No game was found in %s. Set the games folder in Settings (Tab) > Picker.",
+         "Aucun jeu trouvé dans %s. Réglez le dossier des jeux dans Paramètres (Tab) > Catalogue."},
         {"Unknown version of the game", "Version du jeu inconnue"},
         {"Running...", "En cours..."},
         {"Folder", "Dossier"},
@@ -229,7 +229,7 @@ const std::unordered_map<std::string, const char *> &frenchTexts()
         {"Working", "Fonctionne"},
         {"Not working", "Ne fonctionne pas"},
         {"Partially working", "Fonctionne en partie"},
-        {"Game paused - F10: close the settings", "Jeu en pause - F10 : fermer les paramètres"},
+        {"Game paused - Tab: close the settings", "Jeu en pause - Tab : fermer les paramètres"},
         {"Controls", "Contrôles"},
         {"Saved to %s and controls.ini", "Sauvegardé dans %s et controls.ini"},
         {"No controller connected.", "Aucune manette branchée."},
@@ -401,7 +401,7 @@ void iniSet(std::vector<std::string> &lines, const char *section, const char *ke
     lines.insert(lines.begin() + at, newLine);
 }
 
-// ASPECT_RATIO's names, in ASPECT_* order, and the list F10 offers (4:3_LETTERBOX shown as 4:3)
+// ASPECT_RATIO's names, in ASPECT_* order, and the list Tab offers (4:3_LETTERBOX shown as 4:3)
 const char *aspectNames[] = {"ORIGINAL", "4:3", "16:9", "4:3_LETTERBOX", "4:3_STRETCH", "16:9_STRETCH", "4:3_CROP", "16:9_CROP"};
 const int aspectChoices[] = {ASPECT_ORIGINAL,     ASPECT_4_3,      ASPECT_16_9,     ASPECT_4_3_STRETCH,
                              ASPECT_16_9_STRETCH, ASPECT_4_3_CROP, ASPECT_16_9_CROP};

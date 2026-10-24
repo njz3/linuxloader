@@ -29,7 +29,7 @@
 #include "../../log/log.h"
 
 #ifdef _WIN32
-unsigned int alsaSharedDevice(void); // alsa2sdl.c: paused by F10 with the other streams, silent in --agent
+unsigned int alsaSharedDevice(void); // alsa2sdl.c: paused by Tab with the other streams, silent in --agent
 #endif
 
 #define OUTPUT_RATE 48000

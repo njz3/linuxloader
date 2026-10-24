@@ -1,6 +1,6 @@
 #pragma once
 
-// The options of one game: the F10 window's "Game options" page, in the settings file's [Game.<short name>] section,
+// The options of one game: the Tab window's "Game options" page, in the settings file's [Game.<short name>] section,
 // read over the general keys and for that game only (gameOptions.c, the same layout as windowsloader's).
 
 #include <stdbool.h>

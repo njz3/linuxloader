@@ -1117,7 +1117,7 @@ int SEGAAPI_Reset(void)
     return SEGA_SUCCESS;
 }
 
-// F10 settings open: the game waits, and its sound with it
+// Tab settings open: the game waits, and its sound with it
 void segaapiPause(int paused)
 {
     if (!fAudio)

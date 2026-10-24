@@ -1,4 +1,4 @@
-// The F10 window's "Game options" page: the options of the game being run (config/gameOptions.c), drawn from their
+// The Tab window's "Game options" page: the options of the game being run (config/gameOptions.c), drawn from their
 // table, kept in the [Game.<short name>] section of the settings file that both Save buttons write. Then its boards:
 // each emulated, or a real board on a serial port of the PC (hardware/lindbergh/serialPort.c), as windowsloader's.
 

@@ -367,7 +367,7 @@ static void sdlFullscreenMode(void)
     SDL_SetWindowFullscreenMode(g_SdlWindow, NULL);
 }
 
-// ASPECT_RATIO and DISPLAY_MODE changed while the game runs (F10 settings): the picture follows them at the next
+// ASPECT_RATIO and DISPLAY_MODE changed while the game runs (Tab settings): the picture follows them at the next
 // frame, the window here.
 void sdlApplyDisplaySettings(void)
 {

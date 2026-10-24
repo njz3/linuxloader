@@ -29,7 +29,7 @@ static SDL_Mutex *boardLock = NULL;
 static SDL_Condition *boardChanged = NULL;
 static SDL_Thread *wheelThread = NULL;
 static bool wheelQuit = false;
-static bool wheelPaused = false; // F10 settings open: the game waits, the wheel goes limp
+static bool wheelPaused = false; // Tab settings open: the game waits, the wheel goes limp
 static bool agentBoard = false;  // the agent mode without a wheel: the board model kept for its journal only
 
 static int SDLCALL wheelThreadMain(void *data);
@@ -605,7 +605,7 @@ void sdlFfbRumble(float left, float right, int duration_ms)
     SDL_RunHapticEffect(sdlJoysticks.haptics[0], effect_id, 1);
 }
 
-// The game paused (F10): no force on the wheel until it runs again, then the board's state as it was
+// The game paused (Tab): no force on the wheel until it runs again, then the board's state as it was
 void sdlFfbPause(int paused)
 {
     if (!wheelMode)

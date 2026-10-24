@@ -104,7 +104,7 @@ int createDefaultIni(const char *filePath)
     fprintf(file, "# Windows: the folder everything is written to (or --write-dir); the loader's and the game's folders are then\n");
     fprintf(file, "# only read. Its root holds linuxloader.ini and controls.ini (copied there the first time), WRITE_DIR\\<game>\n");
     fprintf(file, "# the NVRAM, saves, logs, temporary files and compiled shaders; for a write filter (UWF) or games on a share.\n");
-    fprintf(file, "# For Example: C:\\Racecab\\Saves\\linuxloader\\single\nWRITE_DIR = \"\"\n\n");
+    fprintf(file, "# For Example: C:\\Racecab\\Saves\\linuxloader_single\nWRITE_DIR = \"\"\n\n");
     fprintf(file, "# If set, libCG.so needed for 2Spicy, Harley, Rambo and HOD-Ex shader recompilation\n");
     fprintf(file, "# will be loaded from the specified location. (include the name of file in the location ");
     fprintf(file, "For Example: /my/file/location/myLibCg.so)\nLIBCG_PATH = \"%s\"\n\n", defaults.libCgPath);
@@ -199,8 +199,10 @@ int createDefaultIni(const char *filePath)
     fprintf(file, "[Launcher]\n");
     fprintf(file, "# Folder the game picker lists when linuxloader starts without a game (empty: games next to the program)\n");
     fprintf(file, "GAMES_DIR = %s\n\n", defaults.gamesDir);
-    fprintf(file, "# Language of the picker and of the F10 settings: auto, en or fr\n");
+    fprintf(file, "# Language of the picker and of the Tab settings: auto, en or fr\n");
     fprintf(file, "LANGUAGE = %s\n\n", defaults.language);
+    fprintf(file, "# Set to false on a public cabinet: Tab no longer opens the settings over a running game (which pauses it)\n");
+    fprintf(file, "SETTINGS_MENU = %s\n\n", defaults.settingsMenu ? "true" : "false");
 
     // [Network]
     fprintf(file, "[Network]\n");

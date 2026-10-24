@@ -1,4 +1,4 @@
-// The options of each game, for the F10 window's "Game options" page. Each one is a field of the loader's settings,
+// The options of each game, for the Tab window's "Game options" page. Each one is a field of the loader's settings,
 // already read from its general key when there is one (EMULATE_DRIVEBOARD of [Emulation], [GameSpecific]...): the
 // game's [Game.<short name>] section is read over it (config.c), so that the page's choice is this game's alone.
 

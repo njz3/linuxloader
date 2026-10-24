@@ -474,7 +474,7 @@ void blitAgentPresent(void)
 }
 
 #ifdef _WIN32
-// F10: the game's thread waits here, inside its buffer swap, while the settings are open. The window shows the
+// Tab: the game's thread waits here, inside its buffer swap, while the settings are open. The window shows the
 // game's last picture with the settings over it; its sound and the wheel's forces stop meanwhile.
 static void blitSettingsPause(void)
 {

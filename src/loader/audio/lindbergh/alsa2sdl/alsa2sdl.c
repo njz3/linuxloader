@@ -56,9 +56,9 @@ typedef struct _snd_pcm_hw_params snd_pcm_hw_params_t;
 typedef struct _snd_pcm_sw_params snd_pcm_sw_params_t;
 
 static SDL_AudioDeviceID g_alsaDevice = 0;
-static bool g_alsaPaused = false; // F10 settings open: snd_pcm_start must not resume the device
+static bool g_alsaPaused = false; // Tab settings open: snd_pcm_start must not resume the device
 
-// F10 settings open: the game waits, and its sound with it
+// Tab settings open: the game waits, and its sound with it
 void alsaPause(int paused)
 {
     g_alsaPaused = paused != 0;
@@ -92,7 +92,7 @@ static void EnsureAudioInit()
     }
 }
 
-// The playback device, shared with Gaelco's sound board (hardware/gaelco/gaelcoSound.c): paused by F10 and silent in
+// The playback device, shared with Gaelco's sound board (hardware/gaelco/gaelcoSound.c): paused by Tab and silent in
 // --agent with the ALSA streams
 unsigned int alsaSharedDevice(void)
 {

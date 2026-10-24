@@ -209,7 +209,7 @@ uint8_t sdl12GetMouseState(int *x, int *y)
 
 // --- joysticks and events: the game's controls come through its I/O board (hardware/namco/deadHeatIo.c), fed by the
 // loader's input layer (controls.ini, the agent). Its own joystick path (digital pedals, no coin) is given no joystick,
-// so a controller is not read twice, and the events go to the loader (F10, F11, Esc, the bindings): the game gets
+// so a controller is not read twice, and the events go to the loader (Tab, F11, Esc, the bindings): the game gets
 // none, and reads its keyboard and mouse by SDL_GetKeyState and SDL_GetMouseState.
 
 int sdl12NumJoysticks(void)

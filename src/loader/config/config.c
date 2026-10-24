@@ -206,6 +206,7 @@ void setDefaultValues(EmulatorConfig *cfg)
     cfg->ffbInvert = 0;
     strcpy(cfg->gamesDir, "");
     strcpy(cfg->language, "auto");
+    cfg->settingsMenu = 1;
     strcpy(cfg->idIpSeat1, "");
     strcpy(cfg->idIpSeat2, "");
     strcpy(cfg->nicName, "");
@@ -509,6 +510,7 @@ void applyIniConfig(EmulatorConfig *config, const IniConfig *ini)
     config->ffbInvert = getInt(ini, "ForceFeedback", "FFB_INVERT", config->ffbInvert);
     getString(ini, "Launcher", "GAMES_DIR", config->gamesDir, MAX_PATH_LENGTH);
     getString(ini, "Launcher", "LANGUAGE", config->language, sizeof(config->language));
+    config->settingsMenu = getInt(ini, "Launcher", "SETTINGS_MENU", config->settingsMenu);
     getString(ini, "Network", "ID_IP_SEAT_1", config->idIpSeat1, 16);
     getString(ini, "Network", "ID_IP_SEAT_2", config->idIpSeat2, 16);
     getString(ini, "Network", "NIC_NAME", config->nicName, 20);
@@ -664,7 +666,7 @@ static void applyGameOptions(const IniConfig *ini)
     gameOptionsRemember();
 }
 
-// <short name>.ini in the folder of linuxloader.ini, the game's own settings (F10's "Save for this game", the picker)
+// <short name>.ini in the folder of linuxloader.ini, the game's own settings (Tab's "Save for this game", the picker)
 static void useGameConfigFile(char *filePath)
 {
     const char *name = strrchr(filePath, '/');

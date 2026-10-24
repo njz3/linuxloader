@@ -340,7 +340,7 @@ struct Picker
         }
 
         ImGui::TextUnformatted(gui::tr("Select a game"));
-        const char *hint = gui::tr("Enter: launch   F10: settings   F9: quit");
+        const char *hint = gui::tr("Enter: launch   Tab: settings   F9: quit");
         ImGui::SameLine(ImGui::GetWindowWidth() - ImGui::CalcTextSize(hint).x - ImGui::GetStyle().WindowPadding.x);
         ImGui::TextDisabled("%s", hint);
         ImGui::Separator();
@@ -349,7 +349,7 @@ struct Picker
         {
             ImGui::Spacing();
             ImGui::PushTextWrapPos(0.0f);
-            ImGui::Text(gui::tr("No game was found in %s. Set the games folder in Settings (F10) > Picker."), gamesDirShown.c_str());
+            ImGui::Text(gui::tr("No game was found in %s. Set the games folder in Settings (Tab) > Picker."), gamesDirShown.c_str());
             ImGui::PopTextWrapPos();
             ImGui::End();
             ImGui::PopStyleColor();
@@ -552,7 +552,7 @@ extern "C" int guiRunPicker(const char *programPath)
             {
                 if (event.key.key == SDLK_F9)
                     picker.quit = true;
-                else if (event.key.key == SDLK_F10 || (event.key.key == SDLK_ESCAPE && picker.settingsOpen))
+                else if (event.key.key == SDLK_TAB || (event.key.key == SDLK_ESCAPE && picker.settingsOpen))
                     picker.settingsOpen = !picker.settingsOpen;
             }
         }

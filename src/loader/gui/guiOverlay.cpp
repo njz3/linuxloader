@@ -1,4 +1,4 @@
-// The F10 settings window over a running game.
+// The Tab settings window over a running game.
 
 #include <glad/gl.h>
 #include <SDL3/SDL.h>
@@ -41,7 +41,8 @@ extern "C" int guiOverlayProcessEvent(const SDL_Event *event)
 {
     if (!g_ready)
         return 0;
-    if (event->type == SDL_EVENT_KEY_DOWN && event->key.key == SDLK_F10)
+    // Tab, unless [Launcher] SETTINGS_MENU = false (a public cabinet): then the key goes to the game
+    if (event->type == SDL_EVENT_KEY_DOWN && event->key.key == SDLK_TAB && getConfig()->settingsMenu)
     {
         if (!event->key.repeat)
             setOpen(!g_open);
@@ -138,7 +139,7 @@ extern "C" void guiOverlayRender(int width, int height)
     gui::newFrame();
     bool open = g_open;
     gui::drawSettings(&open, g_configFile, true);
-    const char *hint = gui::tr("Game paused - F10: close the settings");
+    const char *hint = gui::tr("Game paused - Tab: close the settings");
     // Behind the windows: a page over the whole window (a device's bindings) hides it
     ImGui::GetBackgroundDrawList()->AddText(ImVec2(8.0f, 8.0f), IM_COL32(220, 225, 235, 255), hint);
     gui::renderFrame(width, height);

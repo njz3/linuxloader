@@ -2455,7 +2455,7 @@ void saveGuidsToIni()
 }
 
 /**
- * @brief Loads the bindings again from the controls file, for a game already running (the F10 controls page).
+ * @brief Loads the bindings again from the controls file, for a game already running (the Tab controls page).
  * The devices stay as they were opened; only the bindings, the combinations and the [Config] settings change.
  */
 void sdlReloadBindings(const char *controlsPath)
