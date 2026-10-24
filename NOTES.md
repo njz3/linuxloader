@@ -95,6 +95,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 99 | 24/10 | (relayée par Image borne) Axes de vJoy lus en tout-ou-rien sur la borne ; convention du propriétaire : volant sur X, accélérateur sur Y-, frein sur Z- | ✅ deux corrections : quatre liaisons par entrée au lieu de deux, et le mode pédale `_POSITIVE_SIDE` / `_NEGATIVE_SIDE` (repos au centre de l'axe) ; mesuré par vJoy (voir journal) ; nouvelle release |
 | 98 | 24/10 | Le processus lancé attend la vraie fin après Test (AttractPlus attend avec `start /WAIT`) ; le menu passe de F10 à Tab, avec un réglage pour le couper ; puis une nouvelle release | ✅ le processus lancé devient un superviseur qui lance le jeu, le menu de test et le jeu à nouveau, chacun dans son processus ; Tab au lieu de F10 (jeu et sélecteur), `[Launcher] SETTINGS_MENU = false` le coupe ; essayé sur OutRun en fenêtre visible (voir journal) |
 | 97 | 24/10 | (relayée par Image borne) Build de release pour les bornes | ✅ `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261024-njz3-win32.zip` (commit `c55db17`) ; changements et comportements à surveiller envoyés à Image borne (voir journal) |
 | 96 | 24/10 | Trouver pourquoi Maximum Tune 3 et 3DX+ ne marchent pas en MSVC | ✅ deux causes, corrigées : le mode `rt` d'`fopen` devenait `rtb`, refusé par la bibliothèque C de MSVC (table des cinématiques jamais lue, cinématique de 0 image, caméra nulle) ; et un rival sans personnage recevait un point de départ fait de locales non initialisées. Les deux jeux se jouent en MSVC (voir journal) |
@@ -131,6 +132,25 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Axes de vJoy sur la borne, pédales sur un côté de l'axe (demande 99)
+- Constat d'Image borne (Sega Race TV, écran INPUT TEST) : volant et accélérateur en tout-ou-rien, frein muet.
+  Cause : une entrée physique ne portait que deux liaisons ; un axe qui portait déjà deux liaisons tout-ou-rien
+  (`Left`/`Right`, `P1_Steer_Left`/`Right`… sur `JOY0_AXIS_0_NEGATIVE`/`POSITIVE`) rejetait la liaison analogique
+  qui suivait, avec « ERROR: Cannot bind more than two actions to axis » dans la sortie d'erreur. Pour un jeu de
+  course, seules `[Common]` et `[Driving]` sont lues (pas `[Digital]` : ma première réponse s'était trompée de section,
+  corrigée auprès d'Image borne).
+- Quatre liaisons par entrée (`MAX_INPUT_BINDINGS`, `sdlInput.h`) : le volant et les directions des menus, une pédale
+  et le haut/bas des menus tiennent sur le même axe.
+- Mode pédale sur un côté de l'axe : `_NEGATIVE_SIDE` (repos au centre, pédale vers le minimum : le `_NEG` de
+  Supermodel, l'accélérateur sur Y- et le frein sur Z- de la convention des bornes) et `_POSITIVE_SIDE`. Valeur 0 au
+  centre, 1 au bout de ce côté, l'autre côté compte comme repos ; axes Joystick et Gamepad ; aussi écrit par
+  `--create controls` et montré « - (pédale) » dans la page Contrôles. `_NEGATIVE_HALF`, lui, reste la moitié d'un axe
+  combiné (deux gâchettes sur une même action) et ne donne rien seul.
+- Mesuré par vJoy, OutRun en mode agent (le mode agent ignore les manettes : une aide temporaire les laissait passer,
+  retirée), `[Driving]` avec `Left`/`Right` sur l'axe 0 et `Up`/`Down` sur l'axe 1 en plus des entrées analogiques :
+  volant 0, 255, 511, 767, 1023 pour X à 0 / 0,25 / 0,5 / 0,75 / 1, Left et Right fermés aux deux bouts ;
+  accélérateur `JOY0_AXIS_1_NEGATIVE_SIDE` 0 au centre, 511 à 0,25, 1022 à 0, 0 du côté positif ; frein sur Z de même.
 
 ### Test sous un frontend, menu sur Tab (demande 98)
 - **Bouton Test** : AttractPlus lance chaque jeu par `cmd /c start "[nom]" /WAIT Run…Game.cmd` et revient à son menu
