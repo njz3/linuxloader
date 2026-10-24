@@ -53,7 +53,7 @@ Racers 2071).
 
 ## Cartes réelles et modes d'affichage (23/10)
 
-- **Passthrough série** (F10 > Options du jeu > Cartes) : carte moteur du volant, carte de mouvement d'OutRun SP
+- **Passthrough série** (Tab > Options du jeu > Cartes) : carte moteur du volant, carte de mouvement d'OutRun SP
   SDX et carte JVS, chacune « Émulée » ou « Vraie carte sur COMn » ; sous Windows le port COM est réglé comme le
   jeu règle son port Linux. Vérifié sur OutRun SDX avec un faux boîtier de l'autre côté d'une paire virtuelle
   (COM10/COM11) : la carte moteur et le JVS dialoguent, les pièces s'affichent. Pas encore essayé avec de vraies
@@ -225,7 +225,7 @@ Racers 2071).
   démo, moteur et musique en course. Les mixeurs SSE d'OpenAL Soft sont coupés pour ce jeu : ils supposent une pile
   alignée sur 16 octets que leur thread n'a pas toujours (plantage une fois sur deux vers la 27e seconde).
 - Paramètres : `tmp/data/testmode.lua`, `bookkeeping.lua`, `cardbackup.lua` écrits dans le dossier du jeu.
-- **Options du jeu** (F10) : « Jouer sans le lecteur de cartes », coché par défaut : le jeu se joue sans carte
+- **Options du jeu** (Tab) : « Jouer sans le lecteur de cartes », coché par défaut : le jeu se joue sans carte
   dès la première fois, sans passer par CARD R/W dans son menu de test (`[Game.mt3] NO_CARD_READER`). Décoché, c'est
   CARD R/W qui décide (à ON : les cartes ci-dessus).
 - **Build MSVC** : la course se bloquait au chargement (thread de course sans fin dans
@@ -264,7 +264,7 @@ Racers 2071).
   d'origine), panoramique sur 4 sorties (0 gauche, 1 droite ; 2 et 3 non entendues), volume et vitesse de rampe,
   keyoff (fondu), stop ; commandes d'interface : volume général (le réglage du jeu au carré, 0,25 par défaut), balance,
   voies en cours, `sound_start`, tampon prêt.
-- `gaelcoSound.c` mixe en stéréo sur le périphérique audio du loader : mis en pause par F10, muet en mode agent caché.
+- `gaelcoSound.c` mixe en stéréo sur le périphérique audio du loader : mis en pause par Tab, muet en mode agent caché.
   `LL_SOUND_WAV=<fichier>` enregistre ce que joue la carte (vérification sans écouter).
 - Vérifié par captures (MinGW et MSVC) : Tuning, la musique de la démo à la hauteur et au niveau exacts, puis menus et
   course ; Ring Riders et Tokyo Cop, démo et partie. Pas encore écouté sur les haut-parleurs.

@@ -95,6 +95,8 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 98 | 24/10 | Le processus lancé attend la vraie fin après Test (AttractPlus attend avec `start /WAIT`) ; le menu passe de F10 à Tab, avec un réglage pour le couper ; puis une nouvelle release | ✅ le processus lancé devient un superviseur qui lance le jeu, le menu de test et le jeu à nouveau, chacun dans son processus ; Tab au lieu de F10 (jeu et sélecteur), `[Launcher] SETTINGS_MENU = false` le coupe ; essayé sur OutRun en fenêtre visible (voir journal) |
+| 97 | 24/10 | (relayée par Image borne) Build de release pour les bornes | ✅ `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261024-njz3-win32.zip` (commit `c55db17`) ; changements et comportements à surveiller envoyés à Image borne (voir journal) |
 | 96 | 24/10 | Trouver pourquoi Maximum Tune 3 et 3DX+ ne marchent pas en MSVC | ✅ deux causes, corrigées : le mode `rt` d'`fopen` devenait `rtb`, refusé par la bibliothèque C de MSVC (table des cinématiques jamais lue, cinématique de 0 image, caméra nulle) ; et un rival sans personnage recevait un point de départ fait de locales non initialisées. Les deux jeux se jouent en MSVC (voir journal) |
 | 95 | 23/10 | Commit ? « Attends d'avoir fait tous les jeux » | ✅ les manques de chaque jeu repris : cartes de Maximum Tune 3DX+ et son jeu sans lecteur ✅, Initial D 5 ✅ (FFB, menu de test, HUD, vJoy), Dead Heat ✅ (course MinGW et MSVC, menu de test, vJoy) ; courses de Maximum Tune 3 et 3DX+ en MSVC ⚠️ (cause cherchée, pas corrigée ; MinGW les joue) ; commit à faire |
 | 87 | 23/10 | Demander à windowsloader comment émuler le dongle USB de Cruis'n Blast 1.x | ✅ il ne l'a jamais étudié ; profil TeknoParrot ElfLdr2 / RawThrillsFNF sans réglage de dongle ; sa méthode : remplacer la fonction du jeu qui lit la clé |
@@ -129,6 +131,48 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Test sous un frontend, menu sur Tab (demande 98)
+- **Bouton Test** : AttractPlus lance chaque jeu par `cmd /c start "[nom]" /WAIT Run…Game.cmd` et revient à son menu
+  quand le processus lancé se termine. Jusqu'ici, Test faisait quitter le jeu et le loader se relançait en `-t` dans
+  un nouveau processus : le processus lancé se terminait, AttractPlus revenait à son menu pendant que le menu de test,
+  puis le jeu, tournaient derrière.
+- Le processus lancé (hors `--agent`) devient le superviseur (`segabootSupervise`, `mainW.cpp`) : il ne charge pas le
+  jeu, il relance le même exe avec les mêmes arguments et `--segaboot-child`, dans un job Windows qui tue les enfants
+  s'il est arrêté, attend la fin et lit le code de sortie. Le jeu qui quitte après Test rend `0x5E6A0001` (le menu
+  de test ensuite, `-t`), le menu de test qui se termine `0x5E6A0002` (le jeu à nouveau) ; tout autre code (ExitGame,
+  fenêtre fermée, plantage) termine le superviseur avec ce code. Au plus deux processus ; les enfants gardent la
+  console et les sorties standard du superviseur (une redirection du `.cmd` reçoit tout). Arguments recopiés avec le
+  guillemetage de `CommandLineToArgvW` (un chemin finissant par `\`).
+- Essayé sur OutRun en fenêtre visible, Test par vJoy : processus lancé vivant de bout en bout ; jeu, puis menu de test
+  (« OUTRUN2SP SDX GAME TEST MENU », curseur sur EXIT), puis Test sur EXIT et le jeu relancé (« PRESS START
+  BUTTON ») ; arrêter le seul processus lancé arrête aussi le programme en cours (job).
+- **Menu** : Tab au lieu de F10 pour les réglages par-dessus le jeu (qui le mettent en pause) et dans le sélecteur,
+  comme Flycast, windowsloader et Supermodel (consigne du propriétaire relayée par Image borne). `[Launcher]
+  SETTINGS_MENU = false` le coupe (borne publique) : Tab va alors au jeu. Textes et commentaires suivent (F10 → Tab).
+  Vérifié à l'écran : Tab ouvre « Jeu en pause - Tab : fermer les paramètres », Tab referme et le jeu reprend.
+  `SETTINGS_MENU = false` : lu (journal « --set Launcher.SETTINGS_MENU = false »), pas vu à l'écran (fenêtre noire
+  à la capture dans les deux essais, image normale en mode agent).
+- Exemple de `WRITE_DIR` aligné sur la convention de l'image : `C:\Racecab\Saves\linuxloader_single`.
+
+### Release Windows du 24/10 (demande 97)
+- Même procédure que les demandes 19 et 30 : build MinGW Release recompilé de zéro (`build-mingw`, Ninja), version
+  3.0.12 de `docs/changelog` écrite dans `version.h` le temps du build (fichier remis ensuite), zip avec
+  `linuxloader.exe` et `ll-deps/` (dont `libgcc_s_dw2-1.dll` et `libwinpthread-1.dll` de MSYS2). Contenu : commit
+  `c55db17` exactement, rien de local.
+- `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261024-njz3-win32.zip`, 18,3 Mo ; SHA-256 du zip
+  `c288d27c87d84effd7958ce859d587edcc782178670787fb2a37474571dfc48f`, de `linuxloader.exe`
+  `872cd87c852a4c0731a584a631121d4a57824a42f4a8effc3e41e54c4cfe9ee5`. `--version` dit toujours `v3.0.12` (la
+  version d'upstream) : l'empreinte distingue les releases.
+- `ll-deps` : une bibliothèque de plus que le 20/10, `libstdc++.so.6.0.14` (Dead Heat Riders) ; les autres fichiers
+  sont identiques. Réglages par défaut inchangés (fenêtre, `ASPECT_RATIO = ORIGINAL`, `WRITE_DIR` vide).
+- Testé depuis le zip extrait dans un dossier vierge, sans ini : `--version`, OutRun jusqu'au choix du pilote,
+  Maximum Tune 3 jusqu'en course (mode agent).
+- Comportements à surveiller sur une borne, envoyés à Image borne : Test relance le loader en `-t` dans un nouveau
+  processus (le processus lancé se termine), `FULLSCREEN` change la résolution de l'écran (l'ancien plein écran est
+  `BORDERLESS`), `ASPECT_RATIO = 4:3`/`16:9` met des bandes noires (l'ancien remplissage est `4:3_STRETCH`), titre de
+  fenêtre « titre [nom court] - FPS: n », FFB par défaut pour Initial D 4 Japon et 5, interrupteur Test des jeux
+  Namco, F10 inchangé (pause, sans réglage pour le couper).
 
 ### Maximum Tune 3 et 3DX+ en MSVC (demande 96)
 - Avant chaque course du mode Story, le jeu joue une cinématique temps réel (`clRTMovie`, journal du jeu
