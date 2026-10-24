@@ -83,8 +83,9 @@ static char s_linuxRoot[MAX_PATH] = "";
 static void findLinuxRoot(void)
 {
     static const char *const subdirs[] = {"home", "etc", "lib", "bin"};
+    // From the game's folder: with a write folder, the current one is already WRITE_DIR\<game>
     char dir[MAX_PATH];
-    if (!_getcwd(dir, sizeof(dir)))
+    if (!writeDirGameFolder(dir, sizeof(dir)) && !_getcwd(dir, sizeof(dir)))
         return;
     for (;;)
     {
@@ -117,7 +118,7 @@ static const char *linuxRooted(const char *src, char *buffer, size_t size)
     static bool s_searched = false;
     if (!s_searched)
     {
-        s_searched = true; // before the game's first chdir: the loader is in its folder
+        s_searched = true; // before the game's own chdir
         findLinuxRoot();
     }
     if (s_linuxRoot[0] == '\0' || src[0] != '/' || strncmp(src, "/dev/", 5) == 0 || strncmp(src, "/proc/", 6) == 0 ||

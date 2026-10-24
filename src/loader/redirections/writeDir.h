@@ -22,6 +22,8 @@ extern "C"
     // Once the game is known, before it runs: WRITE_DIR\<game> made and made the current folder.
     void writeDirEnterGame(const char *gameName);
     int writeDirActive(void);
+    // The game's folder, the current one before writeDirEnterGame: 0 when the write folder is not in use
+    int writeDirGameFolder(char *buffer, size_t size);
 
     // The path to read: WRITE_DIR\<game>'s file when it is there, else the game folder's. Paths other than the game's
     // (devices, other folders) come back as they are.

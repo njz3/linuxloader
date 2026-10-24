@@ -125,6 +125,14 @@ int writeDirActive(void)
     return active;
 }
 
+int writeDirGameFolder(char *buffer, size_t size)
+{
+    if (!active)
+        return 0;
+    snprintf(buffer, size, "%s", gameDir);
+    return 1;
+}
+
 const char *writeDirForRead(const char *path, char *buffer, size_t size)
 {
     char relative[MAX_PATH], gameSide[MAX_PATH];
@@ -347,6 +355,13 @@ void writeDirEnterGame(const char *gameName)
 
 int writeDirActive(void)
 {
+    return 0;
+}
+
+int writeDirGameFolder(char *buffer, size_t size)
+{
+    (void)buffer;
+    (void)size;
     return 0;
 }
 
