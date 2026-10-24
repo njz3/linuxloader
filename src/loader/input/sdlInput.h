@@ -117,7 +117,9 @@ typedef enum
     AXIS_MODE_FULL,
     AXIS_MODE_POSITIVE_HALF,
     AXIS_MODE_NEGATIVE_HALF,
-    AXIS_MODE_DIGITAL
+    AXIS_MODE_DIGITAL,
+    AXIS_MODE_POSITIVE_SIDE, // _POSITIVE_SIDE: a pedal resting at the axis' centre, pressed towards its maximum
+    AXIS_MODE_NEGATIVE_SIDE  // _NEGATIVE_SIDE: resting at the centre, pressed towards its minimum (Supermodel's _NEG)
 } AxisMode;
 
 #define MAX_COMBINATION_GROUPS 64
@@ -145,9 +147,13 @@ typedef struct
     int comboInputIndex;
 } ControlBinding;
 
+// The actions one physical input can drive: a wheel's axis carries the steering and the menus' left and right, a
+// pedal's axis the gas and the menus' up and down
+#define MAX_INPUT_BINDINGS 4
+
 typedef struct
 {
-    ControlBinding bindings[2];
+    ControlBinding bindings[MAX_INPUT_BINDINGS];
 } BindingPair;
 
 typedef struct

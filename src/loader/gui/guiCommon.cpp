@@ -275,6 +275,7 @@ const std::unordered_map<std::string, const char *> &frenchTexts()
         {"left", "gauche"},
         {"right", "droite"},
         {" (half)", " (moitié)"},
+        {" (pedal)", " (pédale)"},
         {" (inverted)", " (inversé)"},
         {"Left button", "Bouton gauche"},
         {"Right button", "Bouton droit"},

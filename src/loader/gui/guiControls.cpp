@@ -329,6 +329,10 @@ std::string axisSuffix(const char *suffix)
         return std::string(" +") + tr(" (half)");
     if (strcmp(suffix, "_NEGATIVE_HALF") == 0)
         return std::string(" -") + tr(" (half)");
+    if (strcmp(suffix, "_POSITIVE_SIDE") == 0)
+        return std::string(" +") + tr(" (pedal)");
+    if (strcmp(suffix, "_NEGATIVE_SIDE") == 0)
+        return std::string(" -") + tr(" (pedal)");
     if (strcmp(suffix, "_INVERTED") == 0)
         return tr(" (inverted)");
     return suffix;

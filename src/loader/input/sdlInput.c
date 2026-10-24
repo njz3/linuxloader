@@ -801,28 +801,19 @@ void addBinding(ControlBinding binding)
 
         if (pair)
         {
-            if (pair->bindings[0].type == INPUT_TYPE_NONE)
-            {
-                pair->bindings[0] = binding;
-            }
-            else if (pair->bindings[1].type == INPUT_TYPE_NONE)
-            {
-                pair->bindings[1] = binding;
-            }
-            else if (pair->bindings[0].action == binding.action && pair->bindings[0].player == binding.player)
-            {
-                pair->bindings[0] = binding;
-            }
-            else if (pair->bindings[1].action == binding.action && pair->bindings[1].player == binding.player)
-            {
-                pair->bindings[1] = binding;
-            }
+            // A free slot, else the one of the same action (given again, the binding replaces it)
+            int slot = -1;
+            for (int i = 0; i < MAX_INPUT_BINDINGS && slot < 0; i++)
+                if (pair->bindings[i].type == INPUT_TYPE_NONE)
+                    slot = i;
+            for (int i = 0; i < MAX_INPUT_BINDINGS && slot < 0; i++)
+                if (pair->bindings[i].action == binding.action && pair->bindings[i].player == binding.player)
+                    slot = i;
+            if (slot >= 0)
+                pair->bindings[slot] = binding;
             else
-            {
-                getLogicalActionString(&pair->bindings[0], name1, sizeof(name1), "");
-                getLogicalActionString(&binding, name2, sizeof(name2), "");
-                fprintf(stderr, "ERROR: Cannot bind more than two actions to '%s'. Please fix controls.ini.\n", inputName);
-            }
+                fprintf(stderr, "ERROR: Cannot bind more than %d actions to '%s'. Please fix controls.ini.\n",
+                        MAX_INPUT_BINDINGS, inputName);
         }
         return;
     }
@@ -864,7 +855,7 @@ void addBinding(ControlBinding binding)
         return;
     }
 
-    // Special handling for axis types to allow two bindings per physical axis.
+    // Axes: up to MAX_INPUT_BINDINGS bindings per physical axis (the steering and the menus' left and right...)
     BindingPair *pair = NULL;
     int devIdx = binding.deviceIndex;
     int axisId = binding.sdlId;
@@ -888,25 +879,24 @@ void addBinding(ControlBinding binding)
 
     if (pair)
     {
-        // Find an empty slot in the pair to place the binding.
-        if (pair->bindings[0].type == INPUT_TYPE_NONE)
+        int slot = -1;
+        for (int i = 0; i < MAX_INPUT_BINDINGS && slot < 0; i++)
+            if (pair->bindings[i].type == INPUT_TYPE_NONE)
+                slot = i;
+        if (slot < 0)
         {
-            pair->bindings[0] = binding;
+            fprintf(stderr, "ERROR: Cannot bind more than %d actions to axis '%s'. Please fix controls.ini.\n",
+                    MAX_INPUT_BINDINGS, inputName);
+            return;
         }
-        else if (pair->bindings[1].type == INPUT_TYPE_NONE)
-        {
-            // Check for redundant bindings before adding.
-            if (pair->bindings[0].action == binding.action)
+        for (int i = 0; i < slot; i++)
+            if (pair->bindings[i].action == binding.action)
             {
                 getLogicalActionString(&binding, name1, sizeof(name1), "");
                 fprintf(stderr, "WARNING: Redundant binding for '%s' on action '%s'. Check controls.ini.\n", inputName, name1);
+                break;
             }
-            pair->bindings[1] = binding;
-        }
-        else
-        {
-            fprintf(stderr, "ERROR: Cannot bind more than two actions to axis '%s'. Please fix controls.ini.\n", inputName);
-        }
+        pair->bindings[slot] = binding;
     }
 }
 
@@ -993,6 +983,16 @@ void setDefaultMappings()
     }
 }
 
+// A pedal on one side of an axis (_POSITIVE_SIDE, _NEGATIVE_SIDE): 0 at rest in the centre, 1 at that side's end; the
+// other side counts as at rest. How the cabinets' wheel software presents the pedals (gas on Y-, brake on Z-).
+static float axisSideValue(int value, int deadZone, AxisMode mode)
+{
+    float side = mode == AXIS_MODE_NEGATIVE_SIDE ? -(float)value / 32768.0f : (float)value / 32767.0f;
+    if (abs(value) < deadZone || side < 0.0f)
+        return 0.0f;
+    return side > 1.0f ? 1.0f : side;
+}
+
 /**
  * @brief Parses a single input source string (e.g., "KEY_A", "JOY0_AXIS_0_NEGATIVE")
  * and creates a ControlBinding for it.
@@ -1048,7 +1048,15 @@ void parseSdlSource(const char *token, JVSPlayer player, LogicalAction action, i
                 map.type = INPUT_TYPE_GAMEPAD_AXIS;
                 map.sdlId = SDL_GetGamepadAxisFromString(nameStr);
                 // Check for axis mode suffixes
-                if (strstr(mutableToken, "_POSITIVE_HALF"))
+                if (strstr(mutableToken, "_POSITIVE_SIDE"))
+                {
+                    map.axisMode = AXIS_MODE_POSITIVE_SIDE;
+                }
+                else if (strstr(mutableToken, "_NEGATIVE_SIDE"))
+                {
+                    map.axisMode = AXIS_MODE_NEGATIVE_SIDE;
+                }
+                else if (strstr(mutableToken, "_POSITIVE_HALF"))
                 {
                     map.axisMode = AXIS_MODE_POSITIVE_HALF;
                 }
@@ -1088,7 +1096,11 @@ void parseSdlSource(const char *token, JVSPlayer player, LogicalAction action, i
             map.type = INPUT_TYPE_JOY_AXIS;
             map.deviceIndex = devId;
             map.sdlId = compId;
-            if (strstr(mutableToken, "_POSITIVE_HALF"))
+            if (strstr(mutableToken, "_POSITIVE_SIDE"))
+                map.axisMode = AXIS_MODE_POSITIVE_SIDE;
+            else if (strstr(mutableToken, "_NEGATIVE_SIDE"))
+                map.axisMode = AXIS_MODE_NEGATIVE_SIDE;
+            else if (strstr(mutableToken, "_POSITIVE_HALF"))
                 map.axisMode = AXIS_MODE_POSITIVE_HALF;
             else if (strstr(mutableToken, "_NEGATIVE_HALF"))
                 map.axisMode = AXIS_MODE_NEGATIVE_HALF;
@@ -1671,7 +1683,7 @@ void processSdlEvent(const SDL_Event *e)
         {
             log_debug("Key: %s, %d", SDL_GetScancodeName(e->key.scancode), e->key.scancode);
             BindingPair *keyPair = &gKeyBindings[e->key.scancode];
-            for (int i = 0; i < 2; i++)
+            for (int i = 0; i < MAX_INPUT_BINDINGS; i++)
             {
                 ControlBinding *binding = &keyPair->bindings[i];
                 if (binding->type != INPUT_TYPE_NONE)
@@ -1690,7 +1702,7 @@ void processSdlEvent(const SDL_Event *e)
             if (devIdx != -1 && e->jbutton.button < MAX_JOY_BUTTONS)
             {
                 BindingPair *joyBtnPair = &gJoyButtonBindings[devIdx][e->jbutton.button];
-                for (int i = 0; i < 2; i++)
+                for (int i = 0; i < MAX_INPUT_BINDINGS; i++)
                 {
                     ControlBinding *binding = &joyBtnPair->bindings[i];
                     if (binding->type != INPUT_TYPE_NONE)
@@ -1710,7 +1722,7 @@ void processSdlEvent(const SDL_Event *e)
             if (devIdx != -1 && e->gbutton.button < SDL_GAMEPAD_BUTTON_COUNT)
             {
                 BindingPair *gcBtnPair = &gControllerButtonBindings[devIdx][e->gbutton.button];
-                for (int i = 0; i < 2; i++)
+                for (int i = 0; i < MAX_INPUT_BINDINGS; i++)
                 {
                     ControlBinding *binding = &gcBtnPair->bindings[i];
                     if (binding->type != INPUT_TYPE_NONE)
@@ -1729,7 +1741,7 @@ void processSdlEvent(const SDL_Event *e)
             if (devIdx != -1 && e->jaxis.axis < MAX_JOY_AXES)
             {
                 BindingPair *pair = &gJoyAxisBindings[devIdx][e->jaxis.axis];
-                for (int i = 0; i < 2; i++) // Loop over the pair of possible bindings
+                for (int i = 0; i < MAX_INPUT_BINDINGS; i++)
                 {
                     ControlBinding *binding = &pair->bindings[i];
                     if (binding->type == INPUT_TYPE_NONE)
@@ -1755,7 +1767,11 @@ void processSdlEvent(const SDL_Event *e)
                     }
                     else
                     {
-                        if (gActionProperties[binding->player][binding->action].isCentering)
+                        if (binding->axisMode == AXIS_MODE_POSITIVE_SIDE || binding->axisMode == AXIS_MODE_NEGATIVE_SIDE)
+                        {
+                            newVal = axisSideValue(e->jaxis.value, dead_zone, binding->axisMode);
+                        }
+                        else if (gActionProperties[binding->player][binding->action].isCentering)
                         {
                             newVal = (abs(e->jaxis.value) < dead_zone) ? 0.5f : (float)(e->jaxis.value + 32768) / 65535.0f;
                         }
@@ -1814,7 +1830,7 @@ void processSdlEvent(const SDL_Event *e)
             if (devIdx != -1 && e->gaxis.axis < SDL_GAMEPAD_AXIS_COUNT)
             {
                 BindingPair *pair = &gControllerAxisBindings[devIdx][e->gaxis.axis];
-                for (int i = 0; i < 2; i++)
+                for (int i = 0; i < MAX_INPUT_BINDINGS; i++)
                 {
                     ControlBinding *binding = &pair->bindings[i];
                     if (binding->type == INPUT_TYPE_NONE)
@@ -1842,7 +1858,11 @@ void processSdlEvent(const SDL_Event *e)
                         bool isTrigger =
                             (e->gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER || e->gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
 
-                        if (gActionProperties[binding->player][binding->action].isCentering && !isTrigger)
+                        if (binding->axisMode == AXIS_MODE_POSITIVE_SIDE || binding->axisMode == AXIS_MODE_NEGATIVE_SIDE)
+                        {
+                            newVal = axisSideValue(e->gaxis.value, deadZone, binding->axisMode);
+                        }
+                        else if (gActionProperties[binding->player][binding->action].isCentering && !isTrigger)
                         {
                             newVal = (abs(e->gaxis.value) < deadZone) ? 0.5f : (float)(e->gaxis.value + 32768) / 65535.0f;
                         }
@@ -1915,7 +1935,7 @@ void processSdlEvent(const SDL_Event *e)
             if (e->button.button < MAX_MOUSE_BUTTONS)
             {
                 BindingPair *mouseBtnPair = &gMouseButtonBindings[e->button.button];
-                for (int mi = 0; mi < 2; mi++)
+                for (int mi = 0; mi < MAX_INPUT_BINDINGS; mi++)
                 {
                     ControlBinding *binding = &mouseBtnPair->bindings[mi];
                     if (binding->type != INPUT_TYPE_NONE)
@@ -2089,13 +2109,14 @@ void processSdlEvent(const SDL_Event *e)
 static void scan_axis_bindings(BindingPair *pair, bool hasFullAxis[], bool hasHalfSxis[], bool hasPositive[][NUM_LOGICAL_ACTIONS],
                                bool hasNegative[][NUM_LOGICAL_ACTIONS])
 {
-    for (int k = 0; k < 2; k++)
+    for (int k = 0; k < MAX_INPUT_BINDINGS; k++)
     {
         ControlBinding *binding = &pair->bindings[k];
         if (binding->type == INPUT_TYPE_NONE)
             continue;
 
-        if (binding->axisMode == AXIS_MODE_FULL)
+        if (binding->axisMode == AXIS_MODE_FULL || binding->axisMode == AXIS_MODE_POSITIVE_SIDE ||
+            binding->axisMode == AXIS_MODE_NEGATIVE_SIDE)
         {
             hasFullAxis[binding->action] = true;
         }

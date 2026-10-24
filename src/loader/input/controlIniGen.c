@@ -317,6 +317,12 @@ static void getBindingString(const ControlBinding *binding, char *buffer, size_t
                 case AXIS_MODE_NEGATIVE_HALF:
                     snprintf(temp_buffer, sizeof(temp_buffer), "%s_NEGATIVE_HALF", prefix);
                     break;
+                case AXIS_MODE_POSITIVE_SIDE:
+                    snprintf(temp_buffer, sizeof(temp_buffer), "%s_POSITIVE_SIDE", prefix);
+                    break;
+                case AXIS_MODE_NEGATIVE_SIDE:
+                    snprintf(temp_buffer, sizeof(temp_buffer), "%s_NEGATIVE_SIDE", prefix);
+                    break;
                 case AXIS_MODE_FULL:
                 default:
                     strcpy(temp_buffer, prefix);
