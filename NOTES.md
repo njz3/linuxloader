@@ -95,6 +95,8 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 104 | 24/10 | Corriger les bugs, faire une nouvelle release pour Image borne | ✅ trois correctifs (dlopen d'un nom nu, racine de l'image Linux, adresse de SEGA Race TV), chacun reproduit avec la release -4 puis corrigé, MinGW et MSVC ; `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261024-5-njz3-win32.zip` (commit `1c0adde`) ; Image borne prévenue (voir journal) |
+| 103 | 24/10 | Diagnostiquer avec Image borne les jeux qui ne marchent pas ou n'ont pas de retour de force sur la borne | ✅ ses journaux `LL_LOG=info` : WMMT3 et 3DX+, Gaelco Championship Tuning Race, Ring Riders et Tokyo Cop échouent seulement avec le dossier d'écriture ; SEGA Race TV meurt à cause de `SRTV_IPADDRESS = 192.168.1.2` du fichier par défaut ; retour de force : câblage bon (joystick 0 = vJoy, mode volant), mesures à zéro sans doute hors course, à refaire avec l'enregistreur `vjoy_driver.py` (voir journal) |
 | 102 | 24/10 | Faire la release et prévenir Image borne | ✅ `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261024-4-njz3-win32.zip` (commit `5b2f467`) ; Image borne prévenue (voir journal) |
 | 101 | 24/10 | Corriger le point A de la campagne d'Image borne (SetErrorMode, pas de LoadLibrary sur un fichier ELF) et ajouter la phrase sur le dossier d'écriture dans les fichiers par défaut | ✅ plus de boîte système Windows (le processus et ceux qu'il lance) ; une bibliothèque Linux au nom en `.dll` va directement au chargeur ELF ; les `linuxloader.ini` et `controls.ini` neufs disent que, avec un dossier d'écriture, ce sont les copies de ce dossier qui sont lues (voir journal) |
 | 100 | 24/10 | Faire le ménage ; demander à Image borne de retirer les fichiers FFB Plugin des jeux que linuxloader prend entièrement en charge | ✅ copies locales à la Corbeille ; demande transmise ; le propriétaire a dit oui à Image borne, qui a déplacé les fichiers des seize jeux sur les deux bornes (189 éléments sur racecab1, 180 sur racecab2) dans des dossiers `_teknoparrot_off`, avec un manifeste pour tout remettre (`C:\Racecab\Utils\ffbplugin_off.ps1 -Remettre`) |
@@ -135,6 +137,47 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Échecs sur la borne : dossier d'écriture et adresse de SEGA Race TV (demandes 103 et 104)
+- Diagnostic avec Image borne, release -4 sur racecab1, journaux `LL_LOG=info`. Sans `--write-dir`, WMMT3, Gaelco
+  Championship Tuning Race et Ring Riders tournent ; avec, ils meurent. Image borne a coupé le dossier d'écriture
+  sur les deux bornes en attendant la correction.
+- WMMT3 et 3DX+ : « Library file not found at path: WRITE_DIR\mt3\libCg.so », puis « Unresolved symbol called:
+  cgCreateContext ». `sharedDlopen` (`libcShared.c`) passait tout nom par `writeDirForRead`, même un nom nu : le
+  fichier n'existant d'aucun côté, il revenait avec le chemin du dossier d'écriture, et ce chemin absolu ne
+  correspondait plus à la substitution `libCg.so` -> `Cg.dll`. Comme sous Linux, seul un nom avec une barre est
+  maintenant un chemin.
+- Gaelco Championship Tuning Race, Ring Riders (et Tokyo Cop, « Unable to open file! », même famille) : « Unable to
+  open file (/home/joc2001/joc2003/salidas/base.tex) », puis `exit`. `findLinuxRoot` (`filesystemShared.c`) cherche
+  la racine de l'image Linux en remontant depuis le dossier courant, au premier accès fichier ; avec le dossier
+  d'écriture, ce dossier est déjà `WRITE_DIR\<jeu>`. La recherche part maintenant du dossier du jeu
+  (`writeDirGameFolder`, `writeDir.c`).
+- SEGA Race TV : mort vers 42 s après une rafale de `socket`, sans ligne `FATAL`. Le `linuxloader.ini` par défaut
+  écrit `SRTV_IPADDRESS = "192.168.1.2"` depuis le premier commit d'upstream ; une adresse qui n'est pas celle du PC
+  fait mourir le jeu dans `klib::lan::GetLanParam` (les bornes sont en .4 et .5 ; mes ini avaient le champ vide ou
+  127.0.0.1). Le défaut est maintenant vide, et `sharedSrtvAddress` remplace par 127.0.0.1, avec un avertissement,
+  une adresse à laquelle aucun socket ne se lie : les ini déjà écrits marchent. Image borne avait aussi vidé le champ
+  sur les bornes en contournement.
+- Retour de force : chaque jeu journalise « FFB: Haptic opened from joystick 0 (… vJoy …) » puis « Wheel mode » sur
+  la borne ; les 40 paquets identiques des trois Initial D ressemblent à la création des effets, les zéros des autres
+  à une mesure hors course. À refaire en course, en `BORDERLESS`, avec `vjoy_driver.py` (pédales au centre au départ
+  selon la convention des bornes), une fois les deux boîtes « Image incorrecte » de la release -3 fermées à la main.
+- Essais sur copies reprises du partage (sans les fichiers FFB Plugin, déplacés par Image borne), en mode agent caché,
+  chaque échec d'abord reproduit avec l'exe de la release -4 :
+  - Ring Riders avec `--write-dir` : -4 « Unable to open file (…/base.tex) » puis `exit(0)` ; corrigé, MinGW et MSVC,
+    « Linux disk image: absolute paths taken in … », attract « INSERT COIN » à 57 i/s, aucune ligne `ERROR`, seuls
+    `eeprom.bin` et `sram.bin` écrits, dans le dossier d'écriture ;
+  - Maximum Tune 3 avec `--write-dir` : -4 « Unresolved symbol called: cgCreateContext (Caller: 08aeb69a) », comme sur
+    la borne ; corrigé, MinGW et MSVC, `ll-deps\Cg.dll` chargé, attract à 60 i/s (le bandeau « Card reader not
+    functional » vient du réglage de carte du jeu, il est là aussi sans dossier d'écriture) ;
+  - SEGA Race TV avec `SRTV_IPADDRESS = "192.168.1.2"` : -4 meurt à 48 s juste après les sockets ; corrigé, MinGW et
+    MSVC, l'avertissement à 41,7 s, puis attract « 1 CREDIT(S) TO START » à 60 i/s au-delà de 100 s ;
+  - Tokyo Cop pas essayé ici (même cause supposée que Ring Riders).
+- Release : `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261024-5-njz3-win32.zip` (commit `1c0adde`, même
+  procédure), 18,3 Mo ; SHA-256 du zip `0074d584a9a0e67ac0b9462717b1632a0f4cfcf79361b81d7018ddbbc97cfd96`, de
+  `linuxloader.exe` `70d23407f45f84e7e705100cd5a617740b4e6c1d5366f158eb2c01c7b6f8e782` ; `ll-deps` identique à la
+  -4. Testée depuis le zip extrait : `--version`, `--create config` (`SRTV_IPADDRESS = ""`), Ring Riders avec
+  `--write-dir` jusqu'à l'attract.
 
 ### Quatrième release du 24/10 (demande 102)
 - Même procédure que la demande 97 : build MinGW recompilé de zéro, version 3.0.12 dans `version.h` le temps du
