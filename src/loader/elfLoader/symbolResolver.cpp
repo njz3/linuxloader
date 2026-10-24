@@ -370,13 +370,24 @@ void SymbolResolver::LoadNeededLibrary(const std::string &linuxName)
 
     if (tryAsDll)
     {
+        // A Linux library with a .dll name (Dead Heat's nsAdrv.dll) goes to the ELF loader below: tried as a Windows
+        // DLL, it failed with Windows' "bad image" box
+        bool linuxLibrary = false;
         for (const auto &searchPath : m_LibrarySearchPaths)
         {
             std::string candidatePath = searchPath + "\\" + targetName;
-            std::ifstream testFile(candidatePath.c_str());
+            std::ifstream testFile(candidatePath.c_str(), std::ios::binary);
             if (testFile.good())
             {
+                char magic[4] = {};
+                testFile.read(magic, sizeof(magic));
                 testFile.close();
+                if (memcmp(magic, "\x7f" "ELF", sizeof(magic)) == 0)
+                {
+                    linuxLibrary = true;
+                    log_info("%s is a Linux library despite its name: not loaded as a Windows DLL", candidatePath.c_str());
+                    break;
+                }
                 HMODULE handle = LoadLibraryExA(candidatePath.c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
                 if (handle)
                 {
@@ -393,7 +404,7 @@ void SymbolResolver::LoadNeededLibrary(const std::string &linuxName)
             testFile.close();
         }
 
-        HMODULE handle = LoadLibraryA(targetName.c_str());
+        HMODULE handle = linuxLibrary ? NULL : LoadLibraryA(targetName.c_str());
         if (handle)
         {
             auto it = std::find(m_LoadedLibraries.begin(), m_LoadedLibraries.end(), reinterpret_cast<void *>(handle));
@@ -404,7 +415,8 @@ void SymbolResolver::LoadNeededLibrary(const std::string &linuxName)
             log_info("Successfully loaded DLL library: %s", targetName.c_str());
             return;
         }
-        log_warn("Failed to load as DLL: %s. Will fallback to native ELF loader if possible.", targetName.c_str());
+        if (!linuxLibrary)
+            log_warn("Failed to load as DLL: %s. Will fallback to native ELF loader if possible.", targetName.c_str());
     }
     else
     {

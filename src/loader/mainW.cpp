@@ -242,6 +242,9 @@ static void ignoreInvalidParameter(const wchar_t *, const wchar_t *, const wchar
 
 int main(int argc, char *argv[], char *envp[])
 {
+    // No system box on a public cabinet: a library Windows cannot load, a missing drive or a crash ends with a log
+    // line and an exit code, not a window that outlives the loader in front of everything and waits for a click
+    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX | SEM_NOGPFAULTERRORBOX);
 #ifdef _MSC_VER
     _set_invalid_parameter_handler(ignoreInvalidParameter);
 #endif
