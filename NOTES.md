@@ -151,6 +151,10 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   retirée), `[Driving]` avec `Left`/`Right` sur l'axe 0 et `Up`/`Down` sur l'axe 1 en plus des entrées analogiques :
   volant 0, 255, 511, 767, 1023 pour X à 0 / 0,25 / 0,5 / 0,75 / 1, Left et Right fermés aux deux bouts ;
   accélérateur `JOY0_AXIS_1_NEGATIVE_SIDE` 0 au centre, 511 à 0,25, 1022 à 0, 0 du côté positif ; frein sur Z de même.
+- Release : `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261024-3-njz3-win32.zip` (commit `01a01b1`), 18,3 Mo ;
+  SHA-256 du zip `36a2050657b9792da1b6cff6f820dfe353739ed8e1cf30d0c699bcbed4c045ff`, de `linuxloader.exe`
+  `f96e2718e51a1d7b271152f171a3bbd01da3c22ab81454f5016ad88d1536de4a` ; `ll-deps` inchangé. Testée depuis le zip extrait
+  dans un dossier vierge : `--version`, `--create config`, OutRun en mode agent.
 
 ### Test sous un frontend, menu sur Tab (demande 98)
 - **Bouton Test** : AttractPlus lance chaque jeu par `cmd /c start "[nom]" /WAIT Run…Game.cmd` et revient à son menu
