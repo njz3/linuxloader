@@ -54,7 +54,7 @@ extern "C" void __gmon_start__()
     log_debug("Dummy __gmon_start__ called");
 }
 
-void segabootOnExit(); // mainW.cpp
+int segabootExitCode(int status); // mainW.cpp
 
 extern "C" int __libc_start_main(int (*main_func)(int, char **, char **), int argc, char **argv, void (*init)(void), void (*fini)(void),
                                  void (*rtld_fini)(void), void *stack_end)
@@ -106,8 +106,7 @@ extern "C" int __libc_start_main(int (*main_func)(int, char **, char **), int ar
 
     PthreadEmu::Shutdown();
     log_info("PthreadEmu shutdown complete");
-    segabootOnExit(); // Test pressed: the test menu next
-    exit(exitCode);
+    exit(segabootExitCode(exitCode)); // Test pressed: the test menu next
     return exitCode;
 }
 

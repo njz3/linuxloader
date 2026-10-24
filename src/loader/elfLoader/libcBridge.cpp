@@ -48,7 +48,7 @@ extern "C"
     unsigned long int __strtoul_internal(const char *nptr, char **endptr, int base, int group);
 }
 
-void segabootOnExit(); // mainW.cpp
+int segabootExitCode(int status); // mainW.cpp
 
 namespace LibcBridge
 {
@@ -585,8 +585,7 @@ namespace LibcBridge
         void *caller = __builtin_return_address(0);
 #endif
         log_fatal("exit(%d) called by ELF! (from %p)", status, caller);
-        segabootOnExit(); // Test pressed: the test menu next
-        ::exit(status);
+        ::exit(segabootExitCode(status)); // Test pressed: the test menu next
     }
 
     int bridgeCxaAtexit(void (*func)(void *), void *arg, void *dso_handle)

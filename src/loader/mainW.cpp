@@ -59,12 +59,17 @@ extern "C" { HMODULE hGlDLL = NULL; } // read from C (gpuVendor.c)
 
 extern "C" int jvsTestPressedRecently();
 
-// The command line and the folder the loader was started from, to start the next program of segabootOnExit
+// The command line and the folder the loader was started from: segabootSupervise starts each program with them
 static int s_argc = 0;
 static char **s_argv = NULL;
 static char s_startDir[MAX_PATH_LENGTH] = "";
 static time_t s_startTime = 0;
-static const char *s_writeDir = NULL; // --write-dir, given on to the next program too
+static const char *s_writeDir = NULL; // --write-dir
+static bool s_segabootChild = false;  // --segaboot-child: started by segabootSupervise, which reads the exit code
+
+// The exit codes a program started by segabootSupervise ends with to ask for the next one
+static const int SEGABOOT_EXIT_TEST = 0x5E6A0001; // the game left on Test: the test menu next
+static const int SEGABOOT_EXIT_GAME = 0x5E6A0002; // the test menu ended: the game again
 
 static bool isTestModeArg(const char *arg)
 {
@@ -88,45 +93,106 @@ static bool takeTestFlag()
     return found;
 }
 
-// What Sega's boot program does on a cabinet: a game leaves when Test is pressed, and the test menu starts; leaving
-// the test menu starts the game again. Called when the game's program ends by itself (exit, or back from main), not
-// for ExitGame or a closed window. The next program runs in a process of its own; the picker waits for all of them.
-void segabootOnExit()
+// One argument on a Windows command line, quoted as CommandLineToArgvW reads it back (a path ending with a backslash)
+static std::string quoteArg(const std::string &arg)
 {
-    static bool done = false;
-    if (done || !s_argv || agentActive()) // an agent drives one program: it starts the next one itself
-        return;
-    done = true;
+    std::string quoted = "\"";
+    size_t backslashes = 0;
+    for (char c : arg)
+    {
+        if (c == '\\')
+        {
+            backslashes++;
+            continue;
+        }
+        quoted.append(c == '"' ? backslashes * 2 + 1 : backslashes, '\\');
+        backslashes = 0;
+        quoted += c;
+    }
+    quoted.append(backslashes * 2, '\\');
+    return quoted + "\"";
+}
 
+// What Sega's boot program does on a cabinet: it starts the game, the test menu when the game leaves on Test, and the
+// game again when the test menu ends. The process the front end started plays that part: each program runs in a
+// process of its own, and this one ends only with the last of them, with its exit code. A front end that waits for it
+// ("start /WAIT") does not come back while the test menu or the game runs. The programs end with this process
+// whoever stops it (a job that kills them when it closes); the picker waits for them all.
+static int segabootSupervise(int argc, char **argv)
+{
+    char exe[MAX_PATH];
+    GetModuleFileNameA(NULL, exe, MAX_PATH);
+    bool testMode = false;
+    for (int i = 1; i < argc; i++)
+        testMode = testMode || isTestModeArg(argv[i]);
+
+    HANDLE job = CreateJobObjectA(NULL, NULL);
+    if (job)
+    {
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits = {};
+        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, sizeof(limits));
+    }
+    while (true)
+    {
+        std::string command = quoteArg(exe);
+        if (testMode)
+            command += " -t";
+        for (int i = 1; i < argc; i++)
+            if (!isTestModeArg(argv[i]))
+                command += " " + quoteArg(argv[i]);
+        command += " --segaboot-child";
+
+        // The same console and standard handles: a front end's "> log.txt" gets every program's output
+        STARTUPINFOA startup = {};
+        startup.cb = sizeof(startup);
+        startup.dwFlags = STARTF_USESTDHANDLES;
+        startup.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+        startup.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+        startup.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+        PROCESS_INFORMATION process = {};
+        std::vector<char> commandLine(command.begin(), command.end());
+        commandLine.push_back('\0');
+        if (!CreateProcessA(exe, commandLine.data(), NULL, NULL, TRUE, CREATE_SUSPENDED, NULL, s_startDir, &startup,
+                            &process))
+        {
+            log_fatal("Could not start %s (error %lu)", command.c_str(), GetLastError());
+            return 1;
+        }
+        if (job)
+            AssignProcessToJobObject(job, process.hProcess);
+        ResumeThread(process.hThread);
+        CloseHandle(process.hThread);
+        WaitForSingleObject(process.hProcess, INFINITE);
+        DWORD code = 1;
+        GetExitCodeProcess(process.hProcess, &code);
+        CloseHandle(process.hProcess);
+
+        if ((int)code == SEGABOOT_EXIT_TEST)
+            log_info("Test pressed: the test menu");
+        else if ((int)code == SEGABOOT_EXIT_GAME)
+            log_info("Leaving the test menu: the game again");
+        else
+            return (int)code;
+        testMode = (int)code == SEGABOOT_EXIT_TEST;
+    }
+}
+
+// The code the program ends with, for segabootSupervise: the test menu next when Test was pressed during the game,
+// the game again when the test menu ends. Called when the game's program ends by itself (exit, or back from main),
+// not for ExitGame or a closed window, which end the whole run.
+int segabootExitCode(int status)
+{
+    if (!s_segabootChild || !s_argv || agentActive()) // an agent drives one program: it starts the next one itself
+        return status;
     bool testMode = false;
     for (int i = 1; i < s_argc; i++)
         testMode = testMode || isTestModeArg(s_argv[i]);
-    const bool testFlag = !testMode && takeTestFlag(); // the flag, or Test pressed just before
-    if (!testMode && !testFlag && !jvsTestPressedRecently())
-        return;
-
-    char exe[MAX_PATH];
-    GetModuleFileNameA(NULL, exe, MAX_PATH);
-    std::string command = "\"" + std::string(exe) + "\"";
-    if (!testMode)
-        command += " -t";
-    if (s_writeDir)
-        command += " --write-dir \"" + std::string(s_writeDir) + "\"";
-    for (int i = 1; i < s_argc; i++)
-        if (!isTestModeArg(s_argv[i]))
-            command += " \"" + std::string(s_argv[i]) + "\"";
-
-    STARTUPINFOA startup = {};
-    startup.cb = sizeof(startup);
-    PROCESS_INFORMATION process = {};
-    std::vector<char> commandLine(command.begin(), command.end());
-    commandLine.push_back('\0');
-    if (CreateProcessA(exe, commandLine.data(), NULL, NULL, FALSE, 0, NULL, s_startDir, &startup, &process))
-    {
-        log_info("%s: %s", testMode ? "Leaving the test menu, the game again" : "Test pressed, the test menu", command.c_str());
-        CloseHandle(process.hThread);
-        CloseHandle(process.hProcess);
-    }
+    if (testMode)
+        return SEGABOOT_EXIT_GAME;
+    if (takeTestFlag() || jvsTestPressedRecently()) // the flag, or Test pressed just before
+        return SEGABOOT_EXIT_TEST;
+    return status;
 }
 
 LONG CALLBACK myVectoredHandler(PEXCEPTION_POINTERS ExceptionInfo)
@@ -194,12 +260,16 @@ int main(int argc, char *argv[], char *envp[])
     // everything is written to (redirections/writeDir.c). Not arguments of the game.
     static std::vector<char *> args;
     int agentMode = 0;
+    const int rawArgc = argc; // as given, for the programs segabootSupervise starts
+    char **const rawArgv = argv;
     for (int i = 0; i < argc; i++)
     {
         if (strcmp(argv[i], "--agent") == 0)
             agentMode = 1;
         else if (strcmp(argv[i], "--agent-show") == 0)
             agentMode = 2;
+        else if (strcmp(argv[i], "--segaboot-child") == 0)
+            s_segabootChild = true;
         else if (strncmp(argv[i], "--write-dir=", 12) == 0)
             s_writeDir = argv[i] + 12;
         else if (strcmp(argv[i], "--write-dir") == 0 && i + 1 < argc)
@@ -234,6 +304,10 @@ int main(int argc, char *argv[], char *envp[])
     s_argv = argv;
     s_startTime = time(NULL);
     snprintf(s_startDir, sizeof(s_startDir), "%s", originalDir);
+
+    // The game, its test menu and the game again, each in a process of its own (segabootSupervise)
+    if (!agentMode && !s_segabootChild)
+        return segabootSupervise(rawArgc, rawArgv);
 
     char elfPath[MAX_PATH_LENGTH];
     char elfArgs[MAX_PATH_LENGTH] = "";
