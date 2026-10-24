@@ -95,6 +95,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 96 | 24/10 | Trouver pourquoi Maximum Tune 3 et 3DX+ ne marchent pas en MSVC | ✅ deux causes, corrigées : le mode `rt` d'`fopen` devenait `rtb`, refusé par la bibliothèque C de MSVC (table des cinématiques jamais lue, cinématique de 0 image, caméra nulle) ; et un rival sans personnage recevait un point de départ fait de locales non initialisées. Les deux jeux se jouent en MSVC (voir journal) |
 | 95 | 23/10 | Commit ? « Attends d'avoir fait tous les jeux » | ✅ les manques de chaque jeu repris : cartes de Maximum Tune 3DX+ et son jeu sans lecteur ✅, Initial D 5 ✅ (FFB, menu de test, HUD, vJoy), Dead Heat ✅ (course MinGW et MSVC, menu de test, vJoy) ; courses de Maximum Tune 3 et 3DX+ en MSVC ⚠️ (cause cherchée, pas corrigée ; MinGW les joue) ; commit à faire |
 | 87 | 23/10 | Demander à windowsloader comment émuler le dongle USB de Cruis'n Blast 1.x | ✅ il ne l'a jamais étudié ; profil TeknoParrot ElfLdr2 / RawThrillsFNF sans réglage de dongle ; sa méthode : remplacer la fonction du jeu qui lit la clé |
 | 86 | 23/10 | Modes d'affichage « plein écran fenêtré / borderless » et « borderless stretch » | ✅ `DISPLAY_MODE = BORDERLESS` et `BORDERLESS_STRETCH` (noms convenus avec windowsloader et la session Supermodel) ; `FULLSCREEN` devient un vrai plein écran à la résolution du jeu ; vérifié sur OutRun en fenêtre visible |
@@ -122,12 +123,38 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Maximum Heat 3D | ✅ partie, FFB, menu de test, vJoy | caméra coupée (pas de `/dev/video0`) |
 | Dead Heat Riders | ✅ course, nitro, FFB (carte Kickback), menu de test et test des commandes, vJoy | démarrage d'environ 70 s (contrôle du réseau, caméra absente) |
 | Nirin | ✅ course (MinGW et MSVC), menu de test, test des commandes, vJoy | pas de moteur de guidon ; son non écouté |
-| Wangan Midnight Maximum Tune 3 | ✅ course (MinGW), FFB (carte Kickback), menu de test, SWITCH TEST, son (capture WAV) | lecteur-imprimante de cartes (CARD R/W OFF en attendant) ; course bloquée en MSVC ; vJoy pas encore |
+| Wangan Midnight Maximum Tune 3 | ✅ course (MinGW et MSVC), FFB (carte Kickback), menu de test, SWITCH TEST, son (capture WAV), cartes, vJoy | son non écouté |
 | Ring Riders | ✅ course, FFB, menu TEST (GPU NVIDIA) | son émulé ; joué par vJoy |
 | Tokyo Cop | ✅ poursuite, FFB, menu de test | son émulé ; joué par vJoy |
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Maximum Tune 3 et 3DX+ en MSVC (demande 96)
+- Avant chaque course du mode Story, le jeu joue une cinématique temps réel (`clRTMovie`, journal du jeu
+  « リアルタイムムービー 2 ») : une période sans course (`clEffStoryType::isRace` faux) dont le rival n'a pas de
+  personnage (NONE). Deux défauts s'y cumulaient, l'un propre à MSVC, l'autre commun aux deux builds.
+- **`fopen` en mode texte** : `clMovieSystem::Init` ouvre `data/rtmovie/table/MovieTableData.txt` avec `"rt"` (et
+  les deux jeux écrivent avec `"wt"`, `"at"` ; Nirin aussi `"at"`). Le loader ajoutait un `b` pour lire les octets tels
+  quels (Linux n'a pas de mode texte) : `"rtb"`, que la bibliothèque C de MSVC refuse (`fopen` rend NULL) quand celle de
+  MinGW l'accepte. Sans sa table, la cinématique durait 0 image (« 終了フレーム 0 » contre 290), `clRTMovie::End`
+  libérait une caméra jamais créée : plantage du thread de course (3DX+ ; MT3 une fois l'autre défaut corrigé). Le
+  `t` devient maintenant le `b` (`sharedBinaryMode`, `filesystemShared.c`).
+- **Point de départ d'un rival sans personnage** : `CConfigLoader::GetStoryRivalFeature` cherche
+  « ECharacter_NONE » dans `data/carconfig/ytConfigStory.txt`, lit jusqu'à la fin, et quand son `sscanf("%d%d%d")`
+  de `StartConfig` échoue, affiche un message puis range quand même trois locales jamais écrites. Sur la borne, la
+  pile y est anodine ; ici elle garde les restes du loader (des pointeurs lus comme flottants) : MSVC donnait
+  (0, 55), MinGW (1,27e12, 1,18e9). D'où le rival à 1e12 m, `CSlit::GetMatrix` sur une normale nulle, et le thread
+  de course de MT3 qui bouclait sur un odomètre NaN dans `GetSectInfo_InterArea` (`comiss` + `jb`, toujours pris
+  avec NaN). MinGW survivait par chance. Correctif par symbole et motif d'octets (`cmp eax,3 ; je` → `jne` par-dessus
+  les rangements), dans les deux jeux (`mt3RivalFeatureFix`, `patch.c`) : la lecture manquée garde les zéros posés en
+  tête de fonction.
+- Méthode : traceur temporaire sur les fonctions mathématiques du pont (aucun NaN n'y naît, pile x87 propre ; retiré),
+  puis cdb sur `CSlit::SetFirst`, `GetFirstPoint`, `GetStoryRivalFeature` dans les deux builds (mémoire du `CSlit` à
+  zéro avant `SetFirst` des deux côtés : les allocations sont bien mises à zéro), et le journal du jeu (image de fin).
+- Vérifié : MSVC, Maximum Tune 3 (course avec Akio en rival, 95 km/h, 549 forces constantes, cinématique de 290
+  images) et 3DX+ (sans lecteur : course, 86 km/h, 539 forces ; avec le lecteur : partie entière, carte écrite) ;
+  MinGW, Maximum Tune 3 (course, non-régression).
 
 ### Les manques de chaque jeu (demande 95)
 - **Maximum Tune 3DX+, cartes** (mode agent, `NO_CARD_READER=false`) : carte neuve donnée par le distributeur au bout
@@ -141,7 +168,7 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   (`isEnableCardDevice` rend 0) : course directe en invité (GUEST), aucune commande au lecteur (MinGW).
 - **Maximum Tune 3DX+ en MSVC** : menus et écrans de carte, mais la course échoue comme celle de MT3 : le thread de
   course plante (0xC0000005) dans `clRTMovie::End` → `clCamera::Release` sur une caméra nulle, deux fois sur deux.
-  Même problème ouvert que MT3 en MSVC ; MinGW joue les deux.
+  Même cause que MT3 en MSVC ; corrigé le 24/10 (demande 96).
 - **Dead Heat** (non-régression complète ; recopié : 2,5 Go, fichiers TeknoParrot à la Corbeille) : contrôle du link
   d'une borne seule (environ 60 s), démo, pièces, course à San Francisco à 176 km/h, MinGW et MSVC ; FFB de la carte
   Kickback (224 forces constantes, 17 amortisseurs, 821 rappels au centre) ; menu de test (interrupteur Test
@@ -160,7 +187,7 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   - Essais : course sur le lac d'Akina (HUD complet, 114 km/h), MinGW et MSVC ; menu de test (« GAME TEST MODE »,
     ses 12 entrées, Service pour choisir, Test pour entrer, OUTPUT TEST) ; vJoy : partie menée en fenêtre visible,
     1 604 forces constantes et 579 vibrations reçues.
-- **Maximum Tune 3 en MSVC** (course qui se bloque) : cause cherchée, pas corrigée.
+- **Maximum Tune 3 en MSVC** (course qui se bloque) : cause cherchée ; trouvée et corrigée le 24/10 (demande 96).
   - Le NaN ne vient d'aucune fonction mathématique du pont (traceur temporaire sur leurs entrées et sorties, et sur
     l'état de la pile x87 : vide et sans faute à chaque appel ; retiré).
   - Il naît dans le calcul SSE du jeu : `yt::CSlit::GetMatrix` normalise une normale de longueur nulle. L'objet route

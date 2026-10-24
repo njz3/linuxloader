@@ -28,8 +28,8 @@ annexes (`Sega\assets\rpi-billboard`, une mise à jour), pas le jeu.
 | Maximum Heat 3D - Namco ES1 | Namco ES1 | `a.elf` | `MAXIMUM_HEAT_3D` | ✅ partie, FFB, menu de test, vJoy |
 | Nirin - Namco ES1 | Namco ES1 | `exec/a.elf` | `NIRIN` | ✅ course, menu de test, vJoy ; clé HASP répondue |
 | Dead Heat Riders - Namco N2 | Namco N2 | `a.elf` | `DEAD_HEAT_RIDERS` | ✅ course, FFB, menu de test, vJoy ; clé USB présentée |
-| Wangan Midnight Maximum Tune 3 (Export) - Namco N2 | Namco N2 | `main` | `WANGAN_MIDNIGHT_MT3` | ✅ course (MinGW), FFB, menu de test, son, lecteur-imprimante de cartes (carte neuve écrite puis relue), vJoy ; course bloquée en MSVC |
-| Wangan Midnight Maximum Tune 3DX+ (Japan) - Namco N2 | Namco N2 | `main` | `WANGAN_MIDNIGHT_MT3DX` | ✅ course (MinGW), FFB, menu de test, vJoy, cartes (neuve, lue, écrite et imprimée en fin de partie), jeu sans lecteur ; course en échec en MSVC |
+| Wangan Midnight Maximum Tune 3 (Export) - Namco N2 | Namco N2 | `main` | `WANGAN_MIDNIGHT_MT3` | ✅ course (MinGW et MSVC), FFB, menu de test, son, lecteur-imprimante de cartes (carte neuve écrite puis relue), vJoy |
+| Wangan Midnight Maximum Tune 3DX+ (Japan) - Namco N2 | Namco N2 | `main` | `WANGAN_MIDNIGHT_MT3DX` | ✅ course (MinGW et MSVC), FFB, menu de test, vJoy, cartes (neuve, lue, écrite et imprimée en fin de partie), jeu sans lecteur |
 | Cruisn Blast 1.25 - Raw Thrills PC based | Raw Thrills (Linux) | `game` | — | ❌ protégé par l'enveloppe Sentinel HASP (code en clair) : non fait |
 | Cruisn Blast 2.31 - Raw Thrills PC based | Raw Thrills (Linux) | `game` | — | ❌ abandonné |
 | Gaelco Championship Tuning Race - Gaelco PC Based | Gaelco PC | image disque, `.../salidas/car` | `GAELCO_TUNING_RACE` | ✅ course, FFB, menu Test, son émulé, vJoy |
@@ -38,8 +38,8 @@ annexes (`Sega\assets\rpi-billboard`, une mise à jour), pas le jeu.
 
 Bilan (23/10, nuit) : 16 des 18 jeux Linux se jouent entièrement (course, FFB, menu de test, vJoy), Maximum Tune 3
 et 3DX+ avec leurs cartes, R-Tuned, Initial D 4 Japon, Initial D 5 et Dead Heat compris ; restent les deux Cruis'n
-Blast (protégés par l'enveloppe Sentinel HASP : non faits). Seule limite connue de la build MSVC : les courses de
-Maximum Tune 3 et 3DX+ (MinGW les joue). Dans `gameData.c` (l'état que montre le sélecteur), Dead Heat Riders,
+Blast (protégés par l'enveloppe Sentinel HASP : non faits). Les courses de Maximum Tune 3 et 3DX+ en MSVC, dernière
+limite connue de cette build, sont corrigées le 24/10. Dans `gameData.c` (l'état que montre le sélecteur), Dead Heat Riders,
 Nirin, Maximum Tune 3 et 3DX+ sont en `WORKING`.
 
 Jeux Windows (47) : Taito Type X, X+ et X2 (Battle Gear 4 et ses deux Tuned 2.8, Chase H.Q. 2, D1GP Arcade, Valve
@@ -70,7 +70,7 @@ Racers 2071).
 | Maximum Heat 3D | ✅ contrôle du link passé (borne seule) | ✅ 1360×768 | ✅ pièces, menus à l'accélérateur, volant, frein, vue | ✅ partie menée par vJoy, retour de force reçu | ✅ ressort, amortisseur, couple (carte Kickback) | ✅ menu de test, test des E/S, retour au jeu | caméra coupée (pas de /dev/video0) |
 | Dead Heat Riders | ✅ (environ 70 s : réseau, caméra absente) | ✅ 1360×768 (MinGW et MSVC) | ✅ pièces, Nitro (DECIDE), Vue, Enter, guidon, accélérateur, frein (contact) ; test des commandes juste | ✅ course menée par vJoy (pièces, Nitro, guidon, accélérateur, frein), retour de force reçu | ✅ carte Kickback : ressort, amortisseur, couple | ✅ menu de test, I/O TEST, SWITCH TEST | clé USB présentée par la libusb du loader ; photos absentes (pas de caméra) |
 | Nirin | ✅ | ✅ 1360×768 (MinGW et MSVC) | ✅ pièces, OK (View), Select (pencher), guidon, poignée, frein, shift up/down ; test des commandes juste | ✅ course menée par vJoy | — (pas de moteur) | ✅ menu de test, I/O TEST, SWITCH TEST | clé HASP répondue comme celle de Dead Heat |
-| Wangan Midnight Maximum Tune 3 (Export) | ✅ contrôles HANDLE et CARD passés (CARD R/W OFF dans le menu de test) ; réseau absent (borne seule) | ✅ 640×480 : pilote NVIDIA intégré au programme remplacé par la fenêtre du loader (MinGW ; MSVC jusqu'à la course, qui s'y bloque) | ✅ pièces, accélérateur (menus), volant, frein, View Change, Intrude Change, levier en H à 6 vitesses depuis Gear Up/Down ; SWITCH TEST juste | ⏳ | ✅ carte Kickback : ressort, amortisseur, couple | ✅ menu de test, GAME OPTIONS, I/O TEST, SWITCH TEST | clé HASP émulée (`hasp.bin`) ; son par OpenAL Soft (capture WAV) ; cartes : lecteur-imprimante pas encore émulé |
+| Wangan Midnight Maximum Tune 3 (Export) | ✅ contrôles HANDLE et CARD passés (CARD R/W OFF dans le menu de test) ; réseau absent (borne seule) | ✅ 640×480 : pilote NVIDIA intégré au programme remplacé par la fenêtre du loader (MinGW et MSVC) | ✅ pièces, accélérateur (menus), volant, frein, View Change, Intrude Change, levier en H à 6 vitesses depuis Gear Up/Down ; SWITCH TEST juste | ⏳ | ✅ carte Kickback : ressort, amortisseur, couple | ✅ menu de test, GAME OPTIONS, I/O TEST, SWITCH TEST | clé HASP émulée (`hasp.bin`) ; son par OpenAL Soft (capture WAV) ; cartes : lecteur-imprimante pas encore émulé |
 | Ring Riders | ✅ | ✅ sur GPU NVIDIA (blanc sur Intel : register combiners) | ✅ pièces, Start, guidon (sens corrigé), poignée, frein | ✅ course menée par vJoy (pièce, Start, Service, guidon, poignée, frein), retour de force reçu | ✅ moteur du guidon (rappel au centre, sens corrigé) et vibreur | ✅ menu TEST, Input/Output, mire | son émulé (carte son Gaelco) ; plateforme de mouvement absente (« MOTION SYSTEM ERROR LOG ») |
 | Tokyo Cop | ✅ | ✅ sur GPU NVIDIA | ✅ pièces, klaxon (Start), volant (sens corrigé), accélérateur, frein (contact, nouveau), sirène, vue | ✅ poursuite menée par vJoy (pièce, klaxon, volant, accélérateur, sirène, frein), retour de force reçu | ✅ moteur du volant (rappel au centre, sens corrigé) | ✅ menu TEST (code de touche 0x14), Controls Test, mire | son émulé ; « MOTION SYSTEM ERROR! » (siège mobile absent) |
 | Gaelco Championship Tuning Race | ✅ (dérouleur C++ du jeu) | ✅ 720×540 natif | ✅ pièces, Start, volant, accélérateur, frein, vue, palettes (boîte manuelle) | ✅ course menée par vJoy (pièce, Start, volant, accélérateur, frein, vue), retour de force reçu | ✅ moteur du volant (rappel au centre) | ✅ menu Test, Controls Test (toutes les commandes affichées justes) | son émulé ; plateforme de mouvement absente ; « Control de produccion » (écran d'usine) fait quitter le jeu |
@@ -228,10 +228,10 @@ Racers 2071).
 - **Options du jeu** (F10) : « Jouer sans le lecteur de cartes », coché par défaut : le jeu se joue sans carte
   dès la première fois, sans passer par CARD R/W dans son menu de test (`[Game.mt3] NO_CARD_READER`). Décoché, c'est
   CARD R/W qui décide (à ON : les cartes ci-dessus).
-- **Build MSVC** : démarrage, menu de test, démo et menus comme MinGW, mais la course se bloque au chargement :
-  le thread de course tourne sans fin dans `CSectionManager::GetSectInfo_InterArea` (`while (x < 0)` sur la
-  position d'une voiture rivale devenue NaN). La précision x87 n'en est pas la cause (essayé à 64 bits comme sous
-  Linux, sans effet, retiré). La release est faite avec MinGW, où la course se joue.
+- **Build MSVC** : la course se bloquait au chargement (thread de course sans fin dans
+  `CSectionManager::GetSectInfo_InterArea` sur un odomètre NaN). Corrigé le 24/10 : le mode `"rt"` d'`fopen` que la
+  bibliothèque C de MSVC refusait une fois le `b` ajouté (la cinématique d'avant-course n'avait pas sa table), et le
+  point de départ fait de locales non initialisées d'un rival sans personnage (`NOTES.md`, demande 96).
 
 - **C++ des programmes à dérouleur propre** : un programme qui lie son propre dérouleur d'exceptions (le runtime C++
   d'Intel, Gaelco Tuning) enregistre son `.eh_frame` par son propre `__register_frame_info`, appelé par la PLT ; le
