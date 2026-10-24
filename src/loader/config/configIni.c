@@ -104,6 +104,8 @@ int createDefaultIni(const char *filePath)
     fprintf(file, "# Windows: the folder everything is written to (or --write-dir); the loader's and the game's folders are then\n");
     fprintf(file, "# only read. Its root holds linuxloader.ini and controls.ini (copied there the first time), WRITE_DIR\\<game>\n");
     fprintf(file, "# the NVRAM, saves, logs, temporary files and compiled shaders; for a write filter (UWF) or games on a share.\n");
+    fprintf(file, "# Once it is set, the linuxloader.ini and controls.ini read are the copies in that folder: change those, not\n");
+    fprintf(file, "# the ones beside the loader.\n");
     fprintf(file, "# For Example: C:\\Racecab\\Saves\\linuxloader_single\nWRITE_DIR = \"\"\n\n");
     fprintf(file, "# If set, libCG.so needed for 2Spicy, Harley, Rambo and HOD-Ex shader recompilation\n");
     fprintf(file, "# will be loaded from the specified location. (include the name of file in the location ");

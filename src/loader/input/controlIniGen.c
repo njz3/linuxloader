@@ -426,5 +426,32 @@ int createDefaultControlsIni(const char *fileName)
 
     int ret = iniSave(ini, fileName);
     iniFree(ini);
+    if (ret > 0)
+    {
+        // A note on top, with the file's own line ends (the ini writer keeps no comment: a later save from the
+        // controls page drops it)
+        FILE *file = fopen(fileName, "rb");
+        char *content = NULL;
+        long size = 0;
+        if (file && fseek(file, 0, SEEK_END) == 0 && (size = ftell(file)) >= 0 && fseek(file, 0, SEEK_SET) == 0 &&
+            (content = malloc((size_t)size + 1)) && fread(content, 1, (size_t)size, file) == (size_t)size)
+        {
+            content[size] = '\0';
+            const char *end = strstr(content, "\r\n") ? "\r\n" : "\n";
+            fclose(file);
+            file = fopen(fileName, "wb");
+            if (file)
+            {
+                fprintf(file,
+                        "; With a write folder (linuxloader.ini's WRITE_DIR, or --write-dir), the controls.ini read is the"
+                        " copy%s; in that folder: change that one, not the one beside the loader.%s%s",
+                        end, end, end);
+                fwrite(content, 1, (size_t)size, file);
+            }
+        }
+        if (file)
+            fclose(file);
+        free(content);
+    }
     return ret;
 }
