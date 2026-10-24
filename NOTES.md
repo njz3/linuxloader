@@ -95,6 +95,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 102 | 24/10 | Faire la release et prévenir Image borne | ✅ `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261024-4-njz3-win32.zip` (commit `5b2f467`) ; Image borne prévenue (voir journal) |
 | 101 | 24/10 | Corriger le point A de la campagne d'Image borne (SetErrorMode, pas de LoadLibrary sur un fichier ELF) et ajouter la phrase sur le dossier d'écriture dans les fichiers par défaut | ✅ plus de boîte système Windows (le processus et ceux qu'il lance) ; une bibliothèque Linux au nom en `.dll` va directement au chargeur ELF ; les `linuxloader.ini` et `controls.ini` neufs disent que, avec un dossier d'écriture, ce sont les copies de ce dossier qui sont lues (voir journal) |
 | 100 | 24/10 | Faire le ménage ; demander à Image borne de retirer les fichiers FFB Plugin des jeux que linuxloader prend entièrement en charge | ✅ copies locales à la Corbeille ; demande transmise ; le propriétaire a dit oui à Image borne, qui a déplacé les fichiers des seize jeux sur les deux bornes (189 éléments sur racecab1, 180 sur racecab2) dans des dossiers `_teknoparrot_off`, avec un manifeste pour tout remettre (`C:\Racecab\Utils\ffbplugin_off.ps1 -Remettre`) |
 | 99 | 24/10 | (relayée par Image borne) Axes de vJoy lus en tout-ou-rien sur la borne ; convention du propriétaire : volant sur X, accélérateur sur Y-, frein sur Z- | ✅ deux corrections : quatre liaisons par entrée au lieu de deux, et le mode pédale `_POSITIVE_SIDE` / `_NEGATIVE_SIDE` (repos au centre de l'axe) ; mesuré par vJoy (voir journal) ; nouvelle release |
@@ -134,6 +135,16 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Quatrième release du 24/10 (demande 102)
+- Même procédure que la demande 97 : build MinGW recompilé de zéro, version 3.0.12 dans `version.h` le temps du
+  build (fichier remis), zip avec `linuxloader.exe` et `ll-deps/`. Contenu : commit `5b2f467` exactement.
+- `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261024-4-njz3-win32.zip`, 18,3 Mo ; SHA-256 du zip
+  `11fa1132421dc3b3e70386b315065505785bcee33298216339104851f9709016`, de `linuxloader.exe`
+  `741ce0e8f300757406a2f658f3654087ace26e3dd4fad03383872914f53720b6` ; `ll-deps` identique à la release -3.
+- Testée depuis le zip extrait dans un dossier vierge : `--version`, `--create config` et `--create controls`
+  (phrases sur le dossier d'écriture), Dead Heat en mode agent caché avec `LL_LOG=info` (`nsAdrv.dll` au chargeur ELF,
+  aucune ligne `ERROR`, attract à l'image 5400, 60 i/s).
 
 ### Boîtes système et dossier d'écriture (demande 101)
 - Point A de la campagne d'Image borne sur les bornes : Dead Heat laissait une boîte système Windows (image
