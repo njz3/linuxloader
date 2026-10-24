@@ -95,6 +95,8 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 101 | 24/10 | Corriger le point A de la campagne d'Image borne (SetErrorMode, pas de LoadLibrary sur un fichier ELF) et ajouter la phrase sur le dossier d'écriture dans les fichiers par défaut | ✅ plus de boîte système Windows (le processus et ceux qu'il lance) ; une bibliothèque Linux au nom en `.dll` va directement au chargeur ELF ; les `linuxloader.ini` et `controls.ini` neufs disent que, avec un dossier d'écriture, ce sont les copies de ce dossier qui sont lues (voir journal) |
+| 100 | 24/10 | Faire le ménage ; demander à Image borne de retirer les fichiers FFB Plugin des jeux que linuxloader prend entièrement en charge | ✅ copies locales à la Corbeille ; demande transmise ; le propriétaire a dit oui à Image borne, qui a déplacé les fichiers des seize jeux sur les deux bornes (189 éléments sur racecab1, 180 sur racecab2) dans des dossiers `_teknoparrot_off`, avec un manifeste pour tout remettre (`C:\Racecab\Utils\ffbplugin_off.ps1 -Remettre`) |
 | 99 | 24/10 | (relayée par Image borne) Axes de vJoy lus en tout-ou-rien sur la borne ; convention du propriétaire : volant sur X, accélérateur sur Y-, frein sur Z- | ✅ deux corrections : quatre liaisons par entrée au lieu de deux, et le mode pédale `_POSITIVE_SIDE` / `_NEGATIVE_SIDE` (repos au centre de l'axe) ; mesuré par vJoy (voir journal) ; nouvelle release |
 | 98 | 24/10 | Le processus lancé attend la vraie fin après Test (AttractPlus attend avec `start /WAIT`) ; le menu passe de F10 à Tab, avec un réglage pour le couper ; puis une nouvelle release | ✅ le processus lancé devient un superviseur qui lance le jeu, le menu de test et le jeu à nouveau, chacun dans son processus ; Tab au lieu de F10 (jeu et sélecteur), `[Launcher] SETTINGS_MENU = false` le coupe ; essayé sur OutRun en fenêtre visible (voir journal) |
 | 97 | 24/10 | (relayée par Image borne) Build de release pour les bornes | ✅ `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261024-njz3-win32.zip` (commit `c55db17`) ; changements et comportements à surveiller envoyés à Image borne (voir journal) |
@@ -132,6 +134,28 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Boîtes système et dossier d'écriture (demande 101)
+- Point A de la campagne d'Image borne sur les bornes : Dead Heat laissait une boîte système Windows (image
+  incorrecte) devant tout, même après la fin du loader. `nsAdrv.dll`, le pilote son de Namco, est une bibliothèque
+  Linux malgré son nom ; `LoadNeededLibrary` (`symbolResolver.cpp`) essaie d'abord en DLL Windows les noms en
+  `.dll`, et ce `LoadLibraryExA` sur un fichier ELF levait la boîte avant de revenir au chargeur ELF.
+- Deux corrections. `main()` (`mainW.cpp`) appelle d'abord `SetErrorMode(SEM_FAILCRITICALERRORS |
+  SEM_NOOPENFILEERRORBOX | SEM_NOGPFAULTERRORBOX)` : une bibliothèque refusée, un lecteur absent ou un plantage
+  finissent en ligne de journal et code de sortie, sans fenêtre ; les processus lancés (jeu, menu de test du
+  superviseur) héritent du réglage. Et un candidat dont les quatre premiers octets sont `\x7fELF` va au chargeur
+  ELF sans passer par `LoadLibrary`, avec la ligne « … is a Linux library despite its name: not loaded as a Windows
+  DLL ».
+- Point E : avec un dossier d'écriture, les réglages lus sont les copies de ce dossier, et des changements faits à
+  côté du loader restaient sans effet. Le `linuxloader.ini` neuf le dit au-dessus de `WRITE_DIR` ; le `controls.ini`
+  neuf (`--create controls`, ou créé par la page Contrôles) porte deux lignes de commentaire en tête, avec les fins de
+  ligne du fichier (CRLF sous Windows). L'écrivain d'ini ne garde aucun commentaire : un enregistrement depuis la page
+  Contrôles les retire.
+- Essais : `--create config` et `--create controls` avec MinGW et MSVC (phrases présentes, 105 lignes CRLF sur 105).
+- Dead Heat, copie reprise du partage le 24/10 (déjà sans les fichiers FFB Plugin), en mode agent caché avec
+  `LL_LOG=info`, MinGW et MSVC : `nsAdrv.dll` passe directement au chargeur ELF (la nouvelle ligne, plus de « Failed
+  to load as DLL »), aucune ligne `ERROR`, 60 i/s ; l'attente de liaison d'une borne seule (environ 60 s, déjà connue),
+  puis le logo et l'attract « STEP ON THE GAS TO START » vers l'image 5400.
 
 ### Axes de vJoy sur la borne, pédales sur un côté de l'axe (demande 99)
 - Constat d'Image borne (Sega Race TV, écran INPUT TEST) : volant et accélérateur en tout-ou-rien, frein muet.
