@@ -163,6 +163,15 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   `linuxloader.exe` `e18578966e12ef6863c175accd35ba647e448e4ddae828ef56ed42c797ffdcef` ; `ll-deps` identique à la
   20261025-2. Sans `LL_LOG=debug` et `DEBUG_MSGS`, elle se comporte comme la 20261025-2. Testée depuis le zip :
   `--version`, lignes Gaelco et JVS présentes sur Tokyo Cop en mode agent.
+- Résultat sur racecab1 : SDL ne recevait des axes X, Y et Z de vJoy que −32766 ou +32767, une marche au centre ;
+  le jeu lisait fidèlement ce que le loader lui passait, et joy.cpl montrait la même marche. Cause : vjoyd, le
+  remplaçant de BackForceFeeder qu'Image borne utilise pour ses campagnes, et non Windows ni le loader. Sa ligne
+  `$raw = [int][Math]::Round(1 + [Math]::Max(0, [Math]::Min(1, $v)) * 0x7FFF)` fait choisir à PowerShell
+  `Math.Min(Int32, Int32)` : la position est arrondie à 0 ou 1 (0,5 → 0) avant d'être bornée, donc 1 ou 0x8000 envoyé
+  à vJoy. Reproduit ici avec son script tel quel (winmm : 2 / 65535 / 65535 pour X à 0,25 / 0,55 / 0,75, contre
+  16385 / 36044 / 49152 avec un alimentateur juste), sur un vJoy identique aux bornes (4 axes X, Y, Z, RZ ; 32
+  boutons). Correction (à Image borne) : `[Math]::Max(0.0, [Math]::Min(1.0, $v))`. Toutes les mesures de campagne
+  pilotées par vjoyd sont donc à refaire ; BackForceFeeder, qui alimente vJoy en service, n'est pas concerné.
 
 ### Deuxième release du 25/10 (demande 108)
 - Même procédure : build MinGW recompilé de zéro, `version.h` à 3.0.12 le temps du build (fichier remis), zip avec
