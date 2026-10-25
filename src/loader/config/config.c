@@ -68,8 +68,14 @@ char *getGameName()
     return config.gameTitle;
 }
 
-// This branch's build, named as its release package (linuxloader-v<version.h>-ffbedition-<date>-njz3), then "FFB
-// Edition". The date is the day config.c was compiled: a release's, as it is built from clean
+// A release's rank in its day, as its package is named: none for the first, "-2" for the second... The release build
+// writes it in version.h with the version, the rest of the time it stays empty
+#ifndef RELEASE_SUFFIX
+#define RELEASE_SUFFIX ""
+#endif
+
+// This branch's build, named as its release package (linuxloader-v<version.h>-ffbedition-<date><suffix>-njz3), then
+// "FFB Edition". The date is the day config.c was compiled: a release's, as it is built from clean
 const char *buildEdition(void)
 {
     static char edition[96];
@@ -79,8 +85,9 @@ const char *buildEdition(void)
         const char *date = __DATE__; // "Oct 25 2026"
         char month[4] = {date[0], date[1], date[2], '\0'};
         const char *found = strstr(months, month);
-        snprintf(edition, sizeof(edition), "linuxloader-v%d.%d.%d-ffbedition-%.4s%02d%02d-njz3 FFB Edition", MAJOR_VERSION,
-                 MINOR_VERSION, UPDATE_VERSION, date + 7, found ? (int)(found - months) / 3 + 1 : 0, atoi(date + 4));
+        snprintf(edition, sizeof(edition), "linuxloader-v%d.%d.%d-ffbedition-%.4s%02d%02d%s-njz3 FFB Edition", MAJOR_VERSION,
+                 MINOR_VERSION, UPDATE_VERSION, date + 7, found ? (int)(found - months) / 3 + 1 : 0, atoi(date + 4),
+                 RELEASE_SUFFIX);
     }
     return edition;
 }

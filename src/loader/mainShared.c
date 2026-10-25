@@ -22,6 +22,7 @@
 #endif
 
 #include "config/configIni.h"
+#include "config/config.h"
 #include "input/evdevInput.h"
 #include "input/controlIniGen.h"
 #include "input/sdlInput.h"
@@ -455,6 +456,7 @@ void printCreateUsage(char *programName)
 void printVersion()
 {
     printf("linuxloader v%d.%d.%d\n", MAJOR_VERSION, MINOR_VERSION, UPDATE_VERSION);
+    printf("Build: %s\n", buildEdition());
     printf("Lead Programming/Reversing: %s\n", TEAM);
     printf("Collaborators: %s\n", COLLABORATORS);
     printf("Special Thanks: %s\n", SPECIAL_THANKS);
