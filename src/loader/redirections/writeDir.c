@@ -260,7 +260,8 @@ static void absoluteRoot(const char *writeDir)
         rootDir[--length] = '\0';
 }
 
-// The settings file at WRITE_DIR's root, copied there from its first place the first time
+// The settings file at WRITE_DIR's root, copied there from its first place the first time. Changed in its first place
+// after that copy (later than it), it is not read: said in the log, as such a change otherwise goes unnoticed
 static void overlaySettings(char **path, const char *name)
 {
     char overlay[MAX_PATH];
@@ -269,6 +270,16 @@ static void overlaySettings(char **path, const char *name)
     {
         if (CopyFileA(*path, overlay, TRUE))
             log_info("write folder: %s copied from %s", name, *path);
+    }
+    else if (*path && (*path)[0])
+    {
+        WIN32_FILE_ATTRIBUTE_DATA first, copy;
+        if (GetFileAttributesExA(*path, GetFileExInfoStandard, &first) &&
+            GetFileAttributesExA(overlay, GetFileExInfoStandard, &copy) &&
+            CompareFileTime(&first.ftLastWriteTime, &copy.ftLastWriteTime) > 0)
+            log_warn("write folder: %s, the one read, is older than %s: the changes made there since are not read (copy "
+                     "that file over it, or change the one in the write folder)",
+                     overlay, *path);
     }
     *path = _strdup(overlay);
 }
