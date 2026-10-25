@@ -433,14 +433,15 @@ void restartNote(bool inGame)
 
 void applyScale()
 {
-    // Scale with the window as sm2-emu does: against a 992x768 base, the smaller ratio winning, never below the
-    // font's own size.
+    // Scale with the window as sm2-emu does: against a 992x768 base, the smaller ratio winning. A game window smaller
+    // than that (640x480) shrinks the windows down to 80 % of the font's own size on the screen, still readable; the
+    // settings then scroll when they do not fit.
     const ImGuiIO &io = ImGui::GetIO();
     const float sx = io.DisplaySize.x > 0.0f ? io.DisplaySize.x / 992.0f : 1.0f;
     const float sy = io.DisplaySize.y > 0.0f ? io.DisplaySize.y / 768.0f : 1.0f;
     const float fb = io.DisplayFramebufferScale.y > 0.0f ? io.DisplayFramebufferScale.y : 1.0f;
     float scale = std::min(sx, sy);
-    scale = std::clamp(scale, std::clamp(1.0f / fb, 0.5f, 1.0f), 4.0f);
+    scale = std::clamp(scale, std::clamp(0.8f / fb, 0.5f, 0.8f), 4.0f);
     if (scale != g_uiScale)
     {
         g_uiScale = scale;
@@ -578,6 +579,8 @@ void drawSettings(bool *open, std::string &configFile, bool inGame)
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
     ImVec2 size(std::min(viewport->WorkSize.x * 0.9f, 660.0f * g_uiScale), std::min(viewport->WorkSize.y * 0.9f, 500.0f * g_uiScale));
     ImGui::SetNextWindowSize(size, ImGuiCond_Appearing);
+    // Never larger than the game's window, even one made smaller while the settings are open
+    ImGui::SetNextWindowSizeConstraints(ImVec2(0.0f, 0.0f), viewport->WorkSize);
     ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + viewport->WorkSize.x * 0.5f, viewport->WorkPos.y + viewport->WorkSize.y * 0.5f),
                             ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     char title[64];
@@ -587,9 +590,18 @@ void drawSettings(bool *open, std::string &configFile, bool inGame)
         ImGui::End();
         return;
     }
+    // Kept inside the game's window: one made smaller after the settings opened left them out of sight
+    {
+        const ImVec2 pos = ImGui::GetWindowPos(), extent = ImGui::GetWindowSize();
+        const ImVec2 inside(std::clamp(pos.x, viewport->WorkPos.x, std::max(viewport->WorkPos.x, viewport->WorkPos.x + viewport->WorkSize.x - extent.x)),
+                            std::clamp(pos.y, viewport->WorkPos.y, std::max(viewport->WorkPos.y, viewport->WorkPos.y + viewport->WorkSize.y - extent.y)));
+        if (inside.x != pos.x || inside.y != pos.y)
+            ImGui::SetWindowPos(inside);
+    }
 
     const float footer = ImGui::GetFrameHeightWithSpacing() * 2.2f;
-    ImGui::BeginChild("##tabs", ImVec2(0, -footer));
+    // The tabs scroll both ways in a small window; the buttons below stay in sight
+    ImGui::BeginChild("##tabs", ImVec2(0, -footer), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar);
     if (ImGui::BeginTabBar("##settingsTabs"))
     {
         if (ImGui::BeginTabItem(tr("Display")))
@@ -812,7 +824,10 @@ void drawSettings(bool *open, std::string &configFile, bool inGame)
         *open = false;
     if (!g_status.empty())
     {
-        ImGui::SameLine();
+        // Beside the buttons when it fits, else on the line under them
+        const float right = ImGui::GetCursorScreenPos().x + ImGui::GetContentRegionAvail().x;
+        if (ImGui::GetItemRectMax().x + ImGui::GetStyle().ItemSpacing.x + ImGui::CalcTextSize(g_status.c_str()).x <= right)
+            ImGui::SameLine();
         ImGui::TextDisabled("%s", g_status.c_str());
     }
     ImGui::End();
