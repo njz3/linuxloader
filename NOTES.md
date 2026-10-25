@@ -95,6 +95,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 112 | 25/10 | Commit et push, release, prévenir Image borne pour mettre à jour les deux bornes | ✅ rien à commiter (poussé jusqu'à `e67aa54`) ; `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261025-4-njz3-win32.zip`, la première faite par `release.py` ; Image borne prévenue (voir journal) |
 | 111 | 25/10 | L'avertissement quand la copie des réglages dans le dossier d'écriture est plus ancienne | ✅ une ligne WARN au démarrage par fichier, `linuxloader.ini` et `controls.ini` (voir journal) |
 | 110 | 25/10 | Ajouter le suffixe des releases du jour (-2, -3…) | ✅ `RELEASE_SUFFIX` écrit dans `version.h` le temps du build de release, dans le titre et `--version` ; la procédure le calcule d'après les zips du jour (voir journal) |
 | 109 | 25/10 | Ajouter le journal de diagnostic des axes et des lectures Gaelco, faire une release, prévenir Image borne | ✅ `a121e39` ; `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261025-3-njz3-win32.zip` ; Image borne prévenue avec la marche à suivre (voir journal) |
@@ -144,6 +145,20 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Quatrième release du 25/10 (demande 112)
+- Faite par `release.py` (procédure de la demande 110) : suffixe « -4 » calculé d'après les trois zips du jour,
+  `version.h` à 3.0.12 avec `RELEASE_SUFFIX "-4"` le temps du build puis remis, MinGW recompilé de zéro. Contenu :
+  commit `e67aa54` exactement (journal de diagnostic, suffixe du jour, avertissement de copie de réglages périmée, en
+  plus de tout ce que portait la 20261025-2).
+- `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261025-4-njz3-win32.zip`, 18,3 Mo ; SHA-256 du zip
+  `2b84ce5efb3e277a7848ce30fe2482776f27822f37bc4e4ab2941b87baa97fa1`, de `linuxloader.exe`
+  `53200fe39376ecdcf0385a65a35da98b6246a5602424cdddaca5a59f3016525e` ; `ll-deps` identique à la 20261025-3.
+- Testée depuis le zip extrait : `--version` → « linuxloader v3.0.12 » et « Build: linuxloader-v3.0.12-ffbedition-
+  20261025-4-njz3 FFB Edition », le nom exact du zip ; `--create config`.
+- Dead Heat Riders à 1,25 FPS (campagne du 25/10) : non reproduit par Image borne en trois passes (60 FPS, avec et
+  sans le relevé FFB de vjoyd, retour de force à 0 ou 100). Le chiffre était lu juste après une capture qui minimise le
+  jeu en plein écran : la moyenne du titre englobe la pause. Vitesse à revérifier sans minimiser.
 
 ### Suffixe des releases du jour, copie de réglages périmée (demandes 110 et 111)
 - Le nom du build (`buildEdition`, titre des fenêtres) porte maintenant le rang de la release dans sa journée, comme
