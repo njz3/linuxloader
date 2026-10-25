@@ -95,6 +95,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 106 | 25/10 | Quand la fenêtre de jeu est trop petite pour ouvrir les paramètres, diminuer la taille de la fenêtre de paramètres et mettre des barres de défilement | ✅ fenêtre de paramètres bornée à celle du jeu et ramenée dedans, onglets défilant dans les deux sens, échelle jusqu'à 80 % de la police ; vu dans le sélecteur à 640×480 et 480×360 (voir journal) |
 | 105 | 25/10 | Corriger la recherche de la carte d'Initial D avec le dossier d'écriture, nouvelle release, prévenir Image borne | ✅ `idCardFileExists` passe par `writeDirForRead` ; `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261025-njz3-win32.zip` (commit `510f4d3`) ; pas essayé ici sur Initial D 4 (disque sous les 30 Go convenus), essai demandé à Image borne sur la borne (voir journal) |
 | 104 | 24/10 | Corriger les bugs, faire une nouvelle release pour Image borne | ✅ trois correctifs (dlopen d'un nom nu, racine de l'image Linux, adresse de SEGA Race TV), chacun reproduit avec la release -4 puis corrigé, MinGW et MSVC ; `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261024-5-njz3-win32.zip` (commit `1c0adde`) ; Image borne prévenue (voir journal) |
 | 103 | 24/10 | Diagnostiquer avec Image borne les jeux qui ne marchent pas ou n'ont pas de retour de force sur la borne | ✅ ses journaux `LL_LOG=info` : WMMT3 et 3DX+, Gaelco Championship Tuning Race, Ring Riders et Tokyo Cop échouent seulement avec le dossier d'écriture ; SEGA Race TV meurt à cause de `SRTV_IPADDRESS = 192.168.1.2` du fichier par défaut ; retour de force : câblage bon (joystick 0 = vJoy, mode volant), mesures à zéro sans doute hors course, à refaire avec l'enregistreur `vjoy_driver.py` (voir journal) |
@@ -138,6 +139,19 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Paramètres dans une petite fenêtre (demande 106)
+- Avant : l'échelle de l'interface ne descendait pas sous la taille propre de la police (1,0 sur un écran normal),
+  la fenêtre de paramètres prenait sa taille et sa place à l'ouverture seulement, et ses onglets ne défilaient que
+  verticalement. Une fenêtre de jeu réduite après l'ouverture laissait les paramètres hors de vue (entièrement à
+  480×360) ; ouverts directement à 480×360, ils débordaient en bas, boutons Enregistrer et Fermer cachés.
+- `guiCommon.cpp` : la fenêtre de paramètres ne dépasse jamais celle du jeu (`SetNextWindowSizeConstraints`) et y est
+  ramenée à chaque image ; les onglets défilent aussi horizontalement (`ImGuiWindowFlags_HorizontalScrollbar`), les
+  boutons restent visibles dessous ; le message d'état passe sous les boutons quand il ne tient pas à côté ;
+  `applyScale` descend jusqu'à 80 % de la taille de la police à l'écran (0,65 était illisible).
+- Vu dans le sélecteur (Tab), captures de l'écran à 1280×720, 640×480 et 480×360, ouverture puis réduction et
+  ouverture directe, release 20261025 contre le nouveau build : paramètres entiers dans la fenêtre, défilement
+  vertical et horizontal, boutons en vue. MinGW et MSVC compilent.
 
 ### Mesures en course sur la borne, carte d'Initial D (demande 105)
 - Captures d'Image borne (`PrintWindow` avec `PW_RENDERFULLCONTENT` ; un jeu en plein écran exclusif se réduit dès
