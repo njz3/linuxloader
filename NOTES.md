@@ -95,6 +95,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 107 | 25/10 | Dans le titre de la fenêtre de l'émulateur, pour cette branche : la version du build comme le package, et « FFB Edition » | ✅ « Tokyo Cop [tokyocop] - linuxloader-v2.0.0-ffbedition-20261025-njz3 FFB Edition - FPS: 57.34 » (`buildEdition`, `config.c`) ; une release y montre 3.0.12, comme son zip ; le sélecteur aussi (voir journal) |
 | 106 | 25/10 | Quand la fenêtre de jeu est trop petite pour ouvrir les paramètres, diminuer la taille de la fenêtre de paramètres et mettre des barres de défilement | ✅ fenêtre de paramètres bornée à celle du jeu et ramenée dedans, onglets défilant dans les deux sens, échelle jusqu'à 80 % de la police ; vu dans le sélecteur à 640×480 et 480×360 (voir journal) |
 | 105 | 25/10 | Corriger la recherche de la carte d'Initial D avec le dossier d'écriture, nouvelle release, prévenir Image borne | ✅ `idCardFileExists` passe par `writeDirForRead` ; `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261025-njz3-win32.zip` (commit `510f4d3`) ; pas essayé ici sur Initial D 4 (disque sous les 30 Go convenus), essai demandé à Image borne sur la borne (voir journal) |
 | 104 | 24/10 | Corriger les bugs, faire une nouvelle release pour Image borne | ✅ trois correctifs (dlopen d'un nom nu, racine de l'image Linux, adresse de SEGA Race TV), chacun reproduit avec la release -4 puis corrigé, MinGW et MSVC ; `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261024-5-njz3-win32.zip` (commit `1c0adde`) ; Image borne prévenue (voir journal) |
@@ -139,6 +140,19 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Version et « FFB Edition » dans le titre (demande 107)
+- `buildEdition()` (`config.c`) : le nom du package de cette branche, `linuxloader-v<version.h>-ffbedition-<date>-njz3`,
+  puis « FFB Edition ». La date est celle de la compilation de `config.c` (`__DATE__`) : celle de la release, qui se
+  construit de zéro ; un build de développement montre la date de sa dernière compilation de ce fichier. La version
+  vient de `version.h` : 2.0.0 dans un build de développement, 3.0.12 dans une release (la procédure l'y écrit le temps
+  du build), donc le titre d'une release est le nom de son zip.
+- `formatWindowTitle` l'ajoute après le nom du jeu et son nom court entre crochets (que BackForceFeeder reconnaît,
+  inchangé), avant la fréquence d'images : « Tokyo Cop [tokyocop] - linuxloader-v2.0.0-ffbedition-20261025-njz3 FFB
+  Edition - FPS: 57.34 », lu sur la fenêtre de Tokyo Cop en mode agent. Toutes les fenêtres de jeu passent par cette
+  fonction (GLX, GLUT, SDL 1.2, X11). Le sélecteur : « Lindbergh Loader - linuxloader-v…-njz3 FFB Edition ».
+- Au passage, la liste des fenêtres de ce processus montre que Tokyo Cop tourne ici sur la carte NVIDIA (« NVOGLDC
+  invisible ») : la carte graphique des bornes n'explique pas son volant figé.
 
 ### Paramètres dans une petite fenêtre (demande 106)
 - Avant : l'échelle de l'interface ne descendait pas sous la taille propre de la police (1,0 sur un écran normal),
