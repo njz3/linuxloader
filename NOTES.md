@@ -95,6 +95,8 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 111 | 25/10 | L'avertissement quand la copie des réglages dans le dossier d'écriture est plus ancienne | ✅ une ligne WARN au démarrage par fichier, `linuxloader.ini` et `controls.ini` (voir journal) |
+| 110 | 25/10 | Ajouter le suffixe des releases du jour (-2, -3…) | ✅ `RELEASE_SUFFIX` écrit dans `version.h` le temps du build de release, dans le titre et `--version` ; la procédure le calcule d'après les zips du jour (voir journal) |
 | 109 | 25/10 | Ajouter le journal de diagnostic des axes et des lectures Gaelco, faire une release, prévenir Image borne | ✅ `a121e39` ; `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261025-3-njz3-win32.zip` ; Image borne prévenue avec la marche à suivre (voir journal) |
 | 108 | 25/10 | Commit et push, release, prévenir Image borne pour mettre à jour les deux bornes | ✅ poussé jusqu'à `af2871e` ; `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261025-2-njz3-win32.zip` ; Image borne prévenue (voir journal) |
 | 107 | 25/10 | Dans le titre de la fenêtre de l'émulateur, pour cette branche : la version du build comme le package, et « FFB Edition » | ✅ « Tokyo Cop [tokyocop] - linuxloader-v2.0.0-ffbedition-20261025-njz3 FFB Edition - FPS: 57.34 » (`buildEdition`, `config.c`) ; une release y montre 3.0.12, comme son zip ; le sélecteur aussi (voir journal) |
@@ -142,6 +144,23 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Suffixe des releases du jour, copie de réglages périmée (demandes 110 et 111)
+- Le nom du build (`buildEdition`, titre des fenêtres) porte maintenant le rang de la release dans sa journée, comme
+  son zip : rien pour la première, « -2 » pour la deuxième… (`RELEASE_SUFFIX`, vide par défaut). `--version` affiche
+  aussi ce nom sur une deuxième ligne (« Build: linuxloader-v…-njz3 FFB Edition »), qui permet de vérifier une release
+  sans ouvrir de fenêtre.
+- Procédure de release (script `release.py` de la session) : le suffixe est calculé d'après les zips du jour déjà
+  dans `emulateurs/releases` ; `version.h` reçoit le temps du build la version du changelog (3.0.12) et, pour une
+  deuxième release du jour ou plus, `#define RELEASE_SUFFIX "-N"`, puis il est remis ; build MinGW recompilé de zéro,
+  zip, empreintes, `ll-deps` comparé à la release précédente. Le script refuse un arbre de travail modifié.
+- Vérifié : build d'essai avec le suffixe « -9 » et la version 3.0.12 → « Build: linuxloader-v3.0.12-ffbedition-
+  20261025-9-njz3 FFB Edition » ; build normal → « linuxloader-v2.0.0-ffbedition-20261025-njz3 FFB Edition ».
+- Avertissement (`overlaySettings`, `writeDir.c`) : quand la copie de `linuxloader.ini` ou `controls.ini` à la racine
+  du dossier d'écriture est plus ancienne que le fichier d'origine à côté du loader, une ligne WARN dit que les
+  changements faits à côté du loader ne sont pas lus. Copier un fichier garde sa date (`CopyFileA`) : une copie
+  fraîche ne déclenche rien. Vérifié : copies datées de 2020 → une ligne pour chacun des deux fichiers ; mêmes dates →
+  aucune.
 
 ### Tokyo Cop figé sur les bornes, journal de diagnostic (demande 109)
 - Sur les deux bornes, le CONTROLS TEST de Tokyo Cop reste à volant 0, gaz 255, frein ON (et Force 0,50), quels que
