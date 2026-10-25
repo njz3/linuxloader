@@ -20,6 +20,7 @@
 #include "../lindbergh/forceFeedback.h"
 #include "../lindbergh/jvs.h"
 #include "../lindbergh/netOutputs.h"
+#include "../../log/log.h"
 #include "../../agent/agent.h"
 #include "../../log/log.h"
 #include "../../patching/flowControl.h"
@@ -100,7 +101,7 @@ static const SwitchSource tokyoCopSwitches[2][8] = {
 };
 #define TOKYO_COP_BRAKE_BIT 4 // port 0x40, from the brake's analogue channel past a quarter
 
-static int readSwitches(int index)
+static int readSwitchesValue(int index)
 {
     JVSIO *io = getJVSIO();
     int value = 0xFFFF;
@@ -133,7 +134,7 @@ static int readSwitches(int index)
 // Championship Tuning Race calibrates its wheel and both pedals (4, 5 and 6) the same way, by two a read
 #define SWEEP_READS 300
 
-static int readAnalogue(int index)
+static int readAnalogueValue(int index)
 {
     static int sweep[9];
     JVSIO *io = getJVSIO();
@@ -172,6 +173,40 @@ static int readAnalogue(int index)
         default:
             return 0x80;
     }
+}
+
+// The journal of what the game reads (LL_LOG=debug and DEBUG_MSGS = true): each change of a switch register or an
+// analogue channel, and every 600th read, with the loader's JVS channels 1 to 3 (wheel, accelerator, brake), so that
+// a control the game sees frozen shows whether the loader's value is
+static void journalRead(const char *kind, int index, int value, int *last, unsigned *count)
+{
+    JVSIO *io = getJVSIO();
+    (*count)++;
+    if (value != *last || *count % 600 == 1)
+        log_debug("Gaelco %s %d = %d (0x%02X), read %u times; JVS 1/2/3 = %d/%d/%d", kind, index, value, value & 0xFF,
+                  *count, io->state.analogueChannel[ANALOGUE_1], io->state.analogueChannel[ANALOGUE_2],
+                  io->state.analogueChannel[ANALOGUE_3]);
+    *last = value;
+}
+
+static int readSwitches(int index)
+{
+    static int last[2] = {-1, -1};
+    static unsigned count[2];
+    int value = readSwitchesValue(index);
+    if (index >= 0 && index < 2)
+        journalRead("switches", index, value, &last[index], &count[index]);
+    return value;
+}
+
+static int readAnalogue(int index)
+{
+    static int last[9] = {-1, -1, -1, -1, -1, -1, -1, -1, -1};
+    static unsigned count[9];
+    int value = readAnalogueValue(index);
+    if (index >= 0 && index < 9)
+        journalRead("analogue", index, value, &last[index], &count[index]);
+    return value;
 }
 
 static int readRegister(int index)

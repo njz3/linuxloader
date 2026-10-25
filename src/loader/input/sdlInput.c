@@ -180,6 +180,15 @@ const struct
 
 const int NUM_ACTION_NAMES = sizeof(gActionNameMap) / sizeof(gActionNameMap[0]);
 
+// An action's name in controls.ini, for the journal
+static const char *actionName(LogicalAction action)
+{
+    for (int i = 0; i < NUM_ACTION_NAMES; i++)
+        if (gActionNameMap[i].action == action)
+            return gActionNameMap[i].name;
+    return "?";
+}
+
 // --- Default Bindings ---
 // These arrays define the built-in control schemes that are used when controls.ini is not found.
 // They are also used by createDefaultControlsIni() to generate a fresh INI file.
@@ -1736,8 +1745,10 @@ void processSdlEvent(const SDL_Event *e)
         break;
         case SDL_EVENT_JOYSTICK_AXIS_MOTION:
         {
-            // printf("Jaxis: %d, Value: %d, Device: %d\n", e->jaxis.axis, e->jaxis.value, e->jaxis.which);
+            // The value SDL gives and the JOYn it lands on (-1: no device of the bindings), to see what an axis carries
             int devIdx = getJoystickID(e->jaxis.which);
+            log_debug("Joy Axis: %s, JOY%d axis %d = %d", SDL_GetJoystickNameForID(e->jaxis.which), devIdx, e->jaxis.axis,
+                      e->jaxis.value);
             if (devIdx != -1 && e->jaxis.axis < MAX_JOY_AXES)
             {
                 BindingPair *pair = &gJoyAxisBindings[devIdx][e->jaxis.axis];
@@ -1825,8 +1836,9 @@ void processSdlEvent(const SDL_Event *e)
         break;
         case SDL_EVENT_GAMEPAD_AXIS_MOTION:
         {
-            // printf("GC Axis: %s, Value: %d\n", SDL_GameControllerGetStringForAxis(e->caxis.axis), e->caxis.value);
             int devIdx = getControllerID(e->gaxis.which);
+            log_debug("Pad Axis: %s, GC%d %s = %d", SDL_GetGamepadNameForID(e->gaxis.which), devIdx,
+                      SDL_GetGamepadStringForAxis((SDL_GamepadAxis)e->gaxis.axis), e->gaxis.value);
             if (devIdx != -1 && e->gaxis.axis < SDL_GAMEPAD_AXIS_COUNT)
             {
                 BindingPair *pair = &gControllerAxisBindings[devIdx][e->gaxis.axis];
@@ -2342,6 +2354,8 @@ void processChangedActions()
                 }
 
                 setAnalogue(map->jvsInput, (int)(state->analogValue * jvsAnalogueMaxValue));
+                log_debug("JVS analogue %d = %d (P%d %s)", map->jvsInput, (int)(state->analogValue * jvsAnalogueMaxValue),
+                          player, actionName(actionId));
                 break;
             case JVS_CALL_COIN:
                 if (state->isActive)
