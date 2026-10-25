@@ -509,7 +509,8 @@ extern "C" int guiRunPicker(const char *programPath)
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD))
         return 1;
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_Window *window = SDL_CreateWindow("Lindbergh Loader", 1280, 720, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+    const std::string title = std::string("Lindbergh Loader - ") + buildEdition();
+    SDL_Window *window = SDL_CreateWindow(title.c_str(), 1280, 720, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
     if (!window)
         return 1;
     SDL_GLContext context = SDL_GL_CreateContext(window);

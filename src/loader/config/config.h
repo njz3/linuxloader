@@ -412,6 +412,7 @@ int loadConfigFile(const char *configFilePath);
 char *getGameName();
 char *getDvpName();
 void formatWindowTitle(char *buffer, size_t size, double fps);
+const char *buildEdition(void);
 char *getGameId();
 int getGameLindberghColour();
 char *getGameReleaseYear();

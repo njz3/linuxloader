@@ -10,6 +10,7 @@
 #include "../log/log.h"
 #include "iniParser.h"
 #include "../mainShared.h"
+#include "../version.h"
 
 EmulatorConfig config = {0};
 
@@ -67,9 +68,26 @@ char *getGameName()
     return config.gameTitle;
 }
 
+// This branch's build, named as its release package (linuxloader-v<version.h>-ffbedition-<date>-njz3), then "FFB
+// Edition". The date is the day config.c was compiled: a release's, as it is built from clean
+const char *buildEdition(void)
+{
+    static char edition[96];
+    if (!edition[0])
+    {
+        static const char months[] = "JanFebMarAprMayJunJulAugSepOctNovDec";
+        const char *date = __DATE__; // "Oct 25 2026"
+        char month[4] = {date[0], date[1], date[2], '\0'};
+        const char *found = strstr(months, month);
+        snprintf(edition, sizeof(edition), "linuxloader-v%d.%d.%d-ffbedition-%.4s%02d%02d-njz3 FFB Edition", MAJOR_VERSION,
+                 MINOR_VERSION, UPDATE_VERSION, date + 7, found ? (int)(found - months) / 3 + 1 : 0, atoi(date + 4));
+    }
+    return edition;
+}
+
 // The window's title: the game's name, then its short name in brackets, by which BackForceFeeder recognises the game
-// (no space nor bracket, kept from one version to the next), and the frame rate when fps is not negative. An unknown
-// game has no short name, nor brackets
+// (no space nor bracket, kept from one version to the next), the build, and the frame rate when fps is not negative.
+// An unknown game has no short name, nor brackets
 void formatWindowTitle(char *buffer, size_t size, double fps)
 {
     char name[192];
@@ -78,9 +96,9 @@ void formatWindowTitle(char *buffer, size_t size, double fps)
     else
         snprintf(name, sizeof(name), "%s", config.gameTitle);
     if (fps >= 0.0)
-        snprintf(buffer, size, "%s - FPS: %.2f", name, fps);
+        snprintf(buffer, size, "%s - %s - FPS: %.2f", name, buildEdition(), fps);
     else
-        snprintf(buffer, size, "%s", name);
+        snprintf(buffer, size, "%s - %s", name, buildEdition());
 }
 
 char *getDvpName()
