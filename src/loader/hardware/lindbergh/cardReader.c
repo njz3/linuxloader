@@ -414,8 +414,11 @@ bool idCardFileExists(const char *folderPath, long expectedSize, bool twoDigits)
             continue;
         }
 
+        // Through the write folder, as the game reads it: WRITE_DIR\<game>'s card when it is there, else the game
+        // folder's (a plain stat looked in WRITE_DIR\<game> only, missed the game's cards and turned the autoload off)
+        char readPath[1024];
         struct stat fileStat;
-        if (stat(currentFullPath, &fileStat) == 0)
+        if (stat(writeDirForRead(currentFullPath, readPath, sizeof(readPath)), &fileStat) == 0)
         {
             if (fileStat.st_size == expectedSize)
             {
