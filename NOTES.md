@@ -95,6 +95,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 109 | 25/10 | Ajouter le journal de diagnostic des axes et des lectures Gaelco, faire une release, prévenir Image borne | ✅ `a121e39` ; `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261025-3-njz3-win32.zip` ; Image borne prévenue avec la marche à suivre (voir journal) |
 | 108 | 25/10 | Commit et push, release, prévenir Image borne pour mettre à jour les deux bornes | ✅ poussé jusqu'à `af2871e` ; `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261025-2-njz3-win32.zip` ; Image borne prévenue (voir journal) |
 | 107 | 25/10 | Dans le titre de la fenêtre de l'émulateur, pour cette branche : la version du build comme le package, et « FFB Edition » | ✅ « Tokyo Cop [tokyocop] - linuxloader-v2.0.0-ffbedition-20261025-njz3 FFB Edition - FPS: 57.34 » (`buildEdition`, `config.c`) ; une release y montre 3.0.12, comme son zip ; le sélecteur aussi (voir journal) |
 | 106 | 25/10 | Quand la fenêtre de jeu est trop petite pour ouvrir les paramètres, diminuer la taille de la fenêtre de paramètres et mettre des barres de défilement | ✅ fenêtre de paramètres bornée à celle du jeu et ramenée dedans, onglets défilant dans les deux sens, échelle jusqu'à 80 % de la police ; vu dans le sélecteur à 640×480 et 480×360 (voir journal) |
@@ -141,6 +142,27 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Tokyo Cop figé sur les bornes, journal de diagnostic (demande 109)
+- Sur les deux bornes, le CONTROLS TEST de Tokyo Cop reste à volant 0, gaz 255, frein ON (et Force 0,50), quels que
+  soient les axes ; les autres jeux de course roulent dans la même campagne, avec le même vjoyd. Ces trois valeurs
+  sont celles de trois axes SDL au minimum.
+- Écarté : les liaisons clavier (essai A/B, aucune touche reçue), un état enregistré (write-dir neuf, sans write-dir),
+  le lanceur `.cmd` et l'environnement (lancement direct, aucune variable SDL_* ni LL_*), un fichier propre au jeu,
+  un second vJoy (un seul périphérique sur chaque borne), le focus (reproduit ici : jeu minimisé puis restauré).
+- Non reproduit ici, avec le dossier de Tokyo Cop copié de racecab1, le `controls.ini` et le `linuxloader.ini` de la
+  borne, la release du 25/10 et vJoy placé comme le démon (X, Y, Z au centre) : en mode agent comme en lancement normal,
+  le test suit tout (repos 127 / 0 / off, Y = 0 → gaz 255, Z = 0 → frein ON, X = 0,1 → volant 25). Tokyo Cop tourne
+  ici aussi sur la carte NVIDIA.
+- Journal ajouté, avec `LL_LOG=debug` et `DEBUG_MSGS = true` : chaque événement d'axe de manette ou de joystick
+  (« Joy Axis: nom, JOYn axis a = valeur », « Pad Axis: … »), chaque voie analogique JVS écrite par le loader
+  (« JVS analogue c = v (P1 Gas) »), et ce que lit un jeu Gaelco (« Gaelco analogue n = v …; JVS 1/2/3 = … », à chaque
+  changement et toutes les 600 lectures, de même pour les registres de contacts). Vérifié sur Tokyo Cop.
+- Release : `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261025-3-njz3-win32.zip` (commit `a121e39`, même
+  procédure), 18,3 Mo ; SHA-256 du zip `e96e2c82fcba5497a63a3d356d738bb2398454026581e920b1a915224108bbd6`, de
+  `linuxloader.exe` `e18578966e12ef6863c175accd35ba647e448e4ddae828ef56ed42c797ffdcef` ; `ll-deps` identique à la
+  20261025-2. Sans `LL_LOG=debug` et `DEBUG_MSGS`, elle se comporte comme la 20261025-2. Testée depuis le zip :
+  `--version`, lignes Gaelco et JVS présentes sur Tokyo Cop en mode agent.
 
 ### Deuxième release du 25/10 (demande 108)
 - Même procédure : build MinGW recompilé de zéro, `version.h` à 3.0.12 le temps du build (fichier remis), zip avec
