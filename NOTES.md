@@ -95,6 +95,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 105 | 25/10 | Corriger la recherche de la carte d'Initial D avec le dossier d'écriture, nouvelle release, prévenir Image borne | ✅ `idCardFileExists` passe par `writeDirForRead` ; `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261025-njz3-win32.zip` (commit `510f4d3`) ; pas essayé ici sur Initial D 4 (disque sous les 30 Go convenus), essai demandé à Image borne sur la borne (voir journal) |
 | 104 | 24/10 | Corriger les bugs, faire une nouvelle release pour Image borne | ✅ trois correctifs (dlopen d'un nom nu, racine de l'image Linux, adresse de SEGA Race TV), chacun reproduit avec la release -4 puis corrigé, MinGW et MSVC ; `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261024-5-njz3-win32.zip` (commit `1c0adde`) ; Image borne prévenue (voir journal) |
 | 103 | 24/10 | Diagnostiquer avec Image borne les jeux qui ne marchent pas ou n'ont pas de retour de force sur la borne | ✅ ses journaux `LL_LOG=info` : WMMT3 et 3DX+, Gaelco Championship Tuning Race, Ring Riders et Tokyo Cop échouent seulement avec le dossier d'écriture ; SEGA Race TV meurt à cause de `SRTV_IPADDRESS = 192.168.1.2` du fichier par défaut ; retour de force : câblage bon (joystick 0 = vJoy, mode volant), mesures à zéro sans doute hors course, à refaire avec l'enregistreur `vjoy_driver.py` (voir journal) |
 | 102 | 24/10 | Faire la release et prévenir Image borne | ✅ `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261024-4-njz3-win32.zip` (commit `5b2f467`) ; Image borne prévenue (voir journal) |
@@ -137,6 +138,31 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Mesures en course sur la borne, carte d'Initial D (demande 105)
+- Captures d'Image borne (`PrintWindow` avec `PW_RENDERFULLCONTENT` ; un jeu en plein écran exclusif se réduit dès
+  qu'il perd le focus : sa capture le restaure d'abord). Retour de force reçu par vJoy en course : Gaelco
+  Championship Tuning Race, Ring Riders, SEGA Race TV, Tokyo Cop (il rend depuis la -5), Hummer Extreme, Dead Heat
+  Riders, OutRun 2 SP SDX, Maximum Heat 3D (en course, 8e, 80 km/h). Les autres attendaient sur des écrans de choix
+  (ID5, R-Tuned, WMMT3, 3DX+ : un front de gaz par écran, ou Start pour ID5, ou le minuteur), sur l'écran de la nitro
+  (Dead Heat : action `Boost` du joueur 1) ou sur la carte (Initial D 4). Nirin n'a pas de moteur de guidon.
+- Initial D 4 Export et Japon : « Waiting for checking Initial D license card ». Le chargement automatique ne met une
+  carte que si `idCardFileExists` (`cardReader.c`) trouve un `InidCrdNNN.crd` (ou `InidCardNN.crd`) de la bonne
+  taille ; il la cherchait par `stat` dans le dossier courant, `WRITE_DIR\<jeu>` avec un dossier d'écriture, alors que
+  la carte est dans le dossier du jeu (relevé sur la borne : `InidCrd000.crd` côté jeu, une carte neuve créée côté
+  écriture). Il passe maintenant par `writeDirForRead`, comme les lectures du jeu. Contournement posé par Image borne
+  en attendant : la carte du jeu copiée dans `WRITE_DIR\<jeu>`.
+- Tokyo Cop : 000 km/h en poursuite ; son CONTROLS TEST montre gaz 255 (Y à 0,2, soit 0,6 en `_NEGATIVE_SIDE`),
+  frein ON (Z au centre) et volant en butée. Pas le clavier : un essai A/B avec et sans les liaisons flèches donne le
+  même résultat, et aucune touche n'arrive (`DEBUG_MSGS`, seulement l'Alt de l'outil de capture). Non résolu ; piste :
+  vJoy est ouvert en manette SDL (« SDL CONTROLLER 0 ») et une liaison `GC0_AXIS_…TRIGGER` lit un axe au repos au
+  centre comme une gâchette à moitié enfoncée. Son menu de test : Test tenu environ 1 s (0,2 s est manqué), puis
+  `ViewChange` monte, `MusicChange` descend, Start entre.
+- Release : `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261025-njz3-win32.zip` (commit `510f4d3`, même
+  procédure), 18,3 Mo ; SHA-256 du zip `732190f69bba0fbafff7b9e6e56baf70d6d5dd5a834bd66b6903c9b1e418a205`, de
+  `linuxloader.exe` `350580b3a9f9e0ea3d4bf4b9ae407b945f128f433c94b097c2d47c1e7ea43e4b` ; `ll-deps` identique à la
+  -5. Testée depuis le zip extrait : `--version`, `--create config` et `--create controls`. Pas d'Initial D 4 en
+  local : 25,7 Go libres, sous le seuil de 30 Go convenu avec les autres sessions (Corbeille pleine de leurs jeux).
 
 ### Échecs sur la borne : dossier d'écriture et adresse de SEGA Race TV (demandes 103 et 104)
 - Diagnostic avec Image borne, release -4 sur racecab1, journaux `LL_LOG=info`. Sans `--write-dir`, WMMT3, Gaelco
