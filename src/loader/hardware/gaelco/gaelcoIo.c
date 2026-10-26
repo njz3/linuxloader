@@ -220,7 +220,12 @@ static int readRegister(int index)
 
 // --- The outputs: 4 and 5 the motor's torque one way and the other (G3Dintf_ports::setMotor), 6 and 7 the vibrators
 // (setVibrador). They become the Sega servo board's frames of the loader's FFB model (forceFeedback.c), as Dead Heat's
-// Kickback board's (hardware/namco/deadHeatIo.c)
+// Kickback board's (hardware/namco/deadHeatIo.c). Outputs 0 to 3 are bytes of bits (G3Dintf_ports::setOutBits80000,
+// 80001 and 80002): the network outputs' RawLamps to RawLamps3. Seen in Ring Riders: on output 0 the cabinet's lamps
+// on bits 0 to 3, the platform's security on bit 5; on output 1 the cabinet's lamps on bits 7, 2 and 3, the coin
+// meter's pulses on bit 5, the sound's mute on bit 0. In Championship Tuning Race (IOFrontal): on output 0 the coin
+// meter on bit 0, the lamps (procesaBombillas) on bits 1 and 2, the sound's mute on bit 3
+#define OUTPUT_LAMP_BYTES 4
 #define OUTPUT_MOTOR_A 4
 #define OUTPUT_MOTOR_B 5
 #define OUTPUT_VIBRATOR 6
@@ -299,6 +304,8 @@ static int gaelcoIntfCommand(int command, int *params)
         outputs[params[0]] = params[1];
         if (params[0] >= OUTPUT_MOTOR_A && params[0] <= OUTPUT_VIBRATOR)
             feedbackUpdate();
+        if (params[0] < OUTPUT_LAMP_BYTES)
+            netOutputsSetGpo(params[0], (uint8_t)params[1]);
         return 0;
     }
     if (command == COMMAND_COIN_COUNTER_1 || command == COMMAND_COIN_COUNTER_2)
@@ -347,7 +354,14 @@ static int gaelcoInport(int port, char *value)
     return 0;
 }
 
-// Tokyo Cop's older interface writes its motor's torque on ports 0x44 and 0x45, the outputs 4 and 5 of the newer
+// Tokyo Cop's older interface writes its motor's torque on ports 0x44 and 0x45, the outputs 4 and 5 of the newer, and
+// bits on ports 0x40 and 0x41 (G3Dintf_ports::set_out_bits_40 and _41), the newer's outputs 0 and 1 and as them the
+// network outputs' RawLamps and RawLamps1: on 0x41 the cabinet's lamps (enableCabinetLight) on bits 7 (the siren
+// button's, luzBocina), 2 and 3, and the coin meter's pulses on bit 5; on 0x40 the platform (platform_enable and
+// platform_move) on bits 4 to 7
+#define PORT_OUT_BITS_40 0x40
+#define PORT_OUT_BITS_41 0x41
+
 static int gaelcoOutport(int port, char *value)
 {
     if (value && (port == 0x44 || port == 0x45))
@@ -355,6 +369,8 @@ static int gaelcoOutport(int port, char *value)
         outputs[port == 0x44 ? OUTPUT_MOTOR_A : OUTPUT_MOTOR_B] = (uint8_t)*value;
         feedbackUpdate();
     }
+    if (value && (port == PORT_OUT_BITS_40 || port == PORT_OUT_BITS_41))
+        netOutputsSetGpo(port - PORT_OUT_BITS_40, (uint8_t)*value);
     return 0;
 }
 

@@ -45,6 +45,9 @@ void gameOptionsIniValues(std::vector<IniValue> &values);
 // A game's boards, translated, for its description: the controls' I/O board, the motor board (the same wording as
 // windowsloader's)
 std::vector<std::string> boardDescription(const GameData *data);
+// The "Outputs and network" page's list of what the game being run can send on the network outputs, with the values
+// last sent
+void drawOutputsList();
 
 // The controls page: the bindings of controls.ini, captured from the devices.
 void setControlsFile(const std::string &path);

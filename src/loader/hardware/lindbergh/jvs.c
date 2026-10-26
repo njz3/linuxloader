@@ -430,7 +430,9 @@ JVSStatus processPacket(int *packetSize)
         case CMD_WRITE_GPO_BIT:
         {
             ////printf("CMD_WRITE_GPO_BIT\n");
+            // The output (0 the first) and what to do with it: 0 clear, 1 set, 2 invert
             size = 3;
+            netOutputsSetGpoBit(inputPacket.data[index + 1], inputPacket.data[index + 2]);
             outputPacket.data[outputPacket.length++] = REPORT_SUCCESS;
         }
         break;

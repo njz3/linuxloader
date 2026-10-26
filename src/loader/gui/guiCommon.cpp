@@ -138,6 +138,36 @@ const std::unordered_map<std::string, const char *> &frenchTexts()
          "Envoyer les lampes et la carte de commande sur le réseau (sorties MAME)"},
         {"TCP port", "Port TCP"},
         {"UDP announcement port", "Port UDP d'annonce"},
+        {"What this game sends", "Ce que ce jeu envoie"},
+        {"Name", "Nom"},
+        {"Type", "Type"},
+        {"Meaning", "Signification"},
+        {"Value", "Valeur"},
+        {"text", "texte"},
+        {"The game's name, the first line a client gets", "Le nom du jeu, la première ligne que reçoit un client"},
+        {"byte, 0 to 255", "octet, 0 à 255"},
+        {"Lamps %d to %d, lamp %d on bit 7", "Lampes %d à %d, la lampe %d sur le bit 7"},
+        {"0 or 1", "0 ou 1"},
+        {"JVS output %d", "Sortie JVS %d"},
+        {"Kickback board lamp %s", "Lampe %s de la carte Kickback"},
+        {"Kickback board lamp %d", "Lampe %d de la carte Kickback"},
+        {"%s, bit %d", "%s, bit %d"},
+        {"port 0x%X", "port 0x%X"},
+        {"interface board output %d", "sortie %d de la carte d'interface"},
+        {"Cabinet lamp", "Lampe de la cabine"},
+        {"Coin meter", "Compteur de pièces"},
+        {"Sound mute", "Coupure du son"},
+        {"Platform", "Plateforme"},
+        {"Platform security", "Sécurité de la plateforme"},
+        {"Siren button lamp", "Lampe du bouton de sirène"},
+        {"byte, 0 to 255, one line each", "octet, 0 à 255, une ligne chacun"},
+        {"The motor board's bytes, as the Sega servo board's frames: command, two values, checksum",
+         "Les octets de la carte moteur, en trames de la carte servo Sega : commande, deux valeurs, somme de contrôle"},
+        {"When the game exits", "Quand le jeu s'arrête"},
+        {"Each line goes as \"name = value\" on the TCP port, at each change; a client that connects gets every known value first. Value: the last sent.",
+         "Chaque ligne part en « nom = valeur » sur le port TCP, à chaque changement ; un client qui se connecte reçoit d'abord toutes les valeurs connues. Valeur : la dernière envoyée."},
+        {"The values show while the outputs are on (from the next start once checked and saved).",
+         "Les valeurs s'affichent quand les sorties sont activées (au prochain lancement, une fois cochées et enregistrées)."},
         {"Network patches", "Correctifs réseau"},
         {"Sega Race TV IP address", "Adresse IP de Sega Race TV"},
         {"Games folder", "Dossier des jeux"},
@@ -732,6 +762,11 @@ void drawSettings(bool *open, std::string &configFile, bool inGame)
                 cfg->outputsNetwork = outputs;
             ImGui::InputInt(tr("TCP port"), &cfg->outputsNetworkPort);
             ImGui::InputInt(tr("UDP announcement port"), &cfg->outputsNetworkUdpPort);
+            if (inGame)
+            {
+                ImGui::Spacing();
+                drawOutputsList();
+            }
             ImGui::Separator();
             bool patches = cfg->enableNetworkPatches != 0;
             if (ImGui::Checkbox(tr("Network patches"), &patches))

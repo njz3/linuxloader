@@ -19,7 +19,8 @@
 // functions skip their exchanges (the steering check at boot passes, as with a board that answers). The game sets
 // its spring, viscosity, reflect (a torque) and centre offset each frame of a race (clGameInput::update); they become
 // the Sega servo board's frames of the loader's FFB model (forceFeedback.c), so the wheel, the agent's journal and the
-// network outputs follow them as for the Lindbergh games.
+// network outputs follow them as for the Lindbergh games. The cabinet's lamps are the Kickback board's too
+// (clKickback::setLamp and its named setters): read in the instance each frame, they are the network outputs' lamps.
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -62,6 +63,11 @@ typedef struct
     // Maximum Tune 3's calibration (clInputDeviceJamma's statics): each pedal's travel and rest, the brake's first,
     // then the wheel's half travel and centre
     bool centreWidth;
+    // The Kickback instance's lamps: the first's offset, their count and the distance between them. Dead Heat's are
+    // words, lit when their brightness (bits 0 to 3) is not 0; bit 4 is the flag setLamp and setLampFloat take with
+    // it, which also restarts a count at 0x14 (the flashing, it seems); clrLamp clears both. Maximum Tune 3's are
+    // integers, lit when not 0
+    uint8_t kickbackLamps, lampCount, lampStride;
 } DeadHeatAddresses;
 
 #define GEARBOX_NONE 0
@@ -73,13 +79,16 @@ static const DeadHeatAddresses deadHeatUs = {
     0x0902BB04, 0x0902BB08, 0x0902BAFC, 0x0902BAE8, 0x09033340, 0x087E5ABC, 0x087E5588, 0x09035980,
     0x13C,      0x140,      0x160,      0x1C,       0x200,      GEARBOX_LEVER, true,    true,
     "31c09090", 4,          0,          0x48,       0x49,       0x4A,       0x2C,       false,
+    0x04,       7,          2, // View, Nitro, PinKey, SheetKey, RingTopKey, RingCenterKey, RingBottomKey
 };
 
+// Its lamps one word further
 static const DeadHeatAddresses maximumHeat3d = {
     0x080AFC40, 0x080AEF50, 0x080AF4A0, 0x080AF240, 0x080AF220, 0x080AEF20, 0x080B4110, 0x080AFD50, 0x080BDEF7,
     0x0917083C, 0x09170840, 0x09170830, 0x0917081C, 0x09178080, 0x0891E120, 0x0891DBC8, 0x0917A6C0,
     0x13C,      0x140,      0x160,      0x1C,       0x200,      GEARBOX_LEVER, true,    true,
     "31c09090", 4,          0,          0x48,       0x49,       0x4A,       0x2C,       false,
+    0x06,       7,          2,
 };
 
 // No gear lever; its main flow and boot also send the I/O board a frame of their own (n2JvioAckTxVsync, n2JvioTxPl)
@@ -88,6 +97,7 @@ static const DeadHeatAddresses deadHeatRiders = {
     0x08F94AA0, 0x08F94AA1, 0x08F94AE8, 0x08F94AF0, 0x08F9C2A0, 0x086A9320, 0x086B2320, 0x08F9E920,
     0x13C,      0x140,      0x160,      0x1C,       0x200,      GEARBOX_NONE, true,     false,
     "31c090",   0x10,       0x080AA4B0, 0x48,       0x49,       0x4A,       0x2C,       false,
+    0x04,       8,          2, // View, Nitro, then six unnamed (clKickback::setLamp's mask on 16 bits)
 };
 
 // Its second counter (0x178) is the service credits' (clCoin::addService)
@@ -96,6 +106,7 @@ static const DeadHeatAddresses nirin = {
     0x091A6700, 0x091A6701, 0x091A6748, 0x091A674C, 0x091ACF40, 0x083F1168, 0,          0,
     0x104,      0x108,      0x128,      0x50,       0x1A8,      GEARBOX_NONE, false,    false,
     NULL,       4,          0,          0,          0,          0,          0,          false,
+    0,          0,          0,
 };
 
 // Maximum Tune 3 (2007): Nirin's state block, its clSystemN2 the same functions (init has no restart), its Kickback
@@ -106,6 +117,7 @@ static const DeadHeatAddresses maximumTune3 = {
     0x09B669E1, 0x09B669E0, 0x09B66A4C, 0x09B66A64, 0x09B5CEE0, 0x09AD8120, 0,          0x09B66A80,
     0x104,      0x108,      0x128,      0x50,       0x1A8,      GEARBOX_H,  false,      false,
     "31c090",   4,          0,          0x3D,       0x3E,       0x3F,       0x20,       true,
+    0x04,       2,          4, // View, Intrude (the challenge's)
 };
 
 // Maximum Tune 3DX+ (Japan, 2008): Maximum Tune 3's boards and fields, its addresses elsewhere
@@ -114,6 +126,7 @@ static const DeadHeatAddresses maximumTune3dx = {
     0x097FC081, 0x097FC080, 0x097FC0EC, 0x097FC104, 0x097EF580, 0x09768E40, 0,          0x097FC054,
     0x104,      0x108,      0x128,      0x50,       0x1A8,      GEARBOX_H,  false,      false,
     "31c090",   4,          0,          0x3D,       0x3E,       0x3F,       0x20,       true,
+    0x04,       2,          4,
 };
 
 static const DeadHeatAddresses *game = &deadHeatUs;
@@ -325,11 +338,27 @@ static void servoCentred(uint8_t command, int value)
     servoFrame(command, raw >> 7, raw);
 }
 
+// The lamps as the network outputs' RawLamps, lamp0 the first (bit 7)
+static void kickbackLamps(const uint8_t *kickback)
+{
+    uint8_t lamps = 0;
+    for (int lamp = 0; lamp < game->lampCount; lamp++)
+    {
+        const uint8_t *field = kickback + game->kickbackLamps + lamp * game->lampStride;
+        bool lit = game->lampStride == 4 ? *(const int32_t *)field != 0 : (field[0] & 0x0F) != 0;
+        if (lit)
+            lamps |= (uint8_t)(0x80 >> lamp);
+    }
+    if (game->lampCount)
+        netOutputsSetGpo(0, lamps);
+}
+
 static void kickbackUpdate(void)
 {
     const uint8_t *kickback = game->kickback ? KICKBACK_INSTANCE : NULL;
     if (!kickback)
         return;
+    kickbackLamps(kickback);
     if (!sent.started)
     {
         servoFrame(0x80, 0x00, 0x01); // effects on, permanent

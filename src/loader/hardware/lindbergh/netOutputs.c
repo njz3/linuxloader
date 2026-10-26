@@ -416,12 +416,9 @@ void netOutputsShutdown(void)
 #endif
 }
 
-void netOutputsSetGpo(int byteIndex, uint8_t value)
+// With stateMutex held
+static void gpoWrite(int byteIndex, uint8_t value)
 {
-    if (!running || byteIndex < 0 || byteIndex >= NET_GPO_BYTES)
-        return;
-
-    SDL_LockMutex(stateMutex);
     if (!gpoKnown[byteIndex] || gpo[byteIndex] != value)
     {
         uint8_t changed = gpoKnown[byteIndex] ? (uint8_t)(gpo[byteIndex] ^ value) : 0xFF;
@@ -440,7 +437,60 @@ void netOutputsSetGpo(int byteIndex, uint8_t value)
             }
         }
     }
+}
+
+void netOutputsSetGpo(int byteIndex, uint8_t value)
+{
+    if (!running || byteIndex < 0 || byteIndex >= NET_GPO_BYTES)
+        return;
+
+    SDL_LockMutex(stateMutex);
+    gpoWrite(byteIndex, value);
     SDL_UnlockMutex(stateMutex);
+}
+
+void netOutputsSetGpoBit(int output, int action)
+{
+    if (!running || output < 0 || output >= NET_GPO_BYTES * 8 || action < NET_GPO_CLEAR || action > NET_GPO_INVERT)
+        return;
+
+    int byteIndex = output / 8;
+    uint8_t mask = (uint8_t)(0x80 >> (output % 8));
+    SDL_LockMutex(stateMutex);
+    uint8_t value = gpoKnown[byteIndex] ? gpo[byteIndex] : 0;
+    if (action == NET_GPO_CLEAR)
+        value &= (uint8_t)~mask;
+    else if (action == NET_GPO_SET)
+        value |= mask;
+    else
+        value ^= mask;
+    gpoWrite(byteIndex, value);
+    SDL_UnlockMutex(stateMutex);
+}
+
+int netOutputsGpo(int byteIndex)
+{
+    if (!running || byteIndex < 0 || byteIndex >= NET_GPO_BYTES)
+        return -1;
+    SDL_LockMutex(stateMutex);
+    int value = gpoKnown[byteIndex] ? gpo[byteIndex] : -1;
+    SDL_UnlockMutex(stateMutex);
+    return value;
+}
+
+int netOutputsLastDrive(void)
+{
+    if (!running)
+        return -1;
+    SDL_LockMutex(stateMutex);
+    int value = lastDrive;
+    SDL_UnlockMutex(stateMutex);
+    return value;
+}
+
+bool netOutputsRunning(void)
+{
+    return running;
 }
 
 void netOutputsDrive(const uint8_t *bytes, size_t count)
