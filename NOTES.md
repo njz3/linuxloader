@@ -151,6 +151,29 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 
 ## Journal de développement
 
+### Décor blanc d'OutRun 2 avec le dossier d'écriture, Hummer en link (suite de la demande 117)
+- Release `linuxloader-v3.0.12-ffbedition-20261026-2-njz3-win32.zip` faite à la demande du propriétaire depuis
+  `00d0511` (adresses dans le journal des sockets) : SHA-256 du zip
+  `fc225520cfba622efff70ed571a2bcf3c10041336da1e1935a83d505b455dcf5`, de `linuxloader.exe`
+  `984268b92814681d19292394278c81b809be3d4ada29ef977f5643a7ac83c311`, `ll-deps` identique à la 20261026.
+- Décor blanc d'OutRun 2 en course (vu par le propriétaire sur les deux bornes, avec `Jennifer`) : seuls le HUD et
+  l'ombre de la voiture dessinés, « OpenGL Error … 1282 (psPredrawPsdShader:2225) » à chaque image. Reproduit ici
+  (RTX 3050 et Intel : ni la carte, ni le pilote, ni `BOOST_RENDER_RES`). Un build du 21/10 et un du 24/10 rendaient
+  bien… sans dossier d'écriture ; la version actuelle aussi sans lui. La cause : `CreatePresetPsdPixelShader` fait
+  `opendir("./shader/fs/psd/")`, puis `chdir` dans ce dossier, et lit chaque programme par son seul nom (`stat`,
+  puis `GlFragmentShader_createShaderFromFile`). Avec un dossier d'écriture, le dossier courant est
+  `WRITE_DIR\<jeu>` et les chemins relatifs y étaient rattachés à sa racine : le `chdir` vers un dossier qui n'existe
+  que dans le dossier du jeu échouait, aucun programme n'était lu, `glBindProgramNV` refusait les identifiants.
+  Correction (`writeDirChdir`) : le dossier est fait dans `WRITE_DIR\<jeu>` et le jeu y entre ; le loader garde le
+  sous-dossier courant et y rattache les chemins relatifs suivants (`..` compris), lus là puis dans le dossier du jeu.
+  Vérifié : course entière avec un dossier d'écriture (une seule erreur OpenGL, comme sans). Les bornes ont un dossier
+  d'écriture pour tous les jeux : OutRun 2 seul y était blanc aussi.
+- Hummer en link : « Error 1303, There is an error in the LINK ID SETTING » sur les deux bornes (journal d'Image
+  borne). Le jeu lance `./check_ip.sh 192.168.1.4` (ou .5) avant son link : le script fait `arping -D` et rend 0
+  quand aucune autre machine n'a l'adresse. Le loader ne lançait pas ce `system()` (127, commande introuvable), d'où
+  l'erreur. Il rend maintenant 0. Les `bind` de Hummer à chaque `IP_CAB` (seule celle de la borne réussit) sont
+  normaux, comme sous Linux. Hummer ne demande pas eth0 : pas de ligne « Link: » pour lui non plus.
+
 ### Link d'OutRun 2 essayé sur les deux bornes (suite de la demande 117)
 - Release 20261026 posée sur racecab1 et racecab2 par Image borne, avec l'accord du propriétaire (lanceur
   `RunLinuxLoaderLinkGame.cmd`, dossiers d'écriture `linuxloader_link_cab1` et `_cab2`).
