@@ -288,9 +288,22 @@ static std::vector<GameLamp> gameLamps(const GameData *data)
         gaelcoByte(lamps, 0, formatText(tr("interface board output %d"), 0), output0);
         return lamps;
     }
+    // The uses known, read in the game: OutRun 2's CabinetLampOn and CabinetLampBlink (DispPushStart: 0x80,
+    // CheckViewChange: 0x08, the two drivers' 0x20 and 0x04, which blink together at "Select the main driver")
+    const char *uses[20] = {NULL};
+    if (data->gameGroup == GROUP_OUTRUN || data->gameGroup == GROUP_OUTRUN_TEST)
+    {
+        uses[0] = "Start lamp";
+        uses[2] = "Driver lamp";
+        uses[4] = "View change lamp";
+        uses[5] = "Driver lamp";
+    }
     int outputs = getConfig()->jvsIOType == SEGA_TYPE_1 ? 6 : 20; // jvs.c's boards
     for (int output = 0; output < outputs; output++)
-        lamps.push_back({output, formatText(tr("JVS output %d"), output + 1)});
+    {
+        std::string where = formatText(tr("JVS output %d"), output + 1);
+        lamps.push_back({output, uses[output] ? std::string(tr(uses[output])) + " (" + where + ")" : where});
+    }
     return lamps;
 }
 

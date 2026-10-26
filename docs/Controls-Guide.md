@@ -165,6 +165,22 @@ You can add suffixes to an axis string to change its behavior:
 
    - **Example** : Throttle = GC0_AXIS_RIGHTY_INVERTED 
 
+- _POSITIVE_SIDE / _NEGATIVE_SIDE: A pedal whose axis rests at its centre and moves to one end when pressed (two pedals sharing one axis, some wheel drivers, vJoy). The pedal reads 0 at rest in the centre and 1 at that side's end; the other side counts as released. 
+
+   - **Example** : P1_Gas = JOY0_AXIS_1_NEGATIVE_SIDE, P1_Brake = JOY0_AXIS_2_NEGATIVE_SIDE 
+
+## **Pedals** 
+
+An axis given whole (JOY0_AXIS_2) is a pedal released at one end of the axis and pressed at the other. Before changing anything, look at the Controls page (Tab, in game): with the pedals released, the Gas and Brake bars must be at 0 %. 
+
+- About 50 % at rest: the axis rests at its centre; use _POSITIVE_SIDE or _NEGATIVE_SIDE, the side the bar goes to 100 % with. 
+
+- 100 % at rest: the axis is the other way round; add _INVERTED. 
+
+- The car moves or brakes at rest whatever the axis: the default file also binds the keyboard's Up and Down arrows to P1_Gas_Digital and P1_Brake_Digital, and a program that turns joystick moves into keys (a front end, JoyToKey, a wheel's software) can hold them down. Remove those two keyboard bindings, or stop that program. 
+
+Then calibrate the wheel and the pedals in the game's own test menu when it has one (OutRun 2: CALIBRATION SETTING): a game's saved calibration, from another emulator, can take the released pedals for pressed. 
+
 ## **Example** 
 
 Here is a complex mapping for Player 1's "Start" button: P1_Start = KEY_1, GC0_BUTTON_START, JOY0_BUTTON_9 
