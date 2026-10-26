@@ -233,6 +233,12 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   `f6a7eaaaa3cd7f32f2c55a5fe0dc2cda53a5e2058a6dd72050ceca2c8fca87c8`, de `linuxloader.exe`
   `8c7038188c31c2bb5f4851e6c6a56708a2334f4e2fc5467871e853fca9130a4d` ; `ll-deps` identique. Vérifiée depuis le zip
   extrait : `--version`, attente du link d'OutRun 2 (sockets 900 et 901, diffusions).
+- Posée sur les deux bornes par Image borne (accord du propriétaire). Hummer : link en course, même course des
+  deux côtés (LAP 1/3, 1P et 2P), plus de plantage ; le propriétaire a vu les deux joueurs. Initial D 4 Export :
+  plus d'erreur 599, les deux bornes en démo, sockets en 9xx, pings échangés ; pas encore de partie VS (crédits et
+  carte). Initial D 5 : GAME ASSIGNMENTS a SERVER BOX (ON) puis SEAT NUMBER en 5e ligne (SINGLE, A1, A2) ; A1 et
+  A2, pas d'erreur réseau, paquets reçus de l'autre borne ; pas encore de partie VS. OutRun 2 et Sega Race TV pas
+  refaits avec la -4.
 
 ### Link d'OutRun 2 essayé sur les deux bornes (suite de la demande 117)
 - Release 20261026 posée sur racecab1 et racecab2 par Image borne, avec l'accord du propriétaire (lanceur
