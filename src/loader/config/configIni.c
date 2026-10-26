@@ -211,10 +211,14 @@ int createDefaultIni(const char *filePath)
     fprintf(file, "# If true, the loader will apply the following network patches depending on the game\n");
     fprintf(file, "ENABLE_NETWORK_PATCHES = %s\n\n", defaults.enableNetworkPatches ? "true" : "false");
     fprintf(file, "# Sets the name of the Network Interface Card\nNIC_NAME = \"enp0s1\"\n\n");
-    fprintf(file, "# ID4 and ID5 network configuration per seat\nID_IP_SEAT_1 = \"192.168.1.2\"\nID_IP_SEAT_2 = \"192.168.1.3\"\n\n");
-    fprintf(file, "# Sets the IP address and Netmask for Outrun link (you have to put your NIC ip)\n");
+    fprintf(file, "# Initial D 4 Export and Initial D 5 link: the address of the cabinet set to seat 1 and of the one set to seat 2\n");
+    fprintf(file, "# (test menu, GAME ASSIGNMENTS, SEAT NUMBER), the same on both cabinets\n");
+    fprintf(file, "ID_IP_SEAT_1 = \"192.168.1.2\"\nID_IP_SEAT_2 = \"192.168.1.3\"\n\n");
+    fprintf(file, "# OutRun 2 link: this cabinet's address (one of this PC's) and netmask; the cabinets' addresses follow each other in\n");
+    fprintf(file, "# the order of their LINK ID (test menu, GAME ASSIGNMENTS: LINK ID, TOTAL MACHINE)\n");
     fprintf(file, "OR2_IPADDRESS = \"192.168.1.2\"\nOR2_NETMASK = \"255.255.255.0\"\n\n");
-    fprintf(file, "# Harley / Hummer and R-Tuned IP address for each Cabinet\n");
+    fprintf(file, "# Harley, Hummer and R-Tuned link: each cabinet's address by its LINK ID, the same on every cabinet (Hummer takes\n");
+    fprintf(file, "# the one of this PC as its own)\n");
     fprintf(file, "IP_CAB1 = \"192.168.1.2\"\nIP_CAB2 = \"192.168.1.3\"\nIP_CAB3 = \"192.168.1.4\"\nIP_CAB4 = \"192.168.1.5\"\n\n");
     fprintf(file, "# Sets the IP address of each cabinet for network play in 2Spicy\n");
     fprintf(file, "2SPICY_IP_CAB1 = \"192.168.1.2\"\n2SPICY_IP_CAB2 = \"192.168.1.3\"\n\n");

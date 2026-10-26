@@ -338,6 +338,13 @@ static const struct sockaddr *toThisPc(const void *address, struct sockaddr_in *
     return (const struct sockaddr *)copy;
 }
 
+// Windows makes a UDP socket's next recvfrom fail with WSAECONNRESET when one of its datagrams found no one listening
+// (an ICMP port unreachable), Linux does not: a link cabinet sending before the other listens would take it for an
+// error
+#ifndef SIO_UDP_CONNRESET
+#define SIO_UDP_CONNRESET _WSAIOW(IOC_VENDOR, 12)
+#endif
+
 extern "C" SOCKET bridgeSocket(int af, int type, int protocol)
 {
     log_info(">>> socket called: af=%d, type=%d, protocol=%d", af, type, protocol);
@@ -346,6 +353,12 @@ extern "C" SOCKET bridgeSocket(int af, int type, int protocol)
     {
         errno = mapWSAErrorToErrno(WSAGetLastError());
         return (SOCKET)-1;
+    }
+    if ((type & 0xF) == SOCK_DGRAM)
+    {
+        BOOL report = FALSE;
+        DWORD returned = 0;
+        WSAIoctl(s, SIO_UDP_CONNRESET, &report, sizeof(report), NULL, 0, &returned, NULL, NULL);
     }
     log_info(">>> socket EXIT: returning %lld", (long long)s);
     return s;

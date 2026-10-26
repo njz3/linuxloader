@@ -798,6 +798,65 @@ static int isWinsockHandle(int fd)
     int socketTypeLen = sizeof(socketType);
     return getsockopt((SOCKET)fd, SOL_SOCKET, SO_TYPE, (char *)&socketType, &socketTypeLen) == 0;
 }
+
+// The sockets made non-blocking (fcntl's O_NONBLOCK, FIONBIO), which Winsock cannot be asked about: fcntl's F_GETFL
+// answers from them
+#define NON_BLOCKING_SOCKETS 64
+static SOCKET nonBlockingSockets[NON_BLOCKING_SOCKETS];
+static SRWLOCK nonBlockingLock = SRWLOCK_INIT;
+
+static void socketNonBlockingNote(SOCKET s, bool on)
+{
+    AcquireSRWLockExclusive(&nonBlockingLock);
+    int free = -1, found = -1;
+    for (int i = 0; i < NON_BLOCKING_SOCKETS; i++)
+    {
+        if (nonBlockingSockets[i] == s && s != 0)
+            found = i;
+        else if (nonBlockingSockets[i] == 0 && free < 0)
+            free = i;
+    }
+    if (!on && found >= 0)
+        nonBlockingSockets[found] = 0;
+    else if (on && found < 0 && free >= 0)
+        nonBlockingSockets[free] = s;
+    ReleaseSRWLockExclusive(&nonBlockingLock);
+}
+
+static bool socketNonBlocking(SOCKET s)
+{
+    bool on = false;
+    AcquireSRWLockShared(&nonBlockingLock);
+    for (int i = 0; i < NON_BLOCKING_SOCKETS && !on; i++)
+        on = nonBlockingSockets[i] == s;
+    ReleaseSRWLockShared(&nonBlockingLock);
+    return on;
+}
+
+#define LINUX_O_RDWR 02
+#define LINUX_O_NONBLOCK 04000
+#define LINUX_F_GETFL 3
+#define LINUX_F_SETFL 4
+
+// fcntl on a socket: F_GETFL its Linux flags, F_SETFL its O_NONBLOCK through FIONBIO. A socket left blocking hangs the
+// games that poll it each frame (OutRun 2's and Hummer's link, set non-blocking this way). False: not a socket
+bool sharedSocketFcntl(int fd, int cmd, int arg, int *result)
+{
+    if (!isWinsockHandle(fd))
+        return false;
+    *result = 0;
+    if (cmd == LINUX_F_GETFL)
+        *result = LINUX_O_RDWR | (socketNonBlocking((SOCKET)fd) ? LINUX_O_NONBLOCK : 0);
+    else if (cmd == LINUX_F_SETFL)
+    {
+        u_long on = (arg & LINUX_O_NONBLOCK) != 0;
+        if (ioctlsocket((SOCKET)fd, FIONBIO, &on) == 0)
+            socketNonBlockingNote((SOCKET)fd, on != 0);
+        else
+            *result = -1;
+    }
+    return true;
+}
 #endif
 
 int sharedClose(int fd)
@@ -834,6 +893,7 @@ int sharedClose(int fd)
     if (isWinsockHandle(fd))
     {
         log_info(">>> close: socket=%d", fd);
+        socketNonBlockingNote((SOCKET)fd, false);
         return closesocket((SOCKET)fd) == 0 ? 0 : -1;
     }
 #endif
@@ -1113,8 +1173,9 @@ ssize_t sharedWrite(int fd, const void *buf, size_t count)
 #ifndef __linux__
 // Linux socket ioctls. FIONBIO/FIONREAD map to ioctlsocket(): without FIONBIO the game's UDP sockets stay blocking
 // and its per-frame recvfrom() polling hangs the main loop (SEGA Race TV link setup). Windows has no ifreq interface:
-// report one "eth0" with the IP the game's link setup expects (SRTV_IPADDRESS for SEGA Race TV, else loopback), so
-// the IP lookups line up with the inet_addr() redirections.
+// report one "eth0" with the IP the game's link setup expects (SRTV_IPADDRESS for SEGA Race TV, the cabinet's address
+// on a link for OutRun 2, Hummer and Initial D, else loopback), so the IP lookups line up with the inet_addr()
+// redirections.
 #define LINUX_FIONREAD 0x541b
 #define LINUX_FIONBIO 0x5421
 #define LINUX_SIOCGIFFLAGS 0x8913
@@ -1160,6 +1221,25 @@ const char *sharedEth0SetAddress(void)
     return eth0Set[0] ? eth0Set : NULL;
 }
 
+// Whether an address is one of this PC's: a socket binds to it
+static bool isLocalAddress(const char *address)
+{
+    bool local = false;
+    WSADATA data;
+    if (address[0] && inet_addr(address) != INADDR_NONE && WSAStartup(MAKEWORD(2, 2), &data) == 0)
+    {
+        SOCKET probe = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+        struct sockaddr_in in = {0};
+        in.sin_family = AF_INET;
+        in.sin_addr.s_addr = inet_addr(address);
+        local = probe != INVALID_SOCKET && bind(probe, (struct sockaddr *)&in, sizeof(in)) == 0;
+        if (probe != INVALID_SOCKET)
+            closesocket(probe);
+        WSACleanup();
+    }
+    return local;
+}
+
 // SEGA Race TV's address (SRTV_IPADDRESS, empty: loopback) must be one of the PC's, or the game dies in
 // klib::lan::GetLanParam: one no socket binds to (the default file's 192.168.1.2 on another network) becomes loopback
 const char *sharedSrtvAddress(void)
@@ -1168,24 +1248,62 @@ const char *sharedSrtvAddress(void)
     if (!address[0])
     {
         snprintf(address, sizeof(address), "%s", getConfig()->srtvIP[0] ? getConfig()->srtvIP : "127.0.0.1");
-        WSADATA data;
-        if (WSAStartup(MAKEWORD(2, 2), &data) == 0)
+        if (!isLocalAddress(address))
         {
-            SOCKET probe = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-            struct sockaddr_in local = {0};
-            local.sin_family = AF_INET;
-            local.sin_addr.s_addr = inet_addr(address);
-            if (probe != INVALID_SOCKET && bind(probe, (struct sockaddr *)&local, sizeof(local)) != 0)
-            {
-                log_warn("SRTV_IPADDRESS %s is not one of this PC's addresses: 127.0.0.1 taken instead", address);
-                strcpy(address, "127.0.0.1");
-            }
-            if (probe != INVALID_SOCKET)
-                closesocket(probe);
-            WSACleanup();
+            log_warn("SRTV_IPADDRESS %s is not one of this PC's addresses: 127.0.0.1 taken instead", address);
+            strcpy(address, "127.0.0.1");
         }
+        else if (strcmp(address, "127.0.0.1") != 0)
+            log_warn("Link: this cabinet's address is %s (SRTV_IPADDRESS)", address);
     }
     return address;
+}
+
+// The cabinet's address on a link of two PCs, as the game's own keys give it ([Network], with the network patches):
+// OR2_IPADDRESS for OutRun 2, the IP_CAB1 to 4 that is this PC's for Hummer, the ID_IP_SEAT_1 or 2 that is this PC's
+// for Initial D 4 Export and Initial D 5. eth0 is then that address, as the game's own on a cabinet. NULL: none is
+// this PC's, eth0 stays loopback and the game plays alone
+static const char *linkAddress(void)
+{
+    static bool chosen = false;
+    static char address[16] = "";
+    if (chosen)
+        return address[0] ? address : NULL;
+    chosen = true;
+    EmulatorConfig *config = getConfig();
+    if (!config->enableNetworkPatches)
+        return NULL;
+    struct
+    {
+        const char *key, *value;
+    } candidates[4] = {{NULL, NULL}};
+    if (gGrp == GROUP_OUTRUN || gGrp == GROUP_OUTRUN_TEST)
+        candidates[0].key = "OR2_IPADDRESS", candidates[0].value = config->or2IP;
+    else if (gGrp == GROUP_HUMMER)
+    {
+        const char *cabs[4] = {config->IpCab1, config->IpCab2, config->IpCab3, config->IpCab4};
+        static const char *const keys[4] = {"IP_CAB1", "IP_CAB2", "IP_CAB3", "IP_CAB4"};
+        for (int i = 0; i < 4; i++)
+            candidates[i].key = keys[i], candidates[i].value = cabs[i];
+    }
+    else if (gGrp == GROUP_ID4_EXP || gGrp == GROUP_ID5)
+    {
+        candidates[0].key = "ID_IP_SEAT_1", candidates[0].value = config->idIpSeat1;
+        candidates[1].key = "ID_IP_SEAT_2", candidates[1].value = config->idIpSeat2;
+    }
+    for (int i = 0; i < 4 && candidates[i].key; i++)
+    {
+        if (isLocalAddress(candidates[i].value) && strcmp(candidates[i].value, "127.0.0.1") != 0)
+        {
+            snprintf(address, sizeof(address), "%s", candidates[i].value);
+            log_warn("Link: this cabinet's address is %s (%s)", address, candidates[i].key);
+            return address;
+        }
+    }
+    if (candidates[0].key)
+        log_info("Link: none of %s... is one of this PC's addresses, eth0 is 127.0.0.1 (the game plays alone)",
+                 candidates[0].key);
+    return NULL;
 }
 
 static const char *eth0Address(void)
@@ -1194,7 +1312,8 @@ static const char *eth0Address(void)
         return sharedSrtvAddress();
     if (eth0Set[0])
         return eth0Set;
-    return "127.0.0.1";
+    const char *link = linkAddress();
+    return link ? link : "127.0.0.1";
 }
 
 static const uint8_t eth0Mac[6] = {0x00, 0xD0, 0xF1, 0x00, 0x00, 0x01}; // SEGA OUI
@@ -1223,6 +1342,8 @@ static int windowsSocketIoctl(int fd, unsigned long int request, void *argp)
         u_long value = (request == LINUX_FIONBIO && argp) ? (u_long)(*(int *)argp != 0) : 0;
         if (ioctlsocket((SOCKET)fd, request == LINUX_FIONBIO ? FIONBIO : FIONREAD, &value) != 0)
             return -1;
+        if (request == LINUX_FIONBIO)
+            socketNonBlockingNote((SOCKET)fd, value != 0);
         if (request == LINUX_FIONREAD && argp)
             *(int *)argp = (int)value;
         return 0;

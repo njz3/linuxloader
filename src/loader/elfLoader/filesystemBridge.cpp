@@ -953,6 +953,20 @@ extern "C"
             va_end(args);
             return 0;
         }
+        if (cmd == 3 || cmd == 4) // F_GETFL, F_SETFL of a socket
+        {
+            int arg = 0;
+            if (cmd == 4)
+            {
+                va_list args;
+                va_start(args, cmd);
+                arg = va_arg(args, int);
+                va_end(args);
+            }
+            int result;
+            if (sharedSocketFcntl(fd, cmd, arg, &result))
+                return result;
+        }
         if (fd == 0 && cmd == 4) // F_SETFL
         {
             va_list args;

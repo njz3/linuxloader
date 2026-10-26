@@ -6,6 +6,7 @@
 #include <winsock2.h>
 #endif
 #include <dirent.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <sys/stat.h>
 typedef enum
@@ -61,6 +62,7 @@ int sharedSelect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 #ifdef _WIN32
 const char *sharedBinaryMode(const char *mode, char *buffer, size_t size);
 const char *sharedSrtvAddress(void);
+bool sharedSocketFcntl(int fd, int cmd, int arg, int *result);
 #endif
 
 #ifdef __cplusplus
