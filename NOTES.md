@@ -244,6 +244,10 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   (rien de changé côté réseau). SHA-256 du zip `be00efdf81b85133f06c57cc39e852f342603972aaa3c9b18850ad0339c832b9`,
   de `linuxloader.exe` `d75efd2855e91e54acfac2980c9533fd1b52b662778d586e73bde2c6291adf6b` ; `ll-deps` identique.
   Vérifiée depuis le zip extrait : `--version`.
+- Avec la -4, sans régression : OutRun 2 en course à deux (racecab1 1er, racecab2 2e, voitures 1P et 2P visibles)
+  et Sega Race TV en course à deux (MULTI-PLAYER, « 2PLAYERS GAME! ENTRIES 2/2 », même circuit, vu par le
+  propriétaire). Le link marche donc pour OutRun 2, Hummer et Sega Race TV ; Initial D 4 Export et 5 sont reliés,
+  leur partie VS reste à faire à la borne par le propriétaire (crédits et carte).
 
 ### Link d'OutRun 2 essayé sur les deux bornes (suite de la demande 117)
 - Release 20261026 posée sur racecab1 et racecab2 par Image borne, avec l'accord du propriétaire (lanceur
