@@ -173,6 +173,13 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   quand aucune autre machine n'a l'adresse. Le loader ne lançait pas ce `system()` (127, commande introuvable), d'où
   l'erreur. Il rend maintenant 0. Les `bind` de Hummer à chaque `IP_CAB` (seule celle de la borne réussit) sont
   normaux, comme sous Linux. Hummer ne demande pas eth0 : pas de ligne « Link: » pour lui non plus.
+- Sega Race TV en link : CABINET ID « 1 (MAIN) » et « 2 (SUB) » (les vrais libellés) ; la SUB reste sur « Searching
+  MAIN Cabinet », la MAIN sur son écran d'initialisation. Dans le journal de la MAIN, la socket d'écoute des
+  recherches (`SO_BROADCAST`, `SO_REUSEADDR`) échoue à son `bind` : `CConnectSceneObj::EnterCreateMaster` la lie à
+  l'adresse de broadcast que donne `SIOCGIFBRDADDR` (192.168.1.255), ce que Linux accepte (la socket reçoit alors
+  les broadcasts) et Windows refuse (`WSAEADDRNOTAVAIL`, vérifié ici). Une socket UDP liée à 255.255.255.255 ou à
+  une adresse en .255 est maintenant liée à toutes les adresses sur son port, ce qui lui fait recevoir ces
+  broadcasts sous Windows. Pas d'essai possible ici sans Sega Race TV ni seconde machine.
 
 ### Link d'OutRun 2 essayé sur les deux bornes (suite de la demande 117)
 - Release 20261026 posée sur racecab1 et racecab2 par Image borne, avec l'accord du propriétaire (lanceur
