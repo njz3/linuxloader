@@ -239,6 +239,11 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   carte). Initial D 5 : GAME ASSIGNMENTS a SERVER BOX (ON) puis SEAT NUMBER en 5e ligne (SINGLE, A1, A2) ; A1 et
   A2, pas d'erreur réseau, paquets reçus de l'autre borne ; pas encore de partie VS. OutRun 2 et Sega Race TV pas
   refaits avec la -4.
+- Release `linuxloader-v3.0.12-ffbedition-20261026-5-njz3-win32.zip` (depuis `cf39439`, à la demande du
+  propriétaire) : la -4 plus les lampes d'OutRun 2 nommées dans la liste des sorties et le guide des contrôles
+  (rien de changé côté réseau). SHA-256 du zip `be00efdf81b85133f06c57cc39e852f342603972aaa3c9b18850ad0339c832b9`,
+  de `linuxloader.exe` `d75efd2855e91e54acfac2980c9533fd1b52b662778d586e73bde2c6291adf6b` ; `ll-deps` identique.
+  Vérifiée depuis le zip extrait : `--version`.
 
 ### Link d'OutRun 2 essayé sur les deux bornes (suite de la demande 117)
 - Release 20261026 posée sur racecab1 et racecab2 par Image borne, avec l'accord du propriétaire (lanceur
