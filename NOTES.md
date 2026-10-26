@@ -95,6 +95,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 118 | 26/10 | Nommer les lampes connues dans la liste des sorties, documenter les modes `_POSITIVE_SIDE` / `_NEGATIVE_SIDE` (retour d'un utilisateur d'OutRun 2 : pédales actives au repos, pas de retour de force, lampe Start) | ✅ lampes d'OutRun 2 nommées, guide des contrôles complété ; réponse rédigée pour l'utilisateur (voir journal) |
 | 117 | 26/10 | Commencer le link à deux bornes demandé par Image borne : OutRun 2, Hummer, Sega Race TV, Initial D 4 et 5 | ✅ côté loader : sockets non bloquantes par `fcntl`, pas d'erreur `WSAECONNRESET` en UDP, eth0 sur l'adresse de la borne ; réglages par borne transmis à Image borne ; essai à deux bornes à faire par Image borne ; Initial D 4 japonais pas pris en charge (voir journal) |
 | 116 | 26/10 | Demander aux sessions sm2-emu, Flycast et Supermodel d'afficher aussi les noms des variables à côté de l'option des sorties réseau, dans le même style, selon le jeu en cours | ✅ consigne envoyée aux trois sessions avec la capture et le code de référence (`drawOutputsList`) |
 | 115 | 26/10 | Afficher dans « Sorties et réseau » la liste, avec défilement, des variables que le jeu courant peut émettre et leur type | ✅ tableau Nom / Type / Signification / Valeur sous les ports, en jeu (voir journal) |
@@ -150,6 +151,24 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Lampes d'OutRun 2, guide des pédales (demande 118)
+- Retour d'un utilisateur d'OutRun 2 transmis par le propriétaire : pédales relâchées qui accélèrent et freinent,
+  pas de retour de force, lampe Start muette alors que View et le bandeau leader marchent comme sous TeknoParrot.
+- Lampes, lues dans le jeu : `CabinetLampOn` et `CabinetLampBlink` rangent les lampes dans un octet envoyé par
+  `ReadIO` à la carte JVS (`amJvspReqGeneralOutput1`), donc dans `RawLamps` : Start 0x80 (`lamp0`, sortie JVS 1,
+  `DispPushStart`, seulement pendant « PUSH START »), changement de vue 0x08 (`lamp4`, `CheckViewChange`), lampes des
+  deux pilotes 0x20 et 0x04 (`lamp2`, `lamp5`, qui clignotent ensemble à « Select the main driver »). Nommées dans la
+  liste des sorties (`gameLamps`). Celles de Hummer (`clMenuLED`, bits 0x08, 0x10, 0x20, 0x04) restent génériques :
+  leur rôle à l'écran n'est pas connu.
+- Guide des contrôles : `_POSITIVE_SIDE` / `_NEGATIVE_SIDE` (pédale qui repose au milieu de son axe) et une section
+  « Pedals » : regarder les barres de la page Contrôles au repos (50 % : `_SIDE`, 100 % : `_INVERTED`), les flèches
+  du clavier liées à `P1_Gas_Digital` et `P1_Brake_Digital` qu'un programme peut tenir enfoncées (cas des bornes, 25/10),
+  puis la calibration du jeu (OutRun 2 : CALIBRATION SETTING).
+- Retour de force : en émulé, vers le joystick 0 seulement (ligne « FFB: Haptic opened from joystick 0 »),
+  OutRun 2 n'envoyant surtout que ressort, amortissement et secousses ; avec les vraies cartes de la borne, « Vraie
+  carte sur COMx » pour la carte de pilotage dans Options du jeu > Cartes. Pas vérifié chez l'utilisateur ; la liste
+  des sorties avec les nouveaux noms n'est pas vérifiée à l'écran (compilée MinGW et MSVC).
 
 ### Décor blanc d'OutRun 2 avec le dossier d'écriture, Hummer en link (suite de la demande 117)
 - Release `linuxloader-v3.0.12-ffbedition-20261026-2-njz3-win32.zip` faite à la demande du propriétaire depuis
