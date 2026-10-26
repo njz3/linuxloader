@@ -189,6 +189,12 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   sienne au-delà, à `nfds - 1` : lu et réécrit là (les bits entre 1024 et lui, de la mémoire voisine, ne sont pas
   regardés). Vérifié sans régression sur OutRun 2 (course, attente du link). `poll` reste un bouchon (Initial D ne
   s'en sert que pour les fichiers).
+- Release `linuxloader-v3.0.12-ffbedition-20261026-3-njz3-win32.zip` (faite par `release.py` depuis `098c718`, à la
+  demande du propriétaire) : les quatre corrections (décor blanc d'OutRun 2, `check_ip.sh` de Hummer, `bind` sur une
+  adresse de broadcast pour Sega Race TV, `select` sur les sockets pour Initial D). SHA-256 du zip
+  `fd32935215b7134eb69866d16a90b38dbe95b675f26cac0e686c8e422ea476a0`, de `linuxloader.exe`
+  `5644b0975eedffbb026cabe33ece32d633b6927abd0f47d1345605c5de243e8e` ; `ll-deps` identique. Vérifiée depuis le zip
+  extrait : `--version` et une course d'OutRun 2 entière avec un dossier d'écriture.
 
 ### Link d'OutRun 2 essayé sur les deux bornes (suite de la demande 117)
 - Release 20261026 posée sur racecab1 et racecab2 par Image borne, avec l'accord du propriétaire (lanceur
