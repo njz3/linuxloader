@@ -198,6 +198,12 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
     2-SUB (libellés d'après le code du loader, pas encore vus à l'écran) ;
   - Initial D 4 Export, Initial D 5 : `ID_IP_SEAT_1` 192.168.1.4 et `ID_IP_SEAT_2` 192.168.1.5 sur les deux ; menu de
     test, GAME ASSIGNMENTS : SEAT NUMBER 1 / 2.
+- Release pour l'essai à deux bornes : `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261026-njz3-win32.zip`
+  (faite par `release.py` depuis `97be116` : lampes Namco, Gaelco et JVS bit par bit, liste des sorties, link),
+  18,3 Mo ; SHA-256 du zip `e6476774ecb6c5a15b46d3b12dd699a3449e9f4e6f6d0665772e3c545f432a4e`, de `linuxloader.exe`
+  `fde22f0a95d3272326d19c80e8b3fd634f7bac4ff176bef2187ad139a9e0722d` ; `ll-deps` identique à la 20261025-4. Vérifiée
+  depuis le zip extrait : `--version` (« Build: linuxloader-v3.0.12-ffbedition-20261026-njz3 FFB Edition ») et le
+  fichier par défaut. Envoyée à Image borne avec les réglages ; la pose est décidée par le propriétaire.
 - Liste des sorties dans les autres émulateurs (demande 116) : sm2-emu, Flycast et Supermodel l'ont faite dans le même
   style, selon le jeu en cours (Supermodel sans valeur dans son lanceur, avec valeurs dans son menu en jeu) ; rien
   n'est commité chez eux, ils attendent l'accord du propriétaire.
