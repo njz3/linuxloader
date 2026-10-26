@@ -345,6 +345,18 @@ static const struct sockaddr *toThisPc(const void *address, struct sockaddr_in *
 #define SIO_UDP_CONNRESET _WSAIOW(IOC_VENDOR, 12)
 #endif
 
+// "a.b.c.d:port" of an IPv4 address, for the log (the link between cabinets: who talks to whom)
+static const char *addressText(const void *address, char *text, size_t size)
+{
+    const struct sockaddr_in *in = (const struct sockaddr_in *)address;
+    char ip[16] = "";
+    if (!in || in->sin_family != AF_INET || !InetNtopA(AF_INET, (void *)&in->sin_addr, ip, sizeof(ip)))
+        snprintf(text, size, "-");
+    else
+        snprintf(text, size, "%s:%u", ip, ntohs(in->sin_port));
+    return text;
+}
+
 extern "C" SOCKET bridgeSocket(int af, int type, int protocol)
 {
     log_info(">>> socket called: af=%d, type=%d, protocol=%d", af, type, protocol);
@@ -366,7 +378,8 @@ extern "C" SOCKET bridgeSocket(int af, int type, int protocol)
 
 extern "C" int bridgeConnect(SOCKET s, const struct sockaddr *name, int namelen)
 {
-    log_info(">>> connect called: socket=%lld", (long long)s);
+    char text[32];
+    log_info(">>> connect called: socket=%lld to %s", (long long)s, addressText(name, text, sizeof(text)));
     struct sockaddr_in local;
     int ret = connect(s, toThisPc(name, &local), namelen);
     if (ret == SOCKET_ERROR)
@@ -381,7 +394,8 @@ extern "C" int bridgeConnect(SOCKET s, const struct sockaddr *name, int namelen)
 
 extern "C" int bridgeBind(SOCKET s, const struct sockaddr *name, int namelen)
 {
-    log_info(">>> bind called: socket=%lld", (long long)s);
+    char text[32];
+    log_info(">>> bind called: socket=%lld on %s", (long long)s, addressText(name, text, sizeof(text)));
     struct sockaddr_in any;
     const struct sockaddr_in *in = (const struct sockaddr_in *)name;
     uint32_t own = ownAddress();
@@ -465,13 +479,16 @@ extern "C" int bridgeRecvfrom(SOCKET s, char *buf, int len, int flags, struct so
     if (flags & 0x40)
         flags &= ~0x40;
     int ret = recvfrom(s, buf, len, flags, from, fromlen);
+    char text[32];
     if (ret == SOCKET_ERROR)
     {
-        errno = mapWSAErrorToErrno(WSAGetLastError());
+        int wsaError = WSAGetLastError();
+        errno = mapWSAErrorToErrno(wsaError);
+        log_info(">>> recvfrom EXIT: returning %d (WSAError=%d)", ret, wsaError);
+        return ret;
     }
-    else
-        fromThisPc(from);
-    log_info(">>> recvfrom EXIT: returning %d", ret);
+    fromThisPc(from);
+    log_info(">>> recvfrom EXIT: returning %d from %s", ret, addressText(from, text, sizeof(text)));
     return ret;
 }
 
@@ -481,11 +498,15 @@ extern "C" int bridgeSendto(SOCKET s, const char *buf, int len, int flags, const
     flags &= ~(0x4000 | 0x40);
     struct sockaddr_in local;
     int ret = sendto(s, buf, len, flags, toThisPc(to, &local), tolen);
+    char text[32];
     if (ret == SOCKET_ERROR)
     {
-        errno = mapWSAErrorToErrno(WSAGetLastError());
+        int wsaError = WSAGetLastError();
+        errno = mapWSAErrorToErrno(wsaError);
+        log_info(">>> sendto EXIT: returning %d to %s (WSAError=%d)", ret, addressText(to, text, sizeof(text)), wsaError);
+        return ret;
     }
-    log_info(">>> sendto EXIT: returning %d", ret);
+    log_info(">>> sendto EXIT: returning %d to %s", ret, addressText(to, text, sizeof(text)));
     return ret;
 }
 
