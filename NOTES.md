@@ -195,6 +195,16 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   `fd32935215b7134eb69866d16a90b38dbe95b675f26cac0e686c8e422ea476a0`, de `linuxloader.exe`
   `5644b0975eedffbb026cabe33ece32d633b6927abd0f47d1345605c5de243e8e` ; `ll-deps` identique. Vérifiée depuis le zip
   extrait : `--version` et une course d'OutRun 2 entière avec un dossier d'écriture.
+- Posée sur les deux bornes par Image borne (accord du propriétaire). OutRun 2 : course link à deux avec le décor
+  complet (racecab1 1er, racecab2 2e). Hummer : plus d'Error 1303, le link passe (paquets de 18 octets entre .4 et
+  .5), puis racecab1 plante (0xC0000005) juste après avoir rouvert ses sockets vers les cabines 3 et 4. Cause :
+  `nsFileDescriptorUtil::lCheckRead(fd)` pose le bit de la socket dans un `fd_set` de 128 octets sur sa pile
+  (`bts`) ; avec un numéro de socket Windows (2404), le bit tombe 300 octets plus loin, dans le cadre de
+  l'appelant. Sous Linux une socket a un petit numéro. Correction : les jeux reçoivent des descripteurs de
+  socket de 900 à 1023, chacun tenant lieu d'une socket Winsock (`sharedSocketFdNew`, `sharedSocketOf`), traduits
+  par toutes les fonctions de socket du pont, `close`, `read`, `write`, `ioctl`, `fcntl`, `select`, `epoll` et
+  `getpeername`. Le `select` n'a plus à lire au-delà de 1024. Vérifié sans régression : OutRun 2 (attente du link,
+  course), Dead Heat (vérification du link en multicast, attract, partie).
 
 ### Link d'OutRun 2 essayé sur les deux bornes (suite de la demande 117)
 - Release 20261026 posée sur racecab1 et racecab2 par Image borne, avec l'accord du propriétaire (lanceur
