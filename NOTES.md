@@ -151,6 +151,26 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 
 ## Journal de développement
 
+### Link d'OutRun 2 essayé sur les deux bornes (suite de la demande 117)
+- Release 20261026 posée sur racecab1 et racecab2 par Image borne, avec l'accord du propriétaire (lanceur
+  `RunLinuxLoaderLinkGame.cmd`, dossiers d'écriture `linuxloader_link_cab1` et `_cab2`).
+- Menu de test d'OutRun 2 : c'est un programme à part, `disk0\JenTest\JenTest`, que le loader ne prend en mode test
+  (`-t`, ou relance après Test) que si le jeu s'appelle exactement `Jennifer` (`testModePath`). Le lanceur passait
+  `Jennifer_patched` : le jeu repartait, sans menu. Avec `Jennifer`, GAME ASSIGNMENTS réglé : LINK ID 1 et 2,
+  TOTAL MACHINE 2, GROUP 1.
+- `Jennifer_patched` (programme modifié par TeknoParrot pour un rendu plus grand) n'affichait qu'un quart de la scène
+  dans le cadre de 800×480 du loader, à l'écran comme dans `shot` : tous les lanceurs de l'image passent à
+  `Jennifer`.
+- Résultat : link qui marche. Les deux bornes sortent de la vérification du réseau (`##MODE INIT## SYSTEM`, puis
+  `DEST`), racecab2 rejoint la partie de racecab1 (ENTRY, « Entry has been closed… Versus Mode »), choix du parcours,
+  du nombre de pilotes et de la boîte, puis course ensemble (1P F50 rouge sur racecab1, 2P jaune sur racecab2).
+- Le décor 3D blanc des captures `shot` en course est l'alpha de l'image (presque nul dans le décor), qu'une
+  conversion en PNG qui le garde montre comme transparent : convertir en RGB.
+- Journal : `bind`, `connect`, `sendto` et `recvfrom` donnent maintenant l'adresse et le port (de l'autre borne pour
+  `recvfrom`), et l'erreur Winsock en cas d'échec ; demandé par Image borne pour la suite. Vérifié ici sur OutRun 2
+  (TOTAL MACHINE 2) : « sendto … to 192.168.1.255:10600 », « recvfrom … from 192.168.1.107:… », « bind … on
+  0.0.0.0:10600 ».
+
 ### Link à deux bornes : OutRun 2, Hummer, Sega Race TV, Initial D (demande 117)
 - Demande d'Image borne, relayée par le propriétaire : le link entre racecab1 (192.168.1.4) et racecab2 (192.168.1.5),
   /24, même commutateur, pare-feu coupé, plus l'adaptateur VPN de TeamViewer (7.x.x.x/8). Exécutables des six jeux
