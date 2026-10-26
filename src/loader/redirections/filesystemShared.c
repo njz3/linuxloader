@@ -1498,6 +1498,60 @@ static int serialPortSelect(int nfds, fd_set *readfds, fd_set *writefds, fd_set 
 }
 #endif
 
+#ifdef WIN32
+// A select on the game's sockets (Initial D's link waits for its datagrams so, cUDPSocket::receiveFrom): their bits in
+// the game's sets as Winsock sockets, Winsock's select, the ready ones set back. Their handles pass 1024, the size of
+// a Linux fd_set: the game set the bit of its socket past it, at nfds - 1, read and written back there; the bits
+// between are whatever follows the set in its memory, not looked at. -1 when the sets hold no socket
+#define SOCKET_SELECT_MAX 64
+static int socketSelect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout)
+{
+    unsigned long *sets[3] = {(unsigned long *)readfds, (unsigned long *)writefds, (unsigned long *)exceptfds};
+    int fds[SOCKET_SELECT_MAX], count = 0;
+    bool any = false;
+    int below = nfds < 1024 ? nfds : 1024;
+    for (int step = 0; step <= below && count < SOCKET_SELECT_MAX; step++)
+    {
+        // the descriptors below 1024, then the one past them the game passed (nfds - 1)
+        int fd = step < below ? step : nfds - 1;
+        if (step == below && nfds <= 1024)
+            break;
+        bool wanted = false;
+        for (int i = 0; i < 3; i++)
+            wanted = wanted || (sets[i] && LINUX_FD_ISSET_BIT(fd, sets[i]));
+        if (!wanted)
+            continue;
+        if (!isWinsockHandle(fd))
+            return -1; // a file or a device among them: not this select's
+        fds[count++] = fd;
+        any = true;
+    }
+    if (!any)
+        return -1;
+    fd_set winSets[3];
+    for (int i = 0; i < 3; i++)
+    {
+        FD_ZERO(&winSets[i]);
+        for (int k = 0; k < count; k++)
+            if (sets[i] && LINUX_FD_ISSET_BIT(fds[k], sets[i]))
+                FD_SET((SOCKET)fds[k], &winSets[i]);
+    }
+    int ready = select(0, readfds ? &winSets[0] : NULL, writefds ? &winSets[1] : NULL, exceptfds ? &winSets[2] : NULL,
+                       (const struct timeval *)timeout);
+    if (ready == SOCKET_ERROR)
+        return -1;
+    for (int i = 0; i < 3; i++)
+        for (int k = 0; k < count && sets[i]; k++)
+        {
+            if (FD_ISSET((SOCKET)fds[k], &winSets[i]))
+                LINUX_FD_SET_BIT(fds[k], sets[i]);
+            else
+                LINUX_FD_CLR_BIT(fds[k], sets[i]);
+        }
+    return ready;
+}
+#endif
+
 static int (*_select)(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout) = NULL;
 int sharedSelect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout)
 {
@@ -1533,6 +1587,9 @@ int sharedSelect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
     int serialReady = serialPortSelect(nfds, readfds, writefds, exceptfds, timeout);
     if (serialReady >= 0)
         return serialReady;
+    int socketsReady = socketSelect(nfds, readfds, writefds, exceptfds, timeout);
+    if (socketsReady >= 0)
+        return socketsReady;
 #endif
 
     if ((getConfig()->emulateHW210CardReader == 1 || getConfig()->emulateDriveboard == 1) &&
