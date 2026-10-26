@@ -406,6 +406,19 @@ extern "C" int bridgeBind(SOCKET s, const struct sockaddr *name, int namelen)
         name = (const struct sockaddr *)&any;
     }
     int ret = bind(s, name, namelen);
+    // A UDP socket bound to a broadcast address (255.255.255.255, or a.b.c.255 as SIOCGIFBRDADDR gives it) receives
+    // that address's broadcasts on Linux; Windows refuses the address, and a socket bound to any address receives
+    // them: SEGA Race TV's main cabinet listens so for its sub cabinets' search
+    int type = 0, typeLength = sizeof(type);
+    if (ret == SOCKET_ERROR && WSAGetLastError() == WSAEADDRNOTAVAIL && in && in->sin_family == AF_INET &&
+        (in->sin_addr.s_addr == htonl(INADDR_BROADCAST) || (ntohl(in->sin_addr.s_addr) & 0xFF) == 0xFF) &&
+        getsockopt(s, SOL_SOCKET, SO_TYPE, (char *)&type, &typeLength) == 0 && type == SOCK_DGRAM)
+    {
+        any = *in;
+        any.sin_addr.s_addr = htonl(INADDR_ANY);
+        ret = bind(s, (const struct sockaddr *)&any, namelen);
+        log_info(">>> bind: %s is a broadcast address, bound to any address on its port instead", text);
+    }
     if (ret == SOCKET_ERROR)
     {
         errno = mapWSAErrorToErrno(WSAGetLastError());
