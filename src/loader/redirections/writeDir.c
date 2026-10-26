@@ -17,6 +17,7 @@
 static char rootDir[MAX_PATH] = "";      // WRITE_DIR
 static char gameWriteDir[MAX_PATH] = ""; // WRITE_DIR\<game>, the current folder while the game runs
 static char gameDir[MAX_PATH] = "";      // the game's folder, only read
+static char currentSub[MAX_PATH] = "";   // where the game's chdir took it, in WRITE_DIR\<game> ("": its root)
 static int active = 0;
 
 static int exists(const char *path)
@@ -69,6 +70,40 @@ static void makeFolders(const char *path, int last)
         CreateDirectoryA(buffer, NULL);
 }
 
+// "a\b\..\c\.\d" as "a\c\d", in place; 0 when it climbs above where it starts
+static int normalise(char *path)
+{
+    char out[MAX_PATH] = "";
+    size_t length = 0;
+    const char *part = path;
+    while (*part)
+    {
+        const char *end = strchr(part, '\\');
+        size_t size = end ? (size_t)(end - part) : strlen(part);
+        if (size == 2 && part[0] == '.' && part[1] == '.')
+        {
+            if (!length)
+                return 0;
+            char *last = strrchr(out, '\\');
+            length = last ? (size_t)(last - out) : 0;
+            out[length] = '\0';
+        }
+        else if (size && !(size == 1 && part[0] == '.') && length + size + 2 < sizeof(out))
+        {
+            if (length)
+                out[length++] = '\\';
+            memcpy(out + length, part, size);
+            length += size;
+            out[length] = '\0';
+        }
+        part += size;
+        while (*part == '\\')
+            part++;
+    }
+    strcpy(path, out);
+    return 1;
+}
+
 // path inside folder (case-insensitive): what follows it, else NULL
 static const char *inside(const char *path, const char *folder)
 {
@@ -113,10 +148,15 @@ static const char *relativePart(const char *path, char *buffer, size_t size)
         if (strcmp(rest, ".") == 0)
             rest = "";
     }
-    snprintf(buffer, size, "%s", rest);
-    size_t length = strlen(buffer);
-    if (length && buffer[length - 1] == '\\')
-        buffer[length - 1] = '\0';
+    // A relative path from where the game's chdir took it
+    char combined[MAX_PATH];
+    if (currentSub[0] && !isAbsolute(normal))
+        snprintf(combined, sizeof(combined), "%s\\%s", currentSub, rest);
+    else
+        snprintf(combined, sizeof(combined), "%s", rest);
+    if (!normalise(combined))
+        snprintf(combined, sizeof(combined), "%s", rest); // above the game's folder (..\JenTest): as it is
+    snprintf(buffer, size, "%s", combined);
     return buffer;
 }
 
@@ -202,6 +242,24 @@ int writeDirMkdir(const char *path)
 {
     char buffer[MAX_PATH];
     return _mkdir(writeDirForWrite(path, 0, buffer, sizeof(buffer)));
+}
+
+// A folder of the game's, in WRITE_DIR\<game>: made there when it is only in the game's folder (OutRun 2's chdir into
+// shader\fs\psd before it reads its shaders by their bare names), so that the current folder stays in WRITE_DIR\<game>
+// and the names read next are looked for from there, then in the game's folder
+int writeDirChdir(const char *path)
+{
+    char relative[MAX_PATH], writeSide[MAX_PATH], gameSide[MAX_PATH];
+    if (!relativePart(path, relative, sizeof(relative)))
+        return _chdir(path);
+    join(writeSide, sizeof(writeSide), gameWriteDir, relative);
+    join(gameSide, sizeof(gameSide), gameDir, relative);
+    if (!isFolder(writeSide) && isFolder(gameSide))
+        makeFolders(writeSide, 1);
+    if (_chdir(writeSide) != 0)
+        return -1;
+    snprintf(currentSub, sizeof(currentSub), "%s", relative);
+    return 0;
 }
 
 // A file only in the game's folder stays there: removing it succeeds, and it is read again from there
@@ -413,6 +471,11 @@ int writeDirOpen(const char *path, int flags, int mode)
 int writeDirMkdir(const char *path)
 {
     return mkdir(path, 0777);
+}
+
+int writeDirChdir(const char *path)
+{
+    return chdir(path);
 }
 
 int writeDirRemove(const char *path)

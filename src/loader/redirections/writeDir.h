@@ -38,6 +38,7 @@ extern "C"
     FILE *writeDirFopen(const char *path, const char *mode);
     int writeDirOpen(const char *path, int flags, int mode); // _O_* flags
     int writeDirMkdir(const char *path);
+    int writeDirChdir(const char *path);
     int writeDirRemove(const char *path);
     int writeDirRename(const char *from, const char *to);
 

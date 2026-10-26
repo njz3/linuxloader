@@ -340,7 +340,7 @@ namespace FileSystemBridge
         char winPath[MAX_PATH];
         ConvertPath(winPath, path, MAX_PATH);
         log_debug("chdir: %s (as %s)", path, winPath);
-        return _chdir(winPath);
+        return writeDirActive() ? writeDirChdir(winPath) : _chdir(winPath);
     }
 
     int bridgeChmod(const char *filename, int pmode)
