@@ -1407,6 +1407,11 @@ namespace LibcBridge
             sharedEth0Set(command + 19);
             return 0;
         }
+        // Hummer's check_ip.sh ADDRESS before its link: arping -D, 0 when no other machine has the address (the
+        // cabinet's own, set as IP_CAB<LINK ID>), 1 for a duplicate. Not run (no arping): the address taken as free,
+        // or the game stops on "Error 1303, LINK ID SETTING"
+        if (strncmp(command, "./check_ip.sh ", 14) == 0)
+            return 0;
         static const char ifconfigPl[] = "perl ./data/ifconfig.pl > ";
         if (const char *redirect = strstr(command, ifconfigPl))
             return sharedNamcoIfconfig(redirect + sizeof(ifconfigPl) - 1);
