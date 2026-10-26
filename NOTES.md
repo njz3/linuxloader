@@ -95,6 +95,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 117 | 26/10 | Commencer le link à deux bornes demandé par Image borne : OutRun 2, Hummer, Sega Race TV, Initial D 4 et 5 | ✅ côté loader : sockets non bloquantes par `fcntl`, pas d'erreur `WSAECONNRESET` en UDP, eth0 sur l'adresse de la borne ; réglages par borne transmis à Image borne ; essai à deux bornes à faire par Image borne ; Initial D 4 japonais pas pris en charge (voir journal) |
 | 116 | 26/10 | Demander aux sessions sm2-emu, Flycast et Supermodel d'afficher aussi les noms des variables à côté de l'option des sorties réseau, dans le même style, selon le jeu en cours | ✅ consigne envoyée aux trois sessions avec la capture et le code de référence (`drawOutputsList`) |
 | 115 | 26/10 | Afficher dans « Sorties et réseau » la liste, avec défilement, des variables que le jeu courant peut émettre et leur type | ✅ tableau Nom / Type / Signification / Valeur sous les ports, en jeu (voir journal) |
 | 114 | 26/10 | Ajouter les lampes manquantes : cartes Namco et Gaelco, écritures JVS bit par bit | ✅ les lampes de la carte Kickback des cinq jeux Namco qui en ont une, les sorties et les ports de bits Gaelco, `CMD_WRITE_GPO_BIT` (voir journal) |
@@ -149,6 +150,57 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Link à deux bornes : OutRun 2, Hummer, Sega Race TV, Initial D (demande 117)
+- Demande d'Image borne, relayée par le propriétaire : le link entre racecab1 (192.168.1.4) et racecab2 (192.168.1.5),
+  /24, même commutateur, pare-feu coupé, plus l'adaptateur VPN de TeamViewer (7.x.x.x/8). Exécutables des six jeux
+  copiés seuls depuis le partage pour les lire (scratchpad).
+- Comment chaque jeu fait son link (lu dans les exécutables) :
+  - OutRun 2 SP SDX : son adresse et son masque viennent de l'EEPROM (`OR2_IPADDRESS`, `OR2_NETMASK`, écrits par
+    `setIP`). `nlCbPrepare` en déduit l'adresse de broadcast du sous-réseau et celle des autres bornes : adresse de
+    la borne - LINK ID + n, donc des adresses qui se suivent dans l'ordre des LINK ID. `commLink(port)` : une socket
+    d'envoi UDP en `SO_BROADCAST`, rendue non bloquante par `fcntl`, vers le broadcast ; une socket de réception liée
+    à toutes les adresses sur le même port, lue par un fil.
+  - Hummer Extreme : la table de quatre adresses en `0x9C2FE90` (192.168.76.1 à 4 d'origine, remplacée par
+    `IP_CAB1` à 4) ; la borne lie sa socket (`SO_REUSEADDR`, non bloquante par `fcntl`) à l'adresse de son LINK ID, et
+    envoie en unicast aux autres sur le port 10001. Son adresse doit donc être l'une de celles de son PC.
+  - Sega Race TV (`klib::lan`) : `EnterCheckNIC` fabrique `192.168.49.N` (N selon CABINET ID) et règle eth0 dessus ;
+    le loader remplace ces adresses par `SRTV_IPADDRESS`. `GetLanParam` lie sa socket à l'adresse d'eth0, le maître
+    est cherché par broadcast (`klSearchMaster`), puis connexion TCP. Pas d'appel direct au multicast.
+  - Initial D 4 Export (`cStorePairLinkMonitor`) : link entre deux sièges, en unicast : chaque siège envoie à
+    l'adresse de l'autre, prise dans une table que le loader remplace par `ID_IP_SEAT_1` et `2` (192.168.37.49 et 50
+    d'origine). Initial D 5 : la même chose (table patchée en `0x0833E2DB`).
+  - Initial D 4 japonais (Rev B) : pas de cette table ; un réseau à routeur et DHCP (192.168.37.254,
+    `seqInitNetwork::tickWaitDHCP`), aucun patch dans le loader, même sous Linux : pas pris en charge ici.
+- Trous du loader sous Windows, corrigés :
+  - `fcntl(F_SETFL, O_NONBLOCK)` était ignoré pour les sockets : celles du link d'OutRun 2 et de Hummer restaient
+    bloquantes. Il passe maintenant par `FIONBIO` (`sharedSocketFcntl`), et `F_GETFL` répond d'après l'état gardé
+    (Winsock ne sait pas le dire) ; `FIONBIO` et la fermeture le tiennent à jour.
+  - Une socket UDP Windows fait échouer son `recvfrom` suivant par `WSAECONNRESET` quand un de ses datagrammes n'a
+    trouvé personne (ICMP port injoignable), ce que Linux ne fait pas : désactivé à la création (`SIO_UDP_CONNRESET`),
+    sinon une borne qui envoie avant que l'autre écoute prendrait une erreur.
+  - eth0 vu par les jeux (`ioctl SIOCGIFADDR`) : 127.0.0.1 sauf pour Sega Race TV. Maintenant aussi l'adresse de la
+    borne pour OutRun 2 (`OR2_IPADDRESS`), Hummer (celle des `IP_CAB1` à 4 qui est au PC) et Initial D 4 Export et 5
+    (celle des `ID_IP_SEAT_1` et 2 qui est au PC), quand l'une d'elles est une adresse du PC (essai de `bind`) ; une
+    ligne WARN « Link: this cabinet's address is … (clé) » le dit. Sinon rien ne change (127.0.0.1, jeu seul).
+  - Le fichier `linuxloader.ini` par défaut explique ces clés.
+- Essai ici (OutRun 2, MinGW, mode agent caché, `OR2_IPADDRESS` = l'adresse de ce PC) : TOTAL MACHINE réglé à 2 au
+  menu de test, le jeu affiche « CHECKING NETWORK NOW, TOTAL NODES 2, NODE ID 1 », envoie ses diffusions de 1248
+  octets et reçoit les siennes, et continue de tourner en attendant l'autre borne. Un vrai link n'est pas possible
+  sur un seul PC (une seule adresse réseau, même port) : l'essai à deux bornes revient à Image borne.
+- Réglages par borne (`[Network]`, `ENABLE_NETWORK_PATCHES = true` ; racecab1 / racecab2) :
+  - OutRun 2 : `OR2_IPADDRESS` 192.168.1.4 / 192.168.1.5, `OR2_NETMASK` 255.255.255.0 ; menu de test, GAME
+    ASSIGNMENTS : LINK ID 1 / 2, TOTAL MACHINE 2, GROUP identique (1) ;
+  - Hummer Extreme : `IP_CAB1` 192.168.1.4 et `IP_CAB2` 192.168.1.5 sur les deux, `IP_CAB3` et `IP_CAB4` sur des
+    adresses libres (celles du fichier par défaut, 192.168.1.4 et 5, sont celles des bornes) ; menu de test, GAME
+    ASSIGNMENTS : LINK ID 1 / 2 ;
+  - Sega Race TV : `SRTV_IPADDRESS` 192.168.1.4 / 192.168.1.5 ; menu de test, GAME ASSIGNMENTS : CABINET ID MAIN /
+    2-SUB (libellés d'après le code du loader, pas encore vus à l'écran) ;
+  - Initial D 4 Export, Initial D 5 : `ID_IP_SEAT_1` 192.168.1.4 et `ID_IP_SEAT_2` 192.168.1.5 sur les deux ; menu de
+    test, GAME ASSIGNMENTS : SEAT NUMBER 1 / 2.
+- Liste des sorties dans les autres émulateurs (demande 116) : sm2-emu, Flycast et Supermodel l'ont faite dans le même
+  style, selon le jeu en cours (Supermodel sans valeur dans son lanceur, avec valeurs dans son menu en jeu) ; rien
+  n'est commité chez eux, ils attendent l'accord du propriétaire.
 
 ### Lampes Namco, Gaelco et JVS bit par bit, liste des sorties (demandes 113 à 115)
 - Sorties réseau (`netOutputs.c`, TCP 8000) : `netOutputsSetGpoBit` éteint, allume ou inverse une seule sortie (lampe n
