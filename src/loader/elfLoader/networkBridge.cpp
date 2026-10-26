@@ -357,6 +357,13 @@ static const char *addressText(const void *address, char *text, size_t size)
     return text;
 }
 
+// The Winsock socket behind one of the game's descriptors (filesystemShared.c): INVALID_SOCKET for another number,
+// which Winsock then refuses (ENOTSOCK)
+static SOCKET gameSocket(SOCKET fd)
+{
+    return sharedSocketOf((int)fd);
+}
+
 extern "C" SOCKET bridgeSocket(int af, int type, int protocol)
 {
     log_info(">>> socket called: af=%d, type=%d, protocol=%d", af, type, protocol);
@@ -372,14 +379,22 @@ extern "C" SOCKET bridgeSocket(int af, int type, int protocol)
         DWORD returned = 0;
         WSAIoctl(s, SIO_UDP_CONNRESET, &report, sizeof(report), NULL, 0, &returned, NULL, NULL);
     }
-    log_info(">>> socket EXIT: returning %lld", (long long)s);
-    return s;
+    int fd = sharedSocketFdNew(s);
+    if (fd < 0)
+    {
+        closesocket(s);
+        errno = 24; // EMFILE
+        return (SOCKET)-1;
+    }
+    log_info(">>> socket EXIT: returning %d", fd);
+    return (SOCKET)fd;
 }
 
-extern "C" int bridgeConnect(SOCKET s, const struct sockaddr *name, int namelen)
+extern "C" int bridgeConnect(SOCKET fd, const struct sockaddr *name, int namelen)
 {
+    SOCKET s = gameSocket(fd);
     char text[32];
-    log_info(">>> connect called: socket=%lld to %s", (long long)s, addressText(name, text, sizeof(text)));
+    log_info(">>> connect called: socket=%lld to %s", (long long)fd, addressText(name, text, sizeof(text)));
     struct sockaddr_in local;
     int ret = connect(s, toThisPc(name, &local), namelen);
     if (ret == SOCKET_ERROR)
@@ -392,10 +407,11 @@ extern "C" int bridgeConnect(SOCKET s, const struct sockaddr *name, int namelen)
     return ret;
 }
 
-extern "C" int bridgeBind(SOCKET s, const struct sockaddr *name, int namelen)
+extern "C" int bridgeBind(SOCKET fd, const struct sockaddr *name, int namelen)
 {
+    SOCKET s = gameSocket(fd);
     char text[32];
-    log_info(">>> bind called: socket=%lld on %s", (long long)s, addressText(name, text, sizeof(text)));
+    log_info(">>> bind called: socket=%lld on %s", (long long)fd, addressText(name, text, sizeof(text)));
     struct sockaddr_in any;
     const struct sockaddr_in *in = (const struct sockaddr_in *)name;
     uint32_t own = ownAddress();
@@ -427,9 +443,10 @@ extern "C" int bridgeBind(SOCKET s, const struct sockaddr *name, int namelen)
     return ret;
 }
 
-extern "C" int bridgeListen(SOCKET s, int backlog)
+extern "C" int bridgeListen(SOCKET fd, int backlog)
 {
-    log_info(">>> listen called: socket=%lld, backlog=%d", (long long)s, backlog);
+    SOCKET s = gameSocket(fd);
+    log_info(">>> listen called: socket=%lld, backlog=%d", (long long)fd, backlog);
     int ret = listen(s, backlog);
     if (ret == SOCKET_ERROR)
     {
@@ -439,23 +456,32 @@ extern "C" int bridgeListen(SOCKET s, int backlog)
     return ret;
 }
 
-extern "C" SOCKET bridgeAccept(SOCKET s, struct sockaddr *addr, int *addrlen)
+extern "C" SOCKET bridgeAccept(SOCKET fd, struct sockaddr *addr, int *addrlen)
 {
-    log_info(">>> accept ENTRY: socket=%lld (THIS MAY BLOCK!)", (long long)s);
-    SOCKET ret = accept(s, addr, addrlen);
-    if (ret == INVALID_SOCKET)
+    SOCKET s = gameSocket(fd);
+    log_info(">>> accept ENTRY: socket=%lld (THIS MAY BLOCK!)", (long long)fd);
+    SOCKET accepted = accept(s, addr, addrlen);
+    if (accepted == INVALID_SOCKET)
     {
         errno = mapWSAErrorToErrno(WSAGetLastError());
         return (SOCKET)-1;
     }
+    int ret = sharedSocketFdNew(accepted);
+    if (ret < 0)
+    {
+        closesocket(accepted);
+        errno = 24; // EMFILE
+        return (SOCKET)-1;
+    }
     fromThisPc(addr);
-    log_info(">>> accept EXIT: returning %lld (WSAError=%d)", (long long)ret, ret == INVALID_SOCKET ? WSAGetLastError() : 0);
-    return ret;
+    log_info(">>> accept EXIT: returning %d", ret);
+    return (SOCKET)ret;
 }
 
-extern "C" int bridgeRecv(SOCKET s, char *buf, int len, int flags)
+extern "C" int bridgeRecv(SOCKET fd, char *buf, int len, int flags)
 {
-    log_info(">>> recv ENTRY: socket=%lld, len=%d (THIS MAY BLOCK!)", (long long)s, len);
+    SOCKET s = gameSocket(fd);
+    log_info(">>> recv ENTRY: socket=%lld, len=%d (THIS MAY BLOCK!)", (long long)fd, len);
 
     if (flags & 0x40)
     {
@@ -471,9 +497,10 @@ extern "C" int bridgeRecv(SOCKET s, char *buf, int len, int flags)
     return ret;
 }
 
-extern "C" int bridgeSend(SOCKET s, const char *buf, int len, int flags)
+extern "C" int bridgeSend(SOCKET fd, const char *buf, int len, int flags)
 {
-    log_info(">>> send called: socket=%lld, len=%d", (long long)s, len);
+    SOCKET s = gameSocket(fd);
+    log_info(">>> send called: socket=%lld, len=%d", (long long)fd, len);
 
     flags &= ~(0x4000 | 0x40);
 
@@ -486,9 +513,10 @@ extern "C" int bridgeSend(SOCKET s, const char *buf, int len, int flags)
     return ret;
 }
 
-extern "C" int bridgeRecvfrom(SOCKET s, char *buf, int len, int flags, struct sockaddr *from, int *fromlen)
+extern "C" int bridgeRecvfrom(SOCKET fd, char *buf, int len, int flags, struct sockaddr *from, int *fromlen)
 {
-    log_info(">>> recvfrom ENTRY: socket=%lld, len=%d (THIS MAY BLOCK!)", (long long)s, len);
+    SOCKET s = gameSocket(fd);
+    log_info(">>> recvfrom ENTRY: socket=%lld, len=%d (THIS MAY BLOCK!)", (long long)fd, len);
     if (flags & 0x40)
         flags &= ~0x40;
     int ret = recvfrom(s, buf, len, flags, from, fromlen);
@@ -505,9 +533,10 @@ extern "C" int bridgeRecvfrom(SOCKET s, char *buf, int len, int flags, struct so
     return ret;
 }
 
-extern "C" int bridgeSendto(SOCKET s, const char *buf, int len, int flags, const struct sockaddr *to, int tolen)
+extern "C" int bridgeSendto(SOCKET fd, const char *buf, int len, int flags, const struct sockaddr *to, int tolen)
 {
-    log_info(">>> sendto called: socket=%lld, len=%d", (long long)s, len);
+    SOCKET s = gameSocket(fd);
+    log_info(">>> sendto called: socket=%lld, len=%d", (long long)fd, len);
     flags &= ~(0x4000 | 0x40);
     struct sockaddr_in local;
     int ret = sendto(s, buf, len, flags, toThisPc(to, &local), tolen);
@@ -553,8 +582,9 @@ static bool msghdrToWsabuf(const LinuxMsghdr *msg, WSABUF *bufs, DWORD maxBufs)
     return true;
 }
 
-extern "C" int bridgeSendmsg(SOCKET s, const LinuxMsghdr *msg, int flags)
+extern "C" int bridgeSendmsg(SOCKET fd, const LinuxMsghdr *msg, int flags)
 {
+    SOCKET s = gameSocket(fd);
     WSABUF bufs[16];
     if (!msghdrToWsabuf(msg, bufs, 16))
     {
@@ -568,18 +598,19 @@ extern "C" int bridgeSendmsg(SOCKET s, const LinuxMsghdr *msg, int flags)
                   msg->msg_name ? (int)msg->msg_namelen : 0, NULL, NULL) == SOCKET_ERROR)
     {
         int error = WSAGetLastError();
-        log_info(">>> sendmsg: socket=%lld to %s:%u failed (%d)", (long long)s, to ? inet_ntoa(to->sin_addr) : "-",
+        log_info(">>> sendmsg: socket=%lld to %s:%u failed (%d)", (long long)fd, to ? inet_ntoa(to->sin_addr) : "-",
                  to ? ntohs(to->sin_port) : 0, error);
         errno = mapWSAErrorToErrno(error);
         return -1;
     }
-    log_info(">>> sendmsg: socket=%lld to %s:%u, %lu bytes", (long long)s, to ? inet_ntoa(to->sin_addr) : "-",
+    log_info(">>> sendmsg: socket=%lld to %s:%u, %lu bytes", (long long)fd, to ? inet_ntoa(to->sin_addr) : "-",
              to ? ntohs(to->sin_port) : 0, (unsigned long)sent);
     return (int)sent;
 }
 
-extern "C" int bridgeRecvmsg(SOCKET s, LinuxMsghdr *msg, int flags)
+extern "C" int bridgeRecvmsg(SOCKET fd, LinuxMsghdr *msg, int flags)
 {
+    SOCKET s = gameSocket(fd);
     WSABUF bufs[16];
     if (!msghdrToWsabuf(msg, bufs, 16))
     {
@@ -594,7 +625,7 @@ extern "C" int bridgeRecvmsg(SOCKET s, LinuxMsghdr *msg, int flags)
     {
         int error = WSAGetLastError();
         if (error != WSAEWOULDBLOCK)
-            log_info(">>> recvmsg: socket=%lld failed (%d)", (long long)s, error);
+            log_info(">>> recvmsg: socket=%lld failed (%d)", (long long)fd, error);
         errno = mapWSAErrorToErrno(error);
         return -1;
     }
@@ -603,7 +634,7 @@ extern "C" int bridgeRecvmsg(SOCKET s, LinuxMsghdr *msg, int flags)
     unsigned long room = 0;
     for (uint32_t i = 0; i < msg->msg_iovlen && i < 16; i++)
         room += bufs[i].len;
-    log_info(">>> recvmsg: socket=%lld from %s:%u, %lu bytes (room %lu in %u, flags 0x%x)", (long long)s,
+    log_info(">>> recvmsg: socket=%lld from %s:%u, %lu bytes (room %lu in %u, flags 0x%x)", (long long)fd,
              from ? inet_ntoa(from->sin_addr) : "-", from ? ntohs(from->sin_port) : 0, (unsigned long)received, room,
              (unsigned)msg->msg_iovlen, (unsigned)flags);
     if (msg->msg_name)
@@ -614,9 +645,10 @@ extern "C" int bridgeRecvmsg(SOCKET s, LinuxMsghdr *msg, int flags)
 }
 
 // Winsock's shutdown is __stdcall, the games call it as cdecl; SHUT_RD, SHUT_WR, SHUT_RDWR are SD_RECEIVE, SD_SEND, SD_BOTH
-extern "C" int bridgeShutdown(SOCKET s, int how)
+extern "C" int bridgeShutdown(SOCKET fd, int how)
 {
-    log_info(">>> shutdown: socket=%lld, how=%d", (long long)s, how);
+    SOCKET s = gameSocket(fd);
+    log_info(">>> shutdown: socket=%lld, how=%d", (long long)fd, how);
     if (shutdown(s, how) == SOCKET_ERROR)
     {
         errno = mapWSAErrorToErrno(WSAGetLastError());
@@ -625,8 +657,9 @@ extern "C" int bridgeShutdown(SOCKET s, int how)
     return 0;
 }
 
-extern "C" int bridgeGetsockname(SOCKET s, struct sockaddr *addr, int *addrlen)
+extern "C" int bridgeGetsockname(SOCKET fd, struct sockaddr *addr, int *addrlen)
 {
+    SOCKET s = gameSocket(fd);
     if (getsockname(s, addr, addrlen) == SOCKET_ERROR)
     {
         errno = mapWSAErrorToErrno(WSAGetLastError());
@@ -690,9 +723,10 @@ struct LinuxTimeval
     int32_t sec, usec;
 };
 
-extern "C" int bridgeSetsockopt(SOCKET s, int level, int optname, const char *optval, int optlen)
+extern "C" int bridgeSetsockopt(SOCKET fd, int level, int optname, const char *optval, int optlen)
 {
-    log_info(">>> setsockopt called: socket=%lld, level=%d, optname=%d", (long long)s, level, optname);
+    SOCKET s = gameSocket(fd);
+    log_info(">>> setsockopt called: socket=%lld, level=%d, optname=%d", (long long)fd, level, optname);
 
     if (!linuxSockopt(level, optname))
     {
@@ -743,9 +777,10 @@ extern "C" int bridgeSetsockopt(SOCKET s, int level, int optname, const char *op
     return ret;
 }
 
-extern "C" int bridgeGetsockopt(SOCKET s, int level, int optname, char *optval, int *optlen)
+extern "C" int bridgeGetsockopt(SOCKET fd, int level, int optname, char *optval, int *optlen)
 {
-    log_info(">>> getsockopt called: socket=%lld, level=%d, optname=%d", (long long)s, level, optname);
+    SOCKET s = gameSocket(fd);
+    log_info(">>> getsockopt called: socket=%lld, level=%d, optname=%d", (long long)fd, level, optname);
 
     if (!linuxSockopt(level, optname))
     {

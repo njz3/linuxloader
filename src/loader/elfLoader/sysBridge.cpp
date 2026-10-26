@@ -21,6 +21,7 @@
 #include "symbolResolver.hpp"
 #include "../log/log.h"
 #include "../config/config.h"
+#include "../redirections/filesystemShared.h"
 
 #define MAP(name, func) SymbolResolver::GetInstance().RegisterVTable(name, reinterpret_cast<void *>(func))
 
@@ -213,8 +214,7 @@ extern "C" int bridgeEpollCtl(int epfd, int op, int fd, LinuxEpollEvent *event)
 
 static bool isSocket(int fd)
 {
-    int type = 0, length = sizeof(type);
-    return getsockopt((SOCKET)fd, SOL_SOCKET, SO_TYPE, (char *)&type, &length) == 0;
+    return sharedSocketOf(fd) != INVALID_SOCKET;
 }
 
 // What is ready among an epoll's descriptors: eventfds by their counter, sockets by select, pipes by what they hold
@@ -250,14 +250,15 @@ static int epollReady(int epfd, LinuxEpollEvent *events, int maxevents)
             fd_set readable, writable;
             FD_ZERO(&readable);
             FD_ZERO(&writable);
-            FD_SET((SOCKET)entry.fd, &readable);
-            FD_SET((SOCKET)entry.fd, &writable);
+            SOCKET socket = sharedSocketOf(entry.fd);
+            FD_SET(socket, &readable);
+            FD_SET(socket, &writable);
             timeval now = {0, 0};
             if (select(0, &readable, &writable, NULL, &now) > 0)
             {
-                if (FD_ISSET((SOCKET)entry.fd, &readable))
+                if (FD_ISSET(socket, &readable))
                     got |= LINUX_EPOLLIN;
-                if (FD_ISSET((SOCKET)entry.fd, &writable))
+                if (FD_ISSET(socket, &writable))
                     got |= LINUX_EPOLLOUT;
             }
         }
@@ -562,7 +563,7 @@ extern "C" void networkFromThisPc(void *address); // networkBridge.cpp: this PC 
 
 extern "C" int bridgeGetpeername(int fd, struct sockaddr *address, int *length)
 {
-    if (getpeername((SOCKET)fd, address, length) != 0)
+    if (getpeername(sharedSocketOf(fd), address, length) != 0)
         return -1;
     networkFromThisPc(address);
     return 0;

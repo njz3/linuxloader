@@ -788,15 +788,54 @@ int sysVirtualClose(int fd);
 int bridgeSend(SOCKET s, const char *buf, int len, int flags);
 int bridgeRecv(SOCKET s, char *buf, int len, int flags);
 
+// The games' sockets as they see them: small descriptors, 900 to 1023, as a socket's on Linux, each standing for a
+// Winsock socket. A Winsock handle is a larger number, and a game's FD_SET would put its bit past its 1024-bit fd_set,
+// on its stack: Hummer's nsFileDescriptorUtil::lCheckRead overwrote its caller's frame and crashed. A descriptor the C
+// library has open stays a file (Ring Riders' model files were once read with recv, which waited)
+#define SOCKET_FD_BASE 900
+#define SOCKET_FD_COUNT 124
+static SOCKET socketFds[SOCKET_FD_COUNT]; // 0: free
+static SRWLOCK socketFdLock = SRWLOCK_INIT;
+
+int sharedSocketFdNew(SOCKET s)
+{
+    int fd = -1;
+    AcquireSRWLockExclusive(&socketFdLock);
+    for (int i = 0; i < SOCKET_FD_COUNT && fd < 0; i++)
+    {
+        if (!socketFds[i] && _get_osfhandle(SOCKET_FD_BASE + i) == -1)
+        {
+            socketFds[i] = s;
+            fd = SOCKET_FD_BASE + i;
+        }
+    }
+    ReleaseSRWLockExclusive(&socketFdLock);
+    if (fd < 0)
+        log_error("No socket descriptor left (%d in use)", SOCKET_FD_COUNT);
+    return fd;
+}
+
+SOCKET sharedSocketOf(int fd)
+{
+    if (fd < SOCKET_FD_BASE || fd >= SOCKET_FD_BASE + SOCKET_FD_COUNT)
+        return INVALID_SOCKET;
+    AcquireSRWLockShared(&socketFdLock);
+    SOCKET s = socketFds[fd - SOCKET_FD_BASE];
+    ReleaseSRWLockShared(&socketFdLock);
+    return s ? s : INVALID_SOCKET;
+}
+
+static void socketFdFree(int fd)
+{
+    AcquireSRWLockExclusive(&socketFdLock);
+    if (fd >= SOCKET_FD_BASE && fd < SOCKET_FD_BASE + SOCKET_FD_COUNT)
+        socketFds[fd - SOCKET_FD_BASE] = 0;
+    ReleaseSRWLockExclusive(&socketFdLock);
+}
+
 static int isWinsockHandle(int fd)
 {
-    // A descriptor the C library has open is a file, whatever its number: a socket's handle can carry the same value
-    // (Ring Riders' model files were read with recv, which waited)
-    if (fd >= 0 && _get_osfhandle(fd) != -1)
-        return 0;
-    int socketType;
-    int socketTypeLen = sizeof(socketType);
-    return getsockopt((SOCKET)fd, SOL_SOCKET, SO_TYPE, (char *)&socketType, &socketTypeLen) == 0;
+    return sharedSocketOf(fd) != INVALID_SOCKET;
 }
 
 // The sockets made non-blocking (fcntl's O_NONBLOCK, FIONBIO), which Winsock cannot be asked about: fcntl's F_GETFL
@@ -842,16 +881,17 @@ static bool socketNonBlocking(SOCKET s)
 // games that poll it each frame (OutRun 2's and Hummer's link, set non-blocking this way). False: not a socket
 bool sharedSocketFcntl(int fd, int cmd, int arg, int *result)
 {
-    if (!isWinsockHandle(fd))
+    SOCKET s = sharedSocketOf(fd);
+    if (s == INVALID_SOCKET)
         return false;
     *result = 0;
     if (cmd == LINUX_F_GETFL)
-        *result = LINUX_O_RDWR | (socketNonBlocking((SOCKET)fd) ? LINUX_O_NONBLOCK : 0);
+        *result = LINUX_O_RDWR | (socketNonBlocking(s) ? LINUX_O_NONBLOCK : 0);
     else if (cmd == LINUX_F_SETFL)
     {
         u_long on = (arg & LINUX_O_NONBLOCK) != 0;
-        if (ioctlsocket((SOCKET)fd, FIONBIO, &on) == 0)
-            socketNonBlockingNote((SOCKET)fd, on != 0);
+        if (ioctlsocket(s, FIONBIO, &on) == 0)
+            socketNonBlockingNote(s, on != 0);
         else
             *result = -1;
     }
@@ -893,8 +933,10 @@ int sharedClose(int fd)
     if (isWinsockHandle(fd))
     {
         log_info(">>> close: socket=%d", fd);
-        socketNonBlockingNote((SOCKET)fd, false);
-        return closesocket((SOCKET)fd) == 0 ? 0 : -1;
+        SOCKET s = sharedSocketOf(fd);
+        socketNonBlockingNote(s, false);
+        socketFdFree(fd);
+        return closesocket(s) == 0 ? 0 : -1;
     }
 #endif
 
@@ -1340,10 +1382,11 @@ static int windowsSocketIoctl(int fd, unsigned long int request, void *argp)
     if (request == LINUX_FIONBIO || request == LINUX_FIONREAD)
     {
         u_long value = (request == LINUX_FIONBIO && argp) ? (u_long)(*(int *)argp != 0) : 0;
-        if (ioctlsocket((SOCKET)fd, request == LINUX_FIONBIO ? FIONBIO : FIONREAD, &value) != 0)
+        SOCKET s = sharedSocketOf(fd);
+        if (s == INVALID_SOCKET || ioctlsocket(s, request == LINUX_FIONBIO ? FIONBIO : FIONREAD, &value) != 0)
             return -1;
         if (request == LINUX_FIONBIO)
-            socketNonBlockingNote((SOCKET)fd, value != 0);
+            socketNonBlockingNote(s, value != 0);
         if (request == LINUX_FIONREAD && argp)
             *(int *)argp = (int)value;
         return 0;
@@ -1500,22 +1543,15 @@ static int serialPortSelect(int nfds, fd_set *readfds, fd_set *writefds, fd_set 
 
 #ifdef WIN32
 // A select on the game's sockets (Initial D's link waits for its datagrams so, cUDPSocket::receiveFrom): their bits in
-// the game's sets as Winsock sockets, Winsock's select, the ready ones set back. Their handles pass 1024, the size of
-// a Linux fd_set: the game set the bit of its socket past it, at nfds - 1, read and written back there; the bits
-// between are whatever follows the set in its memory, not looked at. -1 when the sets hold no socket
+// the game's sets as Winsock sockets, Winsock's select, the ready ones set back. -1 when the sets hold no socket
 #define SOCKET_SELECT_MAX 64
 static int socketSelect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout)
 {
     unsigned long *sets[3] = {(unsigned long *)readfds, (unsigned long *)writefds, (unsigned long *)exceptfds};
     int fds[SOCKET_SELECT_MAX], count = 0;
     bool any = false;
-    int below = nfds < 1024 ? nfds : 1024;
-    for (int step = 0; step <= below && count < SOCKET_SELECT_MAX; step++)
+    for (int fd = 0; fd < nfds && fd < 1024 && count < SOCKET_SELECT_MAX; fd++)
     {
-        // the descriptors below 1024, then the one past them the game passed (nfds - 1)
-        int fd = step < below ? step : nfds - 1;
-        if (step == below && nfds <= 1024)
-            break;
         bool wanted = false;
         for (int i = 0; i < 3; i++)
             wanted = wanted || (sets[i] && LINUX_FD_ISSET_BIT(fd, sets[i]));
@@ -1534,7 +1570,7 @@ static int socketSelect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exc
         FD_ZERO(&winSets[i]);
         for (int k = 0; k < count; k++)
             if (sets[i] && LINUX_FD_ISSET_BIT(fds[k], sets[i]))
-                FD_SET((SOCKET)fds[k], &winSets[i]);
+                FD_SET(sharedSocketOf(fds[k]), &winSets[i]);
     }
     int ready = select(0, readfds ? &winSets[0] : NULL, writefds ? &winSets[1] : NULL, exceptfds ? &winSets[2] : NULL,
                        (const struct timeval *)timeout);
@@ -1543,7 +1579,7 @@ static int socketSelect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exc
     for (int i = 0; i < 3; i++)
         for (int k = 0; k < count && sets[i]; k++)
         {
-            if (FD_ISSET((SOCKET)fds[k], &winSets[i]))
+            if (FD_ISSET(sharedSocketOf(fds[k]), &winSets[i]))
                 LINUX_FD_SET_BIT(fds[k], sets[i]);
             else
                 LINUX_FD_CLR_BIT(fds[k], sets[i]);

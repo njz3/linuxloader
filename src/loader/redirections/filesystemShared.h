@@ -63,6 +63,10 @@ int sharedSelect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 const char *sharedBinaryMode(const char *mode, char *buffer, size_t size);
 const char *sharedSrtvAddress(void);
 bool sharedSocketFcntl(int fd, int cmd, int arg, int *result);
+// The game's descriptor for a new Winsock socket (-1 when none is left), and the socket behind a descriptor
+// (INVALID_SOCKET: not one of the game's sockets)
+int sharedSocketFdNew(SOCKET s);
+SOCKET sharedSocketOf(int fd);
 #endif
 
 #ifdef __cplusplus
