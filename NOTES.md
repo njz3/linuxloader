@@ -95,6 +95,10 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 116 | 26/10 | Demander aux sessions sm2-emu, Flycast et Supermodel d'afficher aussi les noms des variables à côté de l'option des sorties réseau, dans le même style, selon le jeu en cours | ✅ consigne envoyée aux trois sessions avec la capture et le code de référence (`drawOutputsList`) |
+| 115 | 26/10 | Afficher dans « Sorties et réseau » la liste, avec défilement, des variables que le jeu courant peut émettre et leur type | ✅ tableau Nom / Type / Signification / Valeur sous les ports, en jeu (voir journal) |
+| 114 | 26/10 | Ajouter les lampes manquantes : cartes Namco et Gaelco, écritures JVS bit par bit | ✅ les lampes de la carte Kickback des cinq jeux Namco qui en ont une, les sorties et les ports de bits Gaelco, `CMD_WRITE_GPO_BIT` (voir journal) |
+| 113 | 26/10 | Quelles sorties lampes sont disponibles pour chaque jeu (port 8000) ? | ✅ réponse : lampes JVS pour les sept jeux Lindbergh, rien pour les Namco et Gaelco, `RawDrive` partout ; trois trous relevés, comblés par la demande 114 |
 | 112 | 25/10 | Commit et push, release, prévenir Image borne pour mettre à jour les deux bornes | ✅ rien à commiter (poussé jusqu'à `e67aa54`) ; `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261025-4-njz3-win32.zip`, la première faite par `release.py` ; Image borne prévenue (voir journal) |
 | 111 | 25/10 | L'avertissement quand la copie des réglages dans le dossier d'écriture est plus ancienne | ✅ une ligne WARN au démarrage par fichier, `linuxloader.ini` et `controls.ini` (voir journal) |
 | 110 | 25/10 | Ajouter le suffixe des releases du jour (-2, -3…) | ✅ `RELEASE_SUFFIX` écrit dans `version.h` le temps du build de release, dans le titre et `--version` ; la procédure le calcule d'après les zips du jour (voir journal) |
@@ -145,6 +149,63 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Lampes Namco, Gaelco et JVS bit par bit, liste des sorties (demandes 113 à 115)
+- Sorties réseau (`netOutputs.c`, TCP 8000) : `netOutputsSetGpoBit` éteint, allume ou inverse une seule sortie (lampe n
+  = bit 7 - n % 8 de l'octet n / 8, comme la sortie JVS n + 1) ; `RawLamps*` et `lampN` partent comme pour les
+  écritures par octet, seulement aux changements.
+- JVS : `CMD_WRITE_GPO_BIT` (sortie, puis 0 éteindre, 1 allumer, 2 inverser) est transmise ; elle était acceptée sans
+  suite.
+- Gaelco (`gaelcoIo.c`) : les sorties 0 à 3 de `COMMAND_WRITE_OUTPUT` sont des octets de bits
+  (`G3Dintf_ports::setOutBits80000`, `80001`, `80002`), donc `RawLamps` à `RawLamps3` ; le moteur (4 et 5) et le
+  vibreur (6) restent sur `RawDrive`. Lu dans les exécutables :
+  - Ring Riders : sortie 0, lampes de la cabine sur les bits 0 à 3, sécurité de la plateforme sur le bit 5 ; sortie 1,
+    lampes de la cabine sur les bits 7, 2 et 3, impulsions du compteur de pièces sur le bit 5, coupure du son sur le
+    bit 0 ; sortie 2, bits 7, 2 et 3 éteints au menu de test ;
+  - Championship Tuning Race (`IOFrontal`) : sortie 0 seulement, compteur de pièces sur le bit 0, ampoules
+    (`procesaBombillas`) sur les bits 1 et 2, coupure du son sur le bit 3 ;
+  - Tokyo Cop, interface ancienne : les mêmes octets écrits sur les ports 0x40 et 0x41 (`set_out_bits_40` et `_41`),
+    donc `RawLamps` et `RawLamps1` : sur 0x41 les lampes de la cabine (`enableCabinetLight`) sur les bits 7 (bouton de
+    sirène, `luzBocina`, `lamp8`), 2 et 3, le compteur de pièces sur le bit 5 (`lamp10`) ; sur 0x40 la plateforme
+    (bits 4 à 7).
+- Namco (`deadHeatIo.c`) : les lampes de la cabine sont celles de la carte Kickback. `clKickback::setLamp` et ses
+  variantes nommées les rangent dans l'instance, envoyées par le fil de la carte, dont le port reste fermé ici ;
+  `n2JvioTxPl` (`setupGOUT`) ne fait que configurer les sorties de la carte N2. Elles sont lues dans l'instance à
+  chaque image, avec le ressort et le reste, et deviennent `RawLamps` (`lamp0` la première) :
+  - Dead Heat : 7 mots à partir de 0x04 (View, Nitro, PinKey, SheetKey, RingTopKey, RingCenterKey, RingBottomKey),
+    allumés quand leur intensité (bits 0 à 3) n'est pas nulle. Le bit 4 est le drapeau que `setLamp` et
+    `setLampFloat` prennent avec elle ; il remet aussi un compteur à 0x14 à zéro (le clignotement, semble-t-il) ;
+    `clrLamp` efface les deux. Un premier essai qui lisait le bit 4 comme « allumée » donnait toutes les lampes
+    allumées au démarrage, puis plus rien ;
+  - Maximum Heat 3D : les mêmes à partir de 0x06 ; Dead Heat Riders : 8 mots à partir de 0x04 (View, Nitro, six sans
+    nom) ;
+  - Maximum Tune 3 et 3DX+ : deux entiers à 0x04 (View) et 0x08 (Intrude, le défi), allumés s'ils ne sont pas nuls ;
+  - Nirin : pas de carte Kickback, pas de lampe.
+  Seuls les exécutables ont été copiés depuis le partage de racecab1 pour les lire (scratchpad), et Dead Heat en
+  entier pour l'essai, remis à la Corbeille ensuite.
+- Paramètres, onglet « Sorties et réseau » (en jeu) : un tableau de dix lignes avec barre de défilement et en-tête
+  fixe, « Ce que ce jeu envoie » : nom, type, signification, dernière valeur envoyée (« - » tant que rien n'est parti
+  ou que les sorties sont coupées). Lignes : `mame_start` (texte), chaque `RawLamps*` (octet) suivi de ses `lampN`
+  (0 ou 1) avec leur sens connu, `RawDrive` (octets des trames de la carte servo) pour les jeux qui en envoient,
+  `mame_stop`. La liste suit la carte du jeu, comme la description des cartes de l'onglet « Options du jeu »
+  (`gameLamps` dans `guiGameOptions.cpp`) ; traduite en français.
+- Essais (MinGW, mode agent caché, client TCP sur un port d'essai ; copies locales remises à la Corbeille ensuite) :
+  - Tokyo Cop : `RawLamps` et `RawLamps1` ; la lampe de sirène (`lamp8`) clignote, les lampes de cabine 12 et 13
+    allumées, le compteur de pièces (`lamp10`) pulse à chaque pièce ;
+  - Ring Riders : les lampes de cabine de la sortie 0 (`lamp4` à `lamp7`) en chenillard, `lamp8` qui clignote, le
+    compteur de pièces (`lamp10`) aux pièces ;
+  - Dead Heat : les 7 lampes éteintes pendant l'attente du link, puis en attract les lampes 0 à 2 allumées tour à tour
+    chaque seconde et des salves de clignotements ; en partie, les lampes 4 à 6 changent d'intensité sans s'éteindre.
+    Champs lus en mémoire par l'agent (`mem`) : `e001` éteinte, `ef01` pleine intensité, `e301` faible ;
+  - Maximum Heat 3D, Dead Heat Riders, Maximum Tune 3 et 3DX+, Championship Tuning Race : offsets lus dans leurs
+    exécutables, pas lancés ; aucun jeu connu n'écrit par `CMD_WRITE_GPO_BIT`, ce chemin n'est pas essayé.
+  - Liste des sorties : capture de Dead Heat lancé normalement (fenêtre visible, vJoy masqué), onglet « Sorties et
+    réseau » en français, défilement jusqu'à `RawDrive` (8) et `mame_stop`.
+- Les sessions sm2-emu, Flycast et Supermodel ont reçu, à la demande du propriétaire, la consigne d'afficher la même
+  liste dans le même style, selon le jeu en cours.
+- Image borne a demandé le link à deux bornes d'OutRun 2, Hummer, Sega Race TV et Initial D 4/5 : sous Windows,
+  `eth0Address()` présente 127.0.0.1 à ces jeux, le link ne peut donc pas marcher en l'état ; décision du propriétaire
+  attendue.
 
 ### Quatrième release du 25/10 (demande 112)
 - Faite par `release.py` (procédure de la demande 110) : suffixe « -4 » calculé d'après les trois zips du jour,
