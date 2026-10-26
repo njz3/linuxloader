@@ -180,6 +180,15 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   les broadcasts) et Windows refuse (`WSAEADDRNOTAVAIL`, vérifié ici). Une socket UDP liée à 255.255.255.255 ou à
   une adresse en .255 est maintenant liée à toutes les adresses sur son port, ce qui lui fait recevoir ces
   broadcasts sous Windows. Pas d'essai possible ici sans Sega Race TV ni seconde machine.
+- Initial D 4 Export en link : SEAT NUMBER (4e ligne, SINGLE, 1P, 2P) à 1P et 2P ; « Link: … (ID_IP_SEAT_1) » et
+  « (ID_IP_SEAT_2) », eth0 lu par le jeu (« LocalHost IPAddr: c0a80104 »). Le siège 2 reçoit les 43 paquets du
+  siège 1 puis tombe en « ERROR: 599 », le siège 1 n'appelle jamais `recvfrom`. Le jeu attend ses datagrammes par
+  `select` (`cUDPSocket::receiveFrom`, `polling`) et le `select` du loader rendait toujours 0 pour Initial D (ou 1
+  sans regarder pour les jeux à carte moteur), sans voir les sockets. Il passe maintenant leurs bits à Winsock :
+  les numéros de socket de Windows dépassent 1024, la taille d'un `fd_set` Linux, et le jeu a posé le bit de la
+  sienne au-delà, à `nfds - 1` : lu et réécrit là (les bits entre 1024 et lui, de la mémoire voisine, ne sont pas
+  regardés). Vérifié sans régression sur OutRun 2 (course, attente du link). `poll` reste un bouchon (Initial D ne
+  s'en sert que pour les fichiers).
 
 ### Link d'OutRun 2 essayé sur les deux bornes (suite de la demande 117)
 - Release 20261026 posée sur racecab1 et racecab2 par Image borne, avec l'accord du propriétaire (lanceur
