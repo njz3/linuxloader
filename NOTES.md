@@ -205,6 +205,15 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   par toutes les fonctions de socket du pont, `close`, `read`, `write`, `ioctl`, `fcntl`, `select`, `epoll` et
   `getpeername`. Le `select` n'a plus à lire au-delà de 1024. Vérifié sans régression : OutRun 2 (attente du link,
   course), Dead Heat (vérification du link en multicast, attract, partie).
+- Avec la -3, Initial D 4 Export tombait en 599 des deux côtés, alors que ses pings d'un octet passaient dans les
+  deux sens : le jeu lisait sur des numéros de socket jamais créés (3060, 2996, 2728, 2220 au lieu de 2216, même
+  800), ses champs de socket abîmés par ses `FD_SET` sur les grands numéros : même cause que Hummer. Sega Race TV
+  se relie (MAIN « 2 PLAYERS GAME CAN BE HELD »).
+- Release `linuxloader-v3.0.12-ffbedition-20261026-4-njz3-win32.zip` (depuis `73d53f5`, à la demande du
+  propriétaire) : les descripteurs de socket 900 à 1023. SHA-256 du zip
+  `f6a7eaaaa3cd7f32f2c55a5fe0dc2cda53a5e2058a6dd72050ceca2c8fca87c8`, de `linuxloader.exe`
+  `8c7038188c31c2bb5f4851e6c6a56708a2334f4e2fc5467871e853fca9130a4d` ; `ll-deps` identique. Vérifiée depuis le zip
+  extrait : `--version`, attente du link d'OutRun 2 (sockets 900 et 901, diffusions).
 
 ### Link d'OutRun 2 essayé sur les deux bornes (suite de la demande 117)
 - Release 20261026 posée sur racecab1 et racecab2 par Image borne, avec l'accord du propriétaire (lanceur
