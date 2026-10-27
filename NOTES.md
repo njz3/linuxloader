@@ -95,6 +95,8 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 122 | 27/10 | Initial D 5 : essayer son test du retour de force (menu de test) | ✅ passe tel quel : « CHECKING.... » environ 21 s, puis le menu ; CENTER, RIGHT et LEFT envoient leurs couples, sens justes ; MinGW et MSVC, mode agent caché ; aucune réponse de la carte n'est attendue, rien à brancher ; Initial D 4 pas essayé (voir journal) |
+| 121 | 27/10 | (signalée par la session « Driveboard émulation et force feedback ») La servoboard Sega émulée répond toujours un octet, la vraie quatre après `FA 00 10` ; relire DRIVEBOARD.md (exact, vérifié sur le matériel) et comparer avec l'émulation | ✅ réponses de `driveBoard.c` refaites d'après DRIVEBOARD.md : modes de réponse `FA 00 10`, `14`, `1F`, file de réponses, recherche d'index de 4,05 s, `tcflush` ; rejouées contre les relevés d'une vraie borne, identiques à la limite de la recherche près ; MinGW et MSVC ; Initial D 4 et 5 ne passent pas par là (demande 122) ; jeux de `driveBoard.c` pas relancés, aucune copie locale (voir journal) |
 | 120 | 27/10 | Commit et push, puis une release | ✅ poussé jusqu'à `2aab762` ; `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261027-njz3-win32.zip` (voir journal) |
 | 119 | 27/10 | (relayée par la session « Driveboard émulation et force feedback ») Choisir le périphérique de retour de force dans Tab > Contrôles > Retour de force : « Automatique » ou un périphérique branché, par son nom ; lui seul reçoit les effets, où que soit lu le volant ; changement en direct ; `[ForceFeedback] FFB_DEVICE`, réglable par `--set` | ✅ `FFB_DEVICE = AUTO` ou le nom SDL du périphérique (nom produit DirectInput sous Windows), comparé sans la casse ni les espaces autour ; Automatique tant qu'il est absent, repris dès qu'il est branché (règle du propriétaire pour tous les émulateurs) ; liste dans Contrôles, changement en direct ; essayé sur vJoy (voir journal) |
 | 118 | 26/10 | Nommer les lampes connues dans la liste des sorties, documenter les modes `_POSITIVE_SIDE` / `_NEGATIVE_SIDE` (retour d'un utilisateur d'OutRun 2 : pédales actives au repos, pas de retour de force, lampe Start) | ✅ lampes d'OutRun 2 nommées, guide des contrôles complété ; réponse rédigée pour l'utilisateur (voir journal) |
@@ -153,6 +155,77 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Test du retour de force d'Initial D 5 (demande 122)
+- Copie d'Initial D 5 Export 2.0 depuis racecab1 (`games/id5`, 3,83 Go, déjà sans fichiers TeknoParrot), annoncée à
+  Image borne et à windowsloader, avec l'accord du propriétaire.
+- Le test (« GAME TEST MODE » > FORCE FEEDBACK, `TCL_MENU_FORCE_FEEDBACK_ID5`) affiche « CHECKING » et des points,
+  et appelle à chaque image `cFeedbackSCI::initPolling(temps écoulé)` jusqu'à ce qu'il rende vrai :
+  - `initPolling` avance à l'horloge, comme les relevés de la borne : `FF` à 1 s, `FA 00 10` à 2 s, `FD` jusqu'à 3 s,
+    `81`/`82` à 4 s, `FC` à 5 s, `FD` à 15 s, `80 00 01` à 16 s, le centrage, `F0` à 21 s, puis à 22 s `80 00 00`,
+    `FA 00 1F`, `86`, `85`, et vrai ;
+  - il ne lit les réponses (`_sSCI::recv` : `select` sans attente puis `read` de 4 octets) que pour y chercher un
+    octet de `0xC0` ou plus, un écho de ses commandes : il recommence alors depuis 20 s et rend vrai à 41 s ;
+  - le reste du test n'envoie que `80` et `84` ; `GetRecv_` n'est appelé nulle part.
+  Sans réponse, comme dans linuxloader (port jamais ouvert, trames prises à `_sSCI::send`), le test ne bloque donc
+  pas, contrairement à Initial D Zero sous windowsloader. Les réponses de `driveBoard.c` n'y changeraient rien (`B0`,
+  `90`, aucun octet de `0xC0`) : rien à brancher.
+- Essai en mode agent caché (`-t`, vJoy caché), MinGW puis MSVC : « CHECKING.... » et le menu grisé, la séquence
+  d'init entière envoyée (de `80 00 00` et `FF` jusqu'à `FA 00 1F`, `86`, `85`), le menu actif environ 21 s après
+  l'entrée, curseur sur EXIT. CENTER envoie `80 00 01` et `84 01 00` (couple nul), RIGHT `84 00 68`, LEFT `84 01 18` ;
+  le modèle de la carte en fait −0,095 et +0,095 (+ pousse le volant à gauche), ON affiché à chaque fois.
+- Initial D 4 pas essayé (pas de copie) : même carte `cFeedbackSCI`, son menu de test est une autre classe.
+- La copie locale est repartie à la Corbeille après l'essai.
+
+### Réponses de la servoboard Sega (demande 121)
+- Signalé par la session « Driveboard émulation et force feedback (Berstett) », à la demande du propriétaire :
+  `driveBoard.c` répondait toujours un octet, alors qu'après `FA 00 10` la vraie carte répond 4 octets à chaque
+  trame. C'est ce qui bloquait sur « CHECKING.... » le test du retour de force d'Initial D Zero sous windowsloader,
+  corrigé là-bas aujourd'hui. Le propriétaire : DRIVEBOARD.md (BackForceFeeder, section « Sega servoboard ») est
+  exact, vérifié sur le matériel ; il suffit pour corriger, sans lire les jeux.
+- Écarts trouvés entre l'émulation et le document :
+  - un seul octet en toute circonstance ; `FA` ne choisissait rien (réponse `00`), ni statut long `90`/`B0`, ni
+    position du codeur `94`/`B4` ;
+  - `FF` répondait `00` et laissait la carte « prête » : les `FD` suivants répondaient `00` avant toute recherche
+    d'index ; la vraie carte répond à `FF` dans son état d'avant, puis repasse en statuts courts, non initialisée
+    (`11`, `B0 00 01`, `B4`) ;
+  - `81` (force maximale) répondait `11` comme un reset ;
+  - `FC` répondait `44` la première fois seulement, et le `FD` suivant `00` : la recherche était instantanée ; la vraie
+    dure 4,03 à 4,06 s (cinq relevés : OutRun, Harley, Hummer, R-Tuned, Race TV), `44` ou `B0 00 04` pendant ;
+  - les autres commandes (`82`, `85`, `87`, `88`, `8B`, `9D`, `F0`...) répétaient la réponse précédente ;
+  - `FIONREAD` annonçait 1 octet ; `TCFLSH` écrivait à l'adresse que portait son argument (un entier) ;
+  - le décodage des effets (`forceFeedback.c`) suivait déjà le document : `80` et son mode court de 240 ms, `81`,
+    `83`, `84` centré, `85` fréquence en demi-hertz puis amplitude, `86` (0 gardé comme 1), `87`, `88`, `8B`,
+    `9D`/`9E`, `FB`, `FF` aux valeurs par défaut. Ce sont les corrections que windowsloader vient de faire chez lui.
+- `driveBoard.c` maintenant :
+  - une réponse par commande, dans une file lue par `read` dans la limite de ce que le jeu demande ; `FIONREAD`
+    donne ce qui attend ; `tcflush` (crochet Linux, pont Windows) et l'ioctl `TCFLSH` la vident ;
+  - le mode de réponse de `FA 00 xx`, valable pour la réponse au `FA` lui-même : `1F` un octet (`00` prête, `11`
+    non initialisée, `44` recherche d'index) ; `10` `[90|B0] 00 état somme` (état `01` reset, `04` recherche, `00`
+    prête) ; `14` `[94|B4]` et la position du codeur, au centre `0x2000` ; les adresses `00` à `0F` relisent le
+    dernier `80` à `8F` (valeurs à froid du document), `1D` le dernier `9D` ;
+  - `FF` répond dans l'état d'avant, puis remet la carte à froid ; `FC` lance une recherche de 4,05 s ;
+  - file vide : la dernière réponse à nouveau, entière (le correctif d'OutRun, `select()` toujours prêt) ; au passage
+    en mode long, les statuts courts non lus sont retirés, comme dans windowsloader ;
+  - seules les commandes du premier port (`SERIAL0`) reçoivent une réponse, le seul port lu ; le pilotage de
+    l'analogique du volant par les couples d'avant le `80` est inchangé.
+- Vérification : banc d'essai (`driveBoard.c` seul, horloge des relevés) qui rejoue les commandes des relevés COMDump
+  d'une vraie borne (`BackForceFeeder_master/utils/dump/dumpsrsversrs`) et compare chaque réponse, une réponse par
+  commande dans chaque relevé, à partir du premier `FF` (avant, la carte gardait l'état d'une partie précédente) :
+  - Initial D 4 Export et Initial D 5 (menu de test et partie), Hummer (deux relevés), OutRun (menu de test),
+    Harley (mauvaise init) : toutes les réponses identiques ;
+  - OutRun (partie), R-Tuned (menu de test) : une réponse de la fin de recherche (`44` contre `00`), Race TV : trois
+    (`B4` contre `94`, il interroge toutes les 15 ms) ; la vraie recherche varie de 30 ms d'un relevé à l'autre ;
+  - Harley : l'adresse `00` relue `01 00` en partie, alors que le dernier `80` était `01 01`, sans doute le mode court
+    qui lâche ; non émulé (aucun de nos jeux ne la lit) ;
+  - R-Tuned (partie) : le relevé a perdu trois réponses (3 734 commandes, 3 731 réponses), d'où un décalage ;
+  - cas de lecture : octet par octet en mode long, file vide, `tcflush`, `FIONREAD`, file pleine (16 réponses) : bons.
+- Initial D 4 et 5 ne passent pas par `driveBoard.c` : leurs trames sont prises à `_sSCI::send` (`idFeedbackSend`,
+  `patch.c`) et leur port n'est jamais ouvert, ils ne reçoivent donc aucune réponse. Le test du retour de force
+  d'Initial D 5 n'en a pas besoin (demande 122).
+- Les jeux de `driveBoard.c` (OutRun 2 SP, Hummer, R-Tuned, Race TV) n'ont pas été relancés : aucune copie locale.
+  Ce qui change pour eux : `FF` répond `11` (Race TV `B4`) comme une carte froide, et la recherche d'index dure 4 s au
+  lieu d'être instantanée ; Race TV reçoit maintenant des trames de 4 octets (mode `14`), comme sur la borne.
 
 ### Release du 27/10 (demande 120)
 - Les quatre commits du choix du périphérique de retour de force poussés (`e543178..2aab762`).
