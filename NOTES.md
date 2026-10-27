@@ -95,6 +95,8 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 124 | 27/10 | D'autres utilisateurs disent que les pédales ne marchent pas : vérifier les axes analogiques dans le menu de test | ✅ le jeu lit bien ses axes (OutRun, INPUT TEST : `00H` à `FFH`, `7FH` à mi-course, volant `00H`/`7FH`/`FFH`) ; par vJoy et `controls.ini`, une pédale qui repose en haut de son axe donne `FFH` au repos, au milieu `7FH`, et sans `controls.ini` l'accélérateur attend l'axe 5 (absent sur vJoy et bien des volants) ; la capture de Tab > Contrôles n'ajoutait jamais `_INVERTED` ni `_SIDE`. Corrigé : la capture prend le mode d'après la position de repos, les barres montrent la pédale telle qu'elle est lue, les liaisons par défaut suivent le BFF (accélérateur Y−, frein Z−) ; vérifié avec vJoy dans INPUT TEST, MinGW (voir journal) |
+| 123 | 27/10 | Copier OutRun 2 et essayer en jeu les nouvelles réponses de la servoboard | ✅ démarrage (« Initializing the drive board », pas de faute), démo, course atteinte, DRIVE BOARD TEST MENU (il attend les 4 s de la recherche d'index par `FD`, comme sur la borne) ; mode agent caché, MinGW (voir journal) |
 | 122 | 27/10 | Initial D 5 : essayer son test du retour de force (menu de test) | ✅ passe tel quel : « CHECKING.... » environ 21 s, puis le menu ; CENTER, RIGHT et LEFT envoient leurs couples, sens justes ; MinGW et MSVC, mode agent caché ; aucune réponse de la carte n'est attendue, rien à brancher ; Initial D 4 pas essayé (voir journal) |
 | 121 | 27/10 | (signalée par la session « Driveboard émulation et force feedback ») La servoboard Sega émulée répond toujours un octet, la vraie quatre après `FA 00 10` ; relire DRIVEBOARD.md (exact, vérifié sur le matériel) et comparer avec l'émulation | ✅ réponses de `driveBoard.c` refaites d'après DRIVEBOARD.md : modes de réponse `FA 00 10`, `14`, `1F`, file de réponses, recherche d'index de 4,05 s, `tcflush` ; rejouées contre les relevés d'une vraie borne, identiques à la limite de la recherche près ; MinGW et MSVC ; Initial D 4 et 5 ne passent pas par là (demande 122) ; jeux de `driveBoard.c` pas relancés, aucune copie locale (voir journal) |
 | 120 | 27/10 | Commit et push, puis une release | ✅ poussé jusqu'à `2aab762` ; `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261027-njz3-win32.zip` (voir journal) |
@@ -155,6 +157,61 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Pédales : les axes analogiques dans le menu de test (demande 124)
+- D'autres utilisateurs disent que leurs pédales ne marchent pas. Vérifié dans INPUT TEST d'OutRun 2 (programme de
+  test, `-t`).
+- Le jeu : par l'agent (valeurs écrites directement), accélérateur et frein vont de `00H` à `FFH`, `7FH` à
+  mi-course ; volant `00H`, `7FH`, `FFH`. Le jeu et la carte JVS émulée lisent donc bien leurs axes. Le mode agent ne
+  lit pas les manettes : il ne dit rien du chemin des vraies pédales.
+- Le chemin des pédales (SDL, `controls.ini`), essayé en lancement normal avec vJoy (un joystick, comme un volant),
+  dans un dossier de travail à part, le `controls.ini` de `build-mingw` intact :
+  - liaisons comme la capture de Tab > Contrôles les écrit (`JOY0_AXIS_n`, sans suffixe) :
+    - pédale au repos en bas de son axe : `00H` au repos, `FFH` enfoncée, juste ;
+    - pédale au repos en haut de son axe : `FFH` au repos, `00H` enfoncée : l'accélérateur à fond sans y toucher ;
+    - pédale au repos au milieu : `7FH` au repos, `00H` enfoncée ;
+    - volant juste ;
+  - liaisons par défaut (pas de `controls.ini`, cas de la release) : volant sur l'axe 0 et frein sur l'axe 2 justes,
+    accélérateur sur l'axe 5 : vJoy n'a que 4 axes, il reste à `00H`. Bien des volants n'ont pas d'axe 5, ou pas
+    l'accélérateur dessus.
+- La cause côté loader : `controlsCaptureEvent` (`guiControls.cpp`) écrit l'axe entier pour une ligne analogique,
+  sans regarder où la pédale reposait au début de la capture (`g_capture.joyAxes`, déjà relevé) ; `_INVERTED`,
+  `_POSITIVE_SIDE` et `_NEGATIVE_SIDE` ne s'obtiennent qu'à la main (guide des contrôles, demande 118).
+- Disposition des bornes, précisée par le propriétaire : le BFF présente l'accélérateur sur Y− et le frein sur Z−,
+  chacun de la mi-course (relâché) à 0 (enfoncé) ; le loader doit en faire une pédale de `00H` à `FFH`.
+- Corrections :
+  - capture (`pedalSuffix`, `guiControls.cpp`) : pour Accélérateur et Frein, le mode vient de la position de repos
+    relevée au clic sur Lier : en bas de l'axe l'axe entier, en haut `_INVERTED`, au milieu `_POSITIVE_SIDE` ou
+    `_NEGATIVE_SIDE` selon le sens où la pédale part ; sur une manette, les gâchettes restent telles quelles ;
+  - barres de la page : la pédale telle que sa liaison la lit (`pedalLevel`), et non plus l'axe brut (une pédale
+    inversée bien liée y restait à 100 %, une gâchette à 50 %) ;
+  - liaisons par défaut d'un joystick (`controlIniGen.c`) : accélérateur `JOY0_AXIS_1_NEGATIVE_SIDE`, frein
+    `JOY0_AXIS_2_NEGATIVE_SIDE` (la disposition du BFF), au lieu des axes 5 et 2 entiers ; un `controls.ini` neuf
+    (`--create controls`) les écrit ;
+  - guide des contrôles, section Pedals, réécrit.
+- Vérifié avec vJoy, lancement normal du programme de test d'OutRun, MinGW (MSVC compilé, pas lancé) :
+  - `controls.ini` neuf, disposition du BFF : `00H` au repos, `7FH` à mi-chemin, `FFH` à fond, pour chaque pédale
+    et les deux ensemble ; volant `00H`, `7FH`, `FFH` ;
+  - capture dans Tab > Contrôles (Lier, puis la pédale vJoy enfoncée et relâchée), pilotée par clics : Y de la
+    mi-course à 0 donne « Axe 1 - (pédale) » (`JOY0_AXIS_1_NEGATIVE_SIDE`), Z « Axe 2 - (pédale) » ; barres vides au
+    repos, pleines enfoncées ; enregistré, INPUT TEST `00H`, `7FH`, `FFH` ;
+  - Rz au repos en haut donne `JOY0_AXIS_3_INVERTED`, Y au repos en bas `JOY0_AXIS_1` ; INPUT TEST `00H`, `7FH`,
+    `FFH` dans les deux cas ;
+  - une liaison changée ne relit son axe qu'au premier mouvement : un accélérateur que l'ancienne liaison tenait
+    enfoncé le reste jusque-là (vu une fois pendant l'essai).
+
+### OutRun 2 avec les nouvelles réponses de la servoboard (demande 123)
+- Copie d'OutRun 2 SP SDX depuis racecab1 (`games/outrun2spdx`, 1,49 Go, sans fichiers TeknoParrot), annoncée.
+- Démarrage, mode agent caché, MinGW : « Initializing the drive board. Please DO NOT touch the steering wheel. »
+  jusqu'à 10 s, la démo à 25 s, pas de « DRIVE BOARD FAULT ». Le jeu (avec les correctifs du loader pour la carte
+  émulée) envoie `FF`, `81 30 7F`, `FC 00 20` sans interroger la carte, 10 s de couples alternés (centrage), puis sa
+  table de paramètres (`9D`/`9E`) ; le modèle en fait 601 forces constantes.
+- Partie : pièce, Start, les menus passent à la fin de leur compte à rebours (l'accélérateur de l'agent ne valide pas
+  les choix, cause non cherchée : il va pourtant de `00H` à `FFH` dans INPUT TEST), course atteinte.
+- Menu de test, DRIVE BOARD TEST : là, le jeu interroge la carte, `FD` pendant 4 s (images 839 à 1083), le temps de
+  la recherche d'index, puis `FA 00 1F`, `83 40 04`, `86 01 02`, `88 00 04` et le centrage, comme le relevé de la
+  borne ; « DRIVE BOARD TEST MENU » ensuite (TEST HANDLE, STOP MOTOR, ROLL RIGHT, ROLL LEFT, MOTOR POWER 80 %).
+- Hummer, R-Tuned et Race TV pas relancés.
 
 ### Test du retour de force d'Initial D 5 (demande 122)
 - Copie d'Initial D 5 Export 2.0 depuis racecab1 (`games/id5`, 3,83 Go, déjà sans fichiers TeknoParrot), annoncée à
