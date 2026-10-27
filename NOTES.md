@@ -95,6 +95,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 120 | 27/10 | Commit et push, puis une release | ✅ poussé jusqu'à `2aab762` ; `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261027-njz3-win32.zip` (voir journal) |
 | 119 | 27/10 | (relayée par la session « Driveboard émulation et force feedback ») Choisir le périphérique de retour de force dans Tab > Contrôles > Retour de force : « Automatique » ou un périphérique branché, par son nom ; lui seul reçoit les effets, où que soit lu le volant ; changement en direct ; `[ForceFeedback] FFB_DEVICE`, réglable par `--set` | ✅ `FFB_DEVICE = AUTO` ou le nom SDL du périphérique (nom produit DirectInput sous Windows), comparé sans la casse ni les espaces autour ; Automatique tant qu'il est absent, repris dès qu'il est branché (règle du propriétaire pour tous les émulateurs) ; liste dans Contrôles, changement en direct ; essayé sur vJoy (voir journal) |
 | 118 | 26/10 | Nommer les lampes connues dans la liste des sorties, documenter les modes `_POSITIVE_SIDE` / `_NEGATIVE_SIDE` (retour d'un utilisateur d'OutRun 2 : pédales actives au repos, pas de retour de force, lampe Start) | ✅ lampes d'OutRun 2 nommées, guide des contrôles complété ; réponse rédigée pour l'utilisateur (voir journal) |
 | 117 | 26/10 | Commencer le link à deux bornes demandé par Image borne : OutRun 2, Hummer, Sega Race TV, Initial D 4 et 5 | ✅ côté loader : sockets non bloquantes par `fcntl`, pas d'erreur `WSAECONNRESET` en UDP, eth0 sur l'adresse de la borne ; réglages par borne transmis à Image borne ; essai à deux bornes à faire par Image borne ; Initial D 4 japonais pas pris en charge (voir journal) |
@@ -152,6 +153,18 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Release du 27/10 (demande 120)
+- Les quatre commits du choix du périphérique de retour de force poussés (`e543178..2aab762`).
+- Faite par `release.py`, la première du jour (sans suffixe), MinGW recompilé de zéro depuis `2aab762` exactement :
+  tout ce que portait la 20261026-5, plus `FFB_DEVICE` (liste dans Contrôles, changement en direct, repli sur
+  Automatique et reprise au branchement).
+- `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261027-njz3-win32.zip`, 18,3 Mo ; SHA-256 du zip
+  `cf698da467a2753045c1c6dbc6c76c783ef01e8fae5fa233cac75c0afcf1484a`, de `linuxloader.exe`
+  `9b926eecb91af497f732c0d1b2bb1f92b0637d83d3ebc8f3394cfd29da5ff2c7` ; `ll-deps` identique à la 20261026-5.
+- Testée depuis le zip extrait : `--version` → « Build: linuxloader-v3.0.12-ffbedition-20261027-njz3 FFB Edition »,
+  le nom exact du zip ; `--create config` écrit `FFB_DEVICE = AUTO` dans `[ForceFeedback]`. Pas lancée sur un jeu
+  (aucune copie locale), ni installée sur les bornes.
 
 ### Choix du périphérique de retour de force (demande 119)
 - Demande du propriétaire relayée par la session « Driveboard émulation et force feedback (Berstett) », la même
