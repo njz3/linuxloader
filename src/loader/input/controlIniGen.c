@@ -108,8 +108,10 @@ const ControlBinding gDefaultDrivingBindings[] = {
 
     // Joystick
     {INPUT_TYPE_JOY_AXIS, 0, 0, AXIS_MODE_FULL, 0, false, PLAYER_1, LA_Steer, -1, 0},
-    {INPUT_TYPE_JOY_AXIS, 0, 5, AXIS_MODE_FULL, 0, false, PLAYER_1, LA_Gas, -1, 0},
-    {INPUT_TYPE_JOY_AXIS, 0, 2, AXIS_MODE_FULL, 0, false, PLAYER_1, LA_Brake, -1, 0},
+    // The pedals as BackForceFeeder's vJoy device gives them on the cabinets: gas on Y-, brake on Z-, each resting in
+    // the middle of its axis and going to its minimum when pressed
+    {INPUT_TYPE_JOY_AXIS, 0, 1, AXIS_MODE_NEGATIVE_SIDE, 0, false, PLAYER_1, LA_Gas, -1, 0},
+    {INPUT_TYPE_JOY_AXIS, 0, 2, AXIS_MODE_NEGATIVE_SIDE, 0, false, PLAYER_1, LA_Brake, -1, 0},
     {INPUT_TYPE_JOY_BUTTON, 0, 0, AXIS_MODE_DIGITAL, 0, false, PLAYER_2, LA_Boost, -1, 0},
     {INPUT_TYPE_JOY_BUTTON, 0, 1, AXIS_MODE_DIGITAL, 0, false, PLAYER_1, LA_BoostRight, -1, 0},
     {INPUT_TYPE_JOY_BUTTON, 0, 2, AXIS_MODE_DIGITAL, 0, false, PLAYER_1, LA_ViewChange, -1, 0},

@@ -182,6 +182,20 @@ bool isAnalog(const std::string &name)
            name == "Flying_Y" || name == "Throttle";
 }
 
+// A pedal's axis mode, from where it rested when the capture started and the way it went: at the axis's bottom it is
+// the whole axis, at its top _INVERTED, in its middle the side it went to. Read whole, a pedal resting at the top
+// gave the full value released, one resting in the middle half of it.
+const char *pedalSuffix(const std::string &name, int rest, int delta)
+{
+    if (name != "Gas" && name != "Brake")
+        return "";
+    if (rest > 16000)
+        return "_INVERTED";
+    if (rest >= -16000)
+        return delta > 0 ? "_POSITIVE_SIDE" : "_NEGATIVE_SIDE";
+    return "";
+}
+
 std::string trim(const std::string &s)
 {
     size_t start = s.find_first_not_of(' ');
@@ -436,8 +450,8 @@ bool pressed(const std::string &token)
     return false;
 }
 
-// The raw value, -32768..32767, of the first axis among some inputs: JOYn_AXIS_m or GCn_AXIS_name
-bool axisOf(const std::vector<std::string> &tokens, Sint16 *raw)
+// The raw value, -32768..32767, of the first axis among some inputs: JOYn_AXIS_m or GCn_AXIS_name; used: that input
+bool axisOf(const std::vector<std::string> &tokens, Sint16 *raw, std::string *used = nullptr)
 {
     for (const std::string &token : tokens)
     {
@@ -446,16 +460,35 @@ bool axisOf(const std::vector<std::string> &tokens, Sint16 *raw)
         if (sscanf(token.c_str(), "JOY%d_AXIS_%d", &device, &axis) == 2 && joystickOf(device))
         {
             *raw = SDL_GetJoystickAxis(joystickOf(device), axis);
+            if (used)
+                *used = token;
             return true;
         }
         if (sscanf(token.c_str(), "GC%d_AXIS_%31[^_ ,]", &device, name) == 2 && device >= 0 && device < MAX_JOYSTICKS &&
             sdlJoysticks.controllers[device])
         {
             *raw = SDL_GetGamepadAxis(sdlJoysticks.controllers[device], SDL_GetGamepadAxisFromString(name));
+            if (used)
+                *used = token;
             return true;
         }
     }
     return false;
+}
+
+// A pedal, 0 released to 1 pressed, as its input reads it: the whole axis, one side of it, a trigger, inverted
+float pedalLevel(const std::string &token, Sint16 raw)
+{
+    float level;
+    if (token.find("_POSITIVE_SIDE") != std::string::npos)
+        level = raw > 0 ? (float)raw / 32767.0f : 0.0f;
+    else if (token.find("_NEGATIVE_SIDE") != std::string::npos)
+        level = raw < 0 ? -(float)raw / 32768.0f : 0.0f;
+    else if (token.find("TRIGGER") != std::string::npos) // GCn_AXIS_LEFTTRIGGER: 0 to 32767
+        level = (float)raw / 32767.0f;
+    else
+        level = ((float)raw + 32768.0f) / 65535.0f;
+    return token.find("_INVERTED") != std::string::npos ? 1.0f - level : level;
 }
 
 Row *configRow(const std::string &key)
@@ -722,11 +755,12 @@ void drawBindings(const std::string &section, int sectionIndex)
 
         ImGui::TableSetColumnIndex(2);
         Sint16 raw = 0;
-        if (isAnalog(name) && axisOf(tokens, &raw))
+        std::string axis;
+        if (isAnalog(name) && axisOf(tokens, &raw, &axis))
         {
             ImGui::SetNextItemWidth(-FLT_MIN);
-            if (name == "Gas" || name == "Brake" || name == "Throttle") // a pedal: from its rest at one end
-                ImGui::ProgressBar(((float)raw + 32768.0f) / 65535.0f, ImVec2(-FLT_MIN, ImGui::GetFrameHeight() * 0.6f), "");
+            if (name == "Gas" || name == "Brake" || name == "Throttle") // a pedal: 0 % released, as its input reads it
+                ImGui::ProgressBar(pedalLevel(axis, raw), ImVec2(-FLT_MIN, ImGui::GetFrameHeight() * 0.6f), "");
             else
             {
                 const Row *dz = configRow(name + "_DeadZone");
@@ -1059,11 +1093,15 @@ bool controlsCaptureEvent(const SDL_Event *event)
             int index = getControllerID(event->gaxis.which);
             if (device.kind != GAMEPAD || index != device.index || event->gaxis.axis >= SDL_GAMEPAD_AXIS_COUNT)
                 return true;
-            int delta = (int)event->gaxis.value - g_capture.padAxes[index][event->gaxis.axis];
+            int rest = g_capture.padAxes[index][event->gaxis.axis];
+            int delta = (int)event->gaxis.value - rest;
             if (std::abs(delta) < 16000)
                 return true;
+            // A trigger rests at 0 and reads 0 to 1 as it is; a stick axis taken for a pedal rests in the middle
+            bool trigger = event->gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER || event->gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER;
+            const char *pedal = !analog || trigger || rest > 16000 ? "" : pedalSuffix(genericName(rows[g_capture.row].key, &player), rest, delta);
             snprintf(token, sizeof(token), "GC%d_AXIS_%s%s", index, SDL_GetGamepadStringForAxis((SDL_GamepadAxis)event->gaxis.axis),
-                     analog ? "" : (delta > 0 ? "_POSITIVE" : "_NEGATIVE"));
+                     analog ? pedal : (delta > 0 ? "_POSITIVE" : "_NEGATIVE"));
             break;
         }
         case SDL_EVENT_JOYSTICK_BUTTON_DOWN:
@@ -1079,10 +1117,12 @@ bool controlsCaptureEvent(const SDL_Event *event)
             int index = getJoystickID(event->jaxis.which);
             if (device.kind != JOYSTICK || index != device.index || getControllerID(event->jaxis.which) >= 0 || event->jaxis.axis >= MAX_JOY_AXES)
                 return true;
-            int delta = (int)event->jaxis.value - g_capture.joyAxes[index][event->jaxis.axis];
+            int rest = g_capture.joyAxes[index][event->jaxis.axis];
+            int delta = (int)event->jaxis.value - rest;
             if (std::abs(delta) < 16000)
                 return true;
-            snprintf(token, sizeof(token), "JOY%d_AXIS_%d%s", index, event->jaxis.axis, analog ? "" : (delta > 0 ? "_POSITIVE" : "_NEGATIVE"));
+            snprintf(token, sizeof(token), "JOY%d_AXIS_%d%s", index, event->jaxis.axis,
+                     analog ? pedalSuffix(genericName(rows[g_capture.row].key, &player), rest, delta) : (delta > 0 ? "_POSITIVE" : "_NEGATIVE"));
             break;
         }
         case SDL_EVENT_JOYSTICK_HAT_MOTION:

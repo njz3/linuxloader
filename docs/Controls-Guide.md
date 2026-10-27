@@ -171,11 +171,17 @@ You can add suffixes to an axis string to change its behavior:
 
 ## **Pedals** 
 
-An axis given whole (JOY0_AXIS_2) is a pedal released at one end of the axis and pressed at the other. Before changing anything, look at the Controls page (Tab, in game): with the pedals released, the Gas and Brake bars must be at 0 %. 
+Without a controls.ini, a joystick's pedals are those of BackForceFeeder's vJoy device on the cabinets: gas on Y-, brake on Z- (P1_Gas = JOY0_AXIS_1_NEGATIVE_SIDE, P1_Brake = JOY0_AXIS_2_NEGATIVE_SIDE), each resting in the middle of its axis and pressed towards its minimum. Other wheels need their pedals mapped on the Controls page (Tab, in game). 
 
-- About 50 % at rest: the axis rests at its centre; use _POSITIVE_SIDE or _NEGATIVE_SIDE, the side the bar goes to 100 % with. 
+Mapping a pedal there takes its axis mode from where the pedal rests when you click Map, then from the way you press it: 
 
-- 100 % at rest: the axis is the other way round; add _INVERTED. 
+- resting at the axis's bottom: the whole axis (JOY0_AXIS_2); 
+
+- resting at its top: _INVERTED; 
+
+- resting in its middle: _POSITIVE_SIDE or _NEGATIVE_SIDE, the side it went to. 
+
+So keep the pedals released when you click Map, then press the pedal fully. The Gas and Brake bars show each pedal as its binding reads it: 0 % released, 100 % pressed. If a bar does not, map the pedal again, or set the suffix by hand: about 50 % at rest calls for _POSITIVE_SIDE or _NEGATIVE_SIDE, 100 % at rest for _INVERTED. Some drivers report an axis at 0 until it first moves: press and release the pedals once before mapping them. 
 
 - The car moves or brakes at rest whatever the axis: the default file also binds the keyboard's Up and Down arrows to P1_Gas_Digital and P1_Brake_Digital, and a program that turns joystick moves into keys (a front end, JoyToKey, a wheel's software) can hold them down. Remove those two keyboard bindings, or stop that program. 
 
