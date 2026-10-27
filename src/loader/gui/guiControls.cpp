@@ -24,6 +24,7 @@
 extern "C"
 {
 #include "../config/iniParser.h"
+#include "../hardware/lindbergh/forceFeedback.h"
 #include "../hardware/lindbergh/jvs.h"
 #include "../input/controlIniGen.h"
 }
@@ -879,6 +880,45 @@ void drawOptions()
         }
     }
 }
+
+// The device the forces go to: Automatic (the first controller's) or a force feedback device by its name, which
+// FFB_DEVICE keeps. In game the effects move to it at once.
+void drawFfbDevice(bool inGame)
+{
+    EmulatorConfig *cfg = getConfig();
+    const bool automatic = sdlFfbAutomatic(cfg->ffbDevice);
+    if (ImGui::BeginCombo(tr("Device"), automatic ? tr("Automatic") : cfg->ffbDevice))
+    {
+        static char names[16][FFB_DEVICE_NAME];
+        const int count = sdlFfbDevices(names, IM_ARRAYSIZE(names));
+        std::string chosen;
+        if (ImGui::Selectable(tr("Automatic"), automatic))
+            chosen = "AUTO";
+        bool listed = automatic;
+        for (int i = 0; i < count; i++)
+        {
+            const bool selected = !automatic && sdlFfbNameMatches(names[i], cfg->ffbDevice);
+            listed = listed || selected;
+            ImGui::PushID(i);
+            if (ImGui::Selectable(names[i], selected))
+                chosen = names[i];
+            ImGui::PopID();
+        }
+        if (!listed)
+            ImGui::Selectable((std::string(cfg->ffbDevice) + tr(" (not connected)")).c_str(), true, ImGuiSelectableFlags_Disabled);
+        ImGui::EndCombo();
+        if (!chosen.empty())
+        {
+            snprintf(cfg->ffbDevice, sizeof(cfg->ffbDevice), "%s", chosen.c_str());
+            sdlFfbSelect(cfg->ffbDevice);
+        }
+    }
+    if (inGame)
+    {
+        const char *current = sdlFfbCurrentDevice();
+        ImGui::TextDisabled(tr("Forces sent to: %s"), current ? current : tr("no device"));
+    }
+}
 } // namespace
 
 void setControlsFile(const std::string &path)
@@ -911,7 +951,7 @@ void drawControlsTab(bool inGame)
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::AlignTextToFramePadding();
-            const bool haptic = (device.kind == GAMEPAD || device.kind == JOYSTICK) && device.index == 0 && sdlJoysticks.haptics[0];
+            const bool haptic = (device.kind == GAMEPAD || device.kind == JOYSTICK) && device.index == sdlFfbJoystick();
             ImGui::Text("%s%s", device.name.c_str(), haptic ? tr(" (force feedback)") : "");
             ImGui::TableSetColumnIndex(1);
             ImGui::AlignTextToFramePadding();
@@ -931,6 +971,7 @@ void drawControlsTab(bool inGame)
 
     EmulatorConfig *cfg = getConfig();
     header(tr("Force feedback"));
+    drawFfbDevice(inGame);
     ImGui::SliderInt(tr("Strength"), &cfg->ffbStrength, 0, 300, "%d %%");
     bool invert = cfg->ffbInvert != 0;
     if (ImGui::Checkbox(tr("Invert the direction"), &invert))
@@ -940,7 +981,8 @@ void drawControlsTab(bool inGame)
                                  "games ask for about a quarter to a half of it."));
     ImGui::TextDisabled("%s", tr("Check it if the wheel pulls away from the centre or turns the wrong way in a collision."));
     if (!inGame)
-        ImGui::TextDisabled("%s", tr("The wheel's force feedback starts with the game, on the first controller."));
+        ImGui::TextDisabled("%s", tr("The force feedback starts with the game, on the chosen device or else the first "
+                                     "controller's."));
     ImGui::PopTextWrapPos();
 
     header(tr("Dead zones and options"));

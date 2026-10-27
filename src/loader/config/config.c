@@ -229,6 +229,7 @@ void setDefaultValues(EmulatorConfig *cfg)
     cfg->outputsNetworkUdpPort = 8001;
     cfg->ffbStrength = 100;
     cfg->ffbInvert = 0;
+    strcpy(cfg->ffbDevice, "AUTO");
     strcpy(cfg->gamesDir, "");
     strcpy(cfg->language, "auto");
     cfg->settingsMenu = 1;
@@ -533,6 +534,7 @@ void applyIniConfig(EmulatorConfig *config, const IniConfig *ini)
     config->outputsNetworkUdpPort = getInt(ini, "Outputs", "OUTPUTS_NETWORK_UDP_PORT", config->outputsNetworkUdpPort);
     config->ffbStrength = getInt(ini, "ForceFeedback", "FFB_STRENGTH", config->ffbStrength);
     config->ffbInvert = getInt(ini, "ForceFeedback", "FFB_INVERT", config->ffbInvert);
+    getString(ini, "ForceFeedback", "FFB_DEVICE", config->ffbDevice, sizeof(config->ffbDevice));
     getString(ini, "Launcher", "GAMES_DIR", config->gamesDir, MAX_PATH_LENGTH);
     getString(ini, "Launcher", "LANGUAGE", config->language, sizeof(config->language));
     config->settingsMenu = getInt(ini, "Launcher", "SETTINGS_MENU", config->settingsMenu);

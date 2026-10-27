@@ -195,7 +195,10 @@ int createDefaultIni(const char *filePath)
     fprintf(file, "# Strength of the drive board forces on a force feedback wheel, in percent of the board's full scale\n");
     fprintf(file, "FFB_STRENGTH = %d\n", defaults.ffbStrength);
     fprintf(file, "# Set to true if the wheel turns the wrong way: the torque then pushes the other way\n");
-    fprintf(file, "FFB_INVERT = %s\n\n", defaults.ffbInvert ? "true" : "false");
+    fprintf(file, "FFB_INVERT = %s\n", defaults.ffbInvert ? "true" : "false");
+    fprintf(file, "# The device the forces go to, wherever the steering is read: AUTO for the first controller's, or a\n");
+    fprintf(file, "# force feedback device's name as Tab > Controls lists it (case and surrounding spaces ignored)\n");
+    fprintf(file, "FFB_DEVICE = %s\n\n", defaults.ffbDevice);
 
     // [Launcher]
     fprintf(file, "[Launcher]\n");

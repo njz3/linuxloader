@@ -19,7 +19,12 @@ extern SDLControllers sdlJoysticks;
 // The game's thread only updates the board and wakes the FFB thread, which alone talks to the wheel: a slow wheel (a
 // DirectInput call can block for milliseconds) never holds the game back, and the effects it could not send in time
 // give way to the latest ones.
-static bool wheelMode = false;
+// The effects go to one device, FFB_DEVICE's or the first controller's, wherever the steering is read. The board
+// follows the game's frames whatever the device, so a device chosen in the settings plays the board's state at once.
+static SDL_Haptic *ffbHaptic = NULL;
+static bool ffbHapticOwned = false; // opened by its name: closed when the effects leave it
+static SDL_Mutex *wheelLock = NULL; // held while talking to the device: a change of device waits for the FFB thread
+static bool wheelMode = false;      // the device is a wheel (no LEFTRIGHT rumble): it plays the board's effects
 static int wheelConstantId = -1;
 static int wheelSpringId = -1;
 static int wheelDamperId = -1;
@@ -30,7 +35,7 @@ static SDL_Condition *boardChanged = NULL;
 static SDL_Thread *wheelThread = NULL;
 static bool wheelQuit = false;
 static bool wheelPaused = false; // Tab settings open: the game waits, the wheel goes limp
-static bool agentBoard = false;  // the agent mode without a wheel: the board model kept for its journal only
+static bool agentBoard = false;  // the agent mode with no device touched: the board model kept for its journal only
 
 static int SDLCALL wheelThreadMain(void *data);
 
@@ -110,14 +115,22 @@ static int wheelCreateEffect(SDL_Haptic *haptic, SDL_HapticEffect *effect)
     return id < 0 ? -1 : id;
 }
 
-static void wheelInit(SDL_Haptic *haptic)
+// The games repeat their frames (OutRun sends 80 01 01 every frame at startup): an effect is sent to the wheel only
+// when it changes, and started only when it is not playing, to spare the USB link. Each is a synchronous HID report
+// in DirectInput. An update that fails stops the effect, which is sent and started again at the next change.
+#define WHEEL_EFFECTS 8
+static SDL_HapticEffect wheelSent[WHEEL_EFFECTS];
+static bool wheelSentValid[WHEEL_EFFECTS];
+static bool wheelPlaying[WHEEL_EFFECTS];
+
+// The effects put on a wheel: one for each of the board's forces it can play
+static void wheelCreate(SDL_Haptic *haptic)
 {
     unsigned int features = SDL_GetHapticFeatures(haptic);
     SDL_HapticEffect effect;
 
-    wheelMode = true;
-    boardLock = SDL_CreateMutex();
-    boardReset();
+    memset(wheelSentValid, 0, sizeof(wheelSentValid));
+    memset(wheelPlaying, 0, sizeof(wheelPlaying));
 
     if (features & SDL_HAPTIC_GAIN)
         SDL_SetHapticGain(haptic, 100);
@@ -162,20 +175,23 @@ static void wheelInit(SDL_Haptic *haptic)
 
     log_warn("FFB: Wheel mode (constant=%d spring=%d %s=%d sine=%d)", wheelConstantId, wheelSpringId,
              wheelDamperType == SDL_HAPTIC_DAMPER ? "damper" : "friction", wheelDamperId, wheelSineId);
-
-    boardChanged = SDL_CreateCondition();
-    wheelThread = SDL_CreateThread(wheelThreadMain, "FFB", NULL);
-    if (!wheelThread)
-        log_error("FFB: Cannot start the FFB thread: %s", SDL_GetError());
 }
 
-// The games repeat their frames (OutRun sends 80 01 01 every frame at startup): an effect is sent to the wheel only
-// when it changes, and started only when it is not playing, to spare the USB link. Each is a synchronous HID report
-// in DirectInput. An update that fails stops the effect, which is sent and started again at the next change.
-#define WHEEL_EFFECTS 8
-static SDL_HapticEffect wheelSent[WHEEL_EFFECTS];
-static bool wheelSentValid[WHEEL_EFFECTS];
-static bool wheelPlaying[WHEEL_EFFECTS];
+// The effects leave the device: stopped and destroyed
+static void wheelDestroy(SDL_Haptic *haptic)
+{
+    int *ids[] = {&wheelConstantId, &wheelSpringId, &wheelDamperId, &wheelSineId};
+    for (size_t i = 0; i < SDL_arraysize(ids); i++)
+    {
+        if (*ids[i] < 0)
+            continue;
+        SDL_StopHapticEffect(haptic, *ids[i]);
+        SDL_DestroyHapticEffect(haptic, *ids[i]);
+        *ids[i] = -1;
+    }
+    memset(wheelSentValid, 0, sizeof(wheelSentValid));
+    memset(wheelPlaying, 0, sizeof(wheelPlaying));
+}
 
 static void wheelUpdate(int id, const SDL_HapticEffect *effect)
 {
@@ -183,10 +199,10 @@ static void wheelUpdate(int id, const SDL_HapticEffect *effect)
         return;
     if (wheelSentValid[id] && wheelPlaying[id] && memcmp(&wheelSent[id], effect, sizeof(*effect)) == 0)
         return;
-    if (!SDL_UpdateHapticEffect(sdlJoysticks.haptics[0], id, effect))
+    if (!SDL_UpdateHapticEffect(ffbHaptic, id, effect))
     {
         log_warn("FFB: Cannot update effect %d: %s", id, SDL_GetError());
-        SDL_StopHapticEffect(sdlJoysticks.haptics[0], id);
+        SDL_StopHapticEffect(ffbHaptic, id);
         wheelSentValid[id] = false;
         wheelPlaying[id] = false;
         return;
@@ -194,13 +210,13 @@ static void wheelUpdate(int id, const SDL_HapticEffect *effect)
     wheelSent[id] = *effect;
     wheelSentValid[id] = true;
     if (!wheelPlaying[id])
-        wheelPlaying[id] = SDL_RunHapticEffect(sdlJoysticks.haptics[0], id, 1);
+        wheelPlaying[id] = SDL_RunHapticEffect(ffbHaptic, id, 1);
 }
 
 // force: -1.0 (full right) .. 1.0 (full left)
 static void wheelConstant(float force)
 {
-    if (wheelConstantId < 0 || !sdlJoysticks.haptics[0])
+    if (wheelConstantId < 0 || !ffbHaptic)
         return;
     SDL_HapticEffect effect;
     memset(&effect, 0, sizeof(effect));
@@ -214,7 +230,7 @@ static void wheelConstant(float force)
 // strength, saturation: 0.0 .. 1.0; centre: -1.0 (left end of the axis) .. 1.0 (right end)
 static void wheelCondition(int id, Uint16 type, float strength, float saturation, float centre)
 {
-    if (id < 0 || !sdlJoysticks.haptics[0])
+    if (id < 0 || !ffbHaptic)
         return;
     Sint16 coeff = (Sint16)(SDL_clamp(strength, 0.0f, 1.0f) * 32767.0f);
     Uint16 sat = (Uint16)(SDL_clamp(saturation, 0.0f, 1.0f) * 65535.0f);
@@ -233,12 +249,12 @@ static void wheelCondition(int id, Uint16 type, float strength, float saturation
 
 static void wheelSine(float strength, int periodMs)
 {
-    if (wheelSineId < 0 || wheelSineId >= WHEEL_EFFECTS || !sdlJoysticks.haptics[0])
+    if (wheelSineId < 0 || wheelSineId >= WHEEL_EFFECTS || !ffbHaptic)
         return;
     if (strength <= 0.0f)
     {
         if (wheelPlaying[wheelSineId])
-            SDL_StopHapticEffect(sdlJoysticks.haptics[0], wheelSineId);
+            SDL_StopHapticEffect(ffbHaptic, wheelSineId);
         wheelPlaying[wheelSineId] = false;
         return;
     }
@@ -392,7 +408,10 @@ static int SDLCALL wheelThreadMain(void *data)
         board.dirty = false;
         WheelEffects effects = boardEffects();
         SDL_UnlockMutex(boardLock);
-        wheelSend(&effects);
+        SDL_LockMutex(wheelLock);
+        if (wheelMode)
+            wheelSend(&effects);
+        SDL_UnlockMutex(wheelLock);
         SDL_LockMutex(boardLock);
     }
     SDL_UnlockMutex(boardLock);
@@ -477,13 +496,22 @@ static void sdlFfbWheelDriveboard(const unsigned char *buffer)
     SDL_UnlockMutex(boardLock);
 }
 
-// The agent mode with no wheel driven: the board model alone, updated from the game's frames for the agent's journal
-static void agentBoardInit(void)
+// The board model, updated from the game's frames. thread: the FFB thread that sends its effects to the device; the
+// agent mode with no device touched keeps the model alone, for the agent's journal.
+static void boardInit(bool thread)
 {
     boardLock = SDL_CreateMutex();
     boardChanged = SDL_CreateCondition();
+    wheelLock = SDL_CreateMutex();
     boardReset();
-    agentBoard = true;
+    if (!thread)
+    {
+        agentBoard = true;
+        return;
+    }
+    wheelThread = SDL_CreateThread(wheelThreadMain, "FFB", NULL);
+    if (!wheelThread)
+        log_error("FFB: Cannot start the FFB thread: %s", SDL_GetError());
 }
 
 int sdlFfbAgentEffects(float effects[4])
@@ -501,12 +529,145 @@ int sdlFfbAgentEffects(float effects[4])
     return 1;
 }
 
+int sdlFfbNameMatches(const char *device, const char *name)
+{
+    if (!device || !name)
+        return 0;
+    while (*device == ' ')
+        device++;
+    while (*name == ' ')
+        name++;
+    size_t deviceLength = strlen(device);
+    size_t nameLength = strlen(name);
+    while (deviceLength > 0 && device[deviceLength - 1] == ' ')
+        deviceLength--;
+    while (nameLength > 0 && name[nameLength - 1] == ' ')
+        nameLength--;
+    return deviceLength == nameLength && SDL_strncasecmp(device, name, nameLength) == 0;
+}
+
+int sdlFfbAutomatic(const char *name)
+{
+    return sdlFfbNameMatches(name, "") || sdlFfbNameMatches(name, "AUTO");
+}
+
+// The device FFB_DEVICE names: the first connected force feedback device of that name, opened here. AUTO, or a name
+// not connected, is the first controller's device, as without the setting.
+static SDL_Haptic *ffbOpen(const char *name, bool *owned)
+{
+    *owned = false;
+    if (sdlFfbAutomatic(name))
+        return sdlJoysticks.haptics[0];
+    int count = 0;
+    SDL_HapticID *ids = SDL_GetHaptics(&count);
+    for (int i = 0; ids && i < count; i++)
+    {
+        if (!sdlFfbNameMatches(SDL_GetHapticNameForID(ids[i]), name))
+            continue;
+        SDL_Haptic *haptic = SDL_OpenHaptic(ids[i]);
+        if (haptic && hapticUsable(haptic))
+        {
+            SDL_free(ids);
+            *owned = true;
+            return haptic;
+        }
+        if (haptic)
+            SDL_CloseHaptic(haptic);
+    }
+    SDL_free(ids);
+    log_warn("FFB: FFB_DEVICE \"%s\" is not connected or has no usable force feedback: the first controller's is used",
+             name);
+    return sdlJoysticks.haptics[0];
+}
+
+// The effects go to haptic from now on: the old device's stopped and destroyed, the new one's created, then the FFB
+// thread plays the board's state on it. A wheel plays the board's forces, a device with LEFTRIGHT rumbles.
+static void ffbUse(SDL_Haptic *haptic, bool owned)
+{
+    SDL_LockMutex(wheelLock);
+    if (ffbHaptic)
+    {
+        if (wheelMode)
+            wheelDestroy(ffbHaptic);
+        else if (effect_id >= 0)
+            SDL_DestroyHapticEffect(ffbHaptic, effect_id);
+        if (ffbHapticOwned)
+            SDL_CloseHaptic(ffbHaptic);
+    }
+    effect_id = -1;
+    ffbHaptic = haptic;
+    ffbHapticOwned = owned;
+    wheelMode = haptic && !(SDL_GetHapticFeatures(haptic) & SDL_HAPTIC_LEFTRIGHT);
+    if (wheelMode)
+        wheelCreate(haptic);
+    SDL_UnlockMutex(wheelLock);
+
+    if (haptic)
+        log_warn("FFB: Effects sent to %s", SDL_GetHapticName(haptic));
+    if (haptic && !wheelMode)
+        sdlFfbRumble(1.0f, 1.0f, 200);
+    SDL_LockMutex(boardLock);
+    board.dirty = true;
+    SDL_SignalCondition(boardChanged);
+    SDL_UnlockMutex(boardLock);
+}
+
+void sdlFfbSelect(const char *name)
+{
+    if (!wheelThread) // not started yet: the game's start reads FFB_DEVICE
+        return;
+    bool owned;
+    SDL_Haptic *haptic = ffbOpen(name, &owned);
+    if (haptic == ffbHaptic)
+    {
+        if (owned)
+            SDL_CloseHaptic(haptic);
+        return;
+    }
+    ffbUse(haptic, owned);
+}
+
+const char *sdlFfbCurrentDevice(void)
+{
+    return ffbHaptic ? SDL_GetHapticName(ffbHaptic) : NULL;
+}
+
+// The standalone fallback of sdlFfbInit can put the device in a slot whose controller has none: only a controller with
+// force feedback of its own counts
+int sdlFfbJoystick(void)
+{
+    for (int i = 0; ffbHaptic && i < MAX_JOYSTICKS; i++)
+    {
+        SDL_Joystick *joy = sdlJoysticks.controllers[i] ? SDL_GetGamepadJoystick(sdlJoysticks.controllers[i]) : sdlJoysticks.joysticks[i];
+        if (sdlJoysticks.haptics[i] == ffbHaptic && joy && SDL_IsJoystickHaptic(joy))
+            return i;
+    }
+    return -1;
+}
+
+int sdlFfbDevices(char names[][FFB_DEVICE_NAME], int max)
+{
+    if (!SDL_WasInit(SDL_INIT_HAPTIC) && !SDL_InitSubSystem(SDL_INIT_HAPTIC))
+        return 0;
+    int count = 0;
+    int listed = 0;
+    SDL_HapticID *ids = SDL_GetHaptics(&count);
+    for (int i = 0; ids && i < count && listed < max; i++)
+    {
+        const char *name = SDL_GetHapticNameForID(ids[i]);
+        if (name)
+            SDL_strlcpy(names[listed++], name, FFB_DEVICE_NAME);
+    }
+    SDL_free(ids);
+    return listed;
+}
+
 void sdlFfbInit(void)
 {
     // --agent: no device is touched, the force feedback is only journaled
     if (agentHidden())
     {
-        agentBoardInit();
+        boardInit(false);
         return;
     }
 
@@ -532,10 +693,6 @@ void sdlFfbInit(void)
             if (hapticUsable(sdlJoysticks.haptics[i]))
             {
                 log_warn("FFB: Haptic opened from joystick %d (%s)", i, SDL_GetJoystickName(joy));
-                if (i == 0 && !(SDL_GetHapticFeatures(sdlJoysticks.haptics[i]) & SDL_HAPTIC_LEFTRIGHT))
-                    wheelInit(sdlJoysticks.haptics[i]);
-                else
-                    sdlFfbRumble(1.0, 1.0, 200);
             }
             else
             {
@@ -564,10 +721,6 @@ void sdlFfbInit(void)
                     if (hapticUsable(sdlJoysticks.haptics[i]))
                     {
                         log_warn("FFB: Standalone haptic %d: %s", i, SDL_GetHapticNameForID(haptics[i]));
-                        if (i == 0 && !(SDL_GetHapticFeatures(sdlJoysticks.haptics[i]) & SDL_HAPTIC_LEFTRIGHT))
-                            wheelInit(sdlJoysticks.haptics[i]);
-                        else
-                            sdlFfbRumble(1.0, 1.0, 200);
                     }
                     else
                     {
@@ -581,34 +734,39 @@ void sdlFfbInit(void)
         }
     }
 
-    if (!sdlJoysticks.haptics[0])
+    boardInit(true);
+    bool owned;
+    SDL_Haptic *haptic = ffbOpen(getConfig()->ffbDevice, &owned);
+    ffbUse(haptic, owned);
+    if (!ffbHaptic)
         log_warn("FFB: No haptic device found");
-    if (agentActive() && !wheelMode)
-        agentBoardInit();
 }
 
 void sdlFfbRumble(float left, float right, int duration_ms)
 {
-    if (!sdlJoysticks.haptics[0])
+    if (!wheelLock)
         return;
-    if (wheelMode) // the wheel plays the drive board's effects only, from the FFB thread
-        return;
-    SDL_HapticEffect effect;
-    memset(&effect, 0, sizeof(effect));
-    effect.type = SDL_HAPTIC_LEFTRIGHT;
-    effect.leftright.length = duration_ms;
-    effect.leftright.large_magnitude = (Uint16)(left * 0xFFFF);
-    effect.leftright.small_magnitude = (Uint16)(right * 0xFFFF);
-    if (effect_id >= 0)
-        SDL_DestroyHapticEffect(sdlJoysticks.haptics[0], effect_id);
-    effect_id = SDL_CreateHapticEffect(sdlJoysticks.haptics[0], &effect);
-    SDL_RunHapticEffect(sdlJoysticks.haptics[0], effect_id, 1);
+    SDL_LockMutex(wheelLock);
+    if (ffbHaptic && !wheelMode) // a wheel plays the drive board's effects only, from the FFB thread
+    {
+        SDL_HapticEffect effect;
+        memset(&effect, 0, sizeof(effect));
+        effect.type = SDL_HAPTIC_LEFTRIGHT;
+        effect.leftright.length = duration_ms;
+        effect.leftright.large_magnitude = (Uint16)(left * 0xFFFF);
+        effect.leftright.small_magnitude = (Uint16)(right * 0xFFFF);
+        if (effect_id >= 0)
+            SDL_DestroyHapticEffect(ffbHaptic, effect_id);
+        effect_id = SDL_CreateHapticEffect(ffbHaptic, &effect);
+        SDL_RunHapticEffect(ffbHaptic, effect_id, 1);
+    }
+    SDL_UnlockMutex(wheelLock);
 }
 
 // The game paused (Tab): no force on the wheel until it runs again, then the board's state as it was
 void sdlFfbPause(int paused)
 {
-    if (!wheelMode)
+    if (!wheelThread)
         return;
     SDL_LockMutex(boardLock);
     wheelPaused = paused != 0;
@@ -628,6 +786,8 @@ void sdlFfbShutdown(void)
         SDL_WaitThread(wheelThread, NULL);
         wheelThread = NULL;
     }
+    if (wheelLock)
+        ffbUse(NULL, false);
     if (sdlJoysticks.haptics[0])
     {
         SDL_CloseHaptic(sdlJoysticks.haptics[0]);
@@ -644,10 +804,12 @@ void sdlFfbDriveboard(const unsigned char *buffer, size_t count)
     // }
     // printf("\n");
 
-    if ((wheelMode && sdlJoysticks.haptics[0]) || agentBoard)
+    // The board follows every frame, so a wheel chosen later plays its state; a gamepad rumbles the frames below
+    if (boardLock)
     {
         sdlFfbWheelDriveboard(buffer);
-        return;
+        if (wheelMode || agentBoard)
+            return;
     }
 
     switch (buffer[0])
