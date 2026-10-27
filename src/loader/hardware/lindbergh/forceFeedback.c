@@ -551,13 +551,9 @@ int sdlFfbAutomatic(const char *name)
     return sdlFfbNameMatches(name, "") || sdlFfbNameMatches(name, "AUTO");
 }
 
-// The device FFB_DEVICE names: the first connected force feedback device of that name, opened here. AUTO, or a name
-// not connected, is the first controller's device, as without the setting.
-static SDL_Haptic *ffbOpen(const char *name, bool *owned)
+// The first connected force feedback device of that name, opened here; NULL for none
+static SDL_Haptic *ffbOpenNamed(const char *name)
 {
-    *owned = false;
-    if (sdlFfbAutomatic(name))
-        return sdlJoysticks.haptics[0];
     int count = 0;
     SDL_HapticID *ids = SDL_GetHaptics(&count);
     for (int i = 0; ids && i < count; i++)
@@ -568,16 +564,44 @@ static SDL_Haptic *ffbOpen(const char *name, bool *owned)
         if (haptic && hapticUsable(haptic))
         {
             SDL_free(ids);
-            *owned = true;
             return haptic;
         }
         if (haptic)
             SDL_CloseHaptic(haptic);
     }
     SDL_free(ids);
-    log_warn("FFB: FFB_DEVICE \"%s\" is not connected or has no usable force feedback: the first controller's is used",
+    return NULL;
+}
+
+// The device FFB_DEVICE names, opened here (owned). AUTO, or a name not connected, is the first controller's device,
+// as without the setting, until the named device is plugged in (ffbDevicesChanged).
+static SDL_Haptic *ffbOpen(const char *name, bool *owned)
+{
+    *owned = false;
+    if (sdlFfbAutomatic(name))
+        return sdlJoysticks.haptics[0];
+    SDL_Haptic *haptic = ffbOpenNamed(name);
+    if (haptic)
+    {
+        *owned = true;
+        return haptic;
+    }
+    log_warn("FFB: FFB_DEVICE \"%s\" is not connected or has no usable force feedback: the first controller's is used "
+             "until it is plugged in",
              name);
     return sdlJoysticks.haptics[0];
+}
+
+static bool hapticConnected(SDL_Haptic *haptic)
+{
+    SDL_HapticID id = SDL_GetHapticID(haptic);
+    bool found = false;
+    int count = 0;
+    SDL_HapticID *ids = SDL_GetHaptics(&count);
+    for (int i = 0; ids && i < count; i++)
+        found = found || ids[i] == id;
+    SDL_free(ids);
+    return found;
 }
 
 // The effects go to haptic from now on: the old device's stopped and destroyed, the new one's created, then the FFB
@@ -620,11 +644,48 @@ void sdlFfbSelect(const char *name)
     SDL_Haptic *haptic = ffbOpen(name, &owned);
     if (haptic == ffbHaptic)
     {
-        if (owned)
+        // The same device: its effects stay, held by one reference of ours
+        if (owned && ffbHapticOwned)
             SDL_CloseHaptic(haptic);
+        else if (owned)
+            ffbHapticOwned = true;
         return;
     }
     ffbUse(haptic, owned);
+}
+
+// A controller plugged or unplugged, the haptic list already updated: FFB_DEVICE's device leaves for the automatic
+// choice while it is away, and takes the effects back as soon as it is plugged in again
+static void ffbDevicesChanged(void)
+{
+    const char *name = getConfig()->ffbDevice;
+    if (sdlFfbAutomatic(name))
+        return;
+    if (ffbHapticOwned && !hapticConnected(ffbHaptic))
+    {
+        log_warn("FFB: \"%s\" unplugged: the first controller's device is used until it is plugged in again", name);
+        ffbUse(sdlJoysticks.haptics[0] != ffbHaptic ? sdlJoysticks.haptics[0] : NULL, false);
+    }
+    else if (!ffbHapticOwned)
+    {
+        SDL_Haptic *haptic = ffbOpenNamed(name);
+        if (haptic == ffbHaptic && haptic)
+            ffbHapticOwned = true;
+        else if (haptic)
+        {
+            log_warn("FFB: \"%s\" plugged in", name);
+            ffbUse(haptic, true);
+        }
+    }
+}
+
+// Called by SDL_PushEvent on the thread that pumps the events, where SDL also updates its haptic list
+static bool SDLCALL ffbEventWatch(void *data, SDL_Event *event)
+{
+    (void)data;
+    if (event->type == SDL_EVENT_JOYSTICK_ADDED || event->type == SDL_EVENT_JOYSTICK_REMOVED)
+        ffbDevicesChanged();
+    return true;
 }
 
 const char *sdlFfbCurrentDevice(void)
@@ -740,6 +801,7 @@ void sdlFfbInit(void)
     ffbUse(haptic, owned);
     if (!ffbHaptic)
         log_warn("FFB: No haptic device found");
+    SDL_AddEventWatch(ffbEventWatch, NULL);
 }
 
 void sdlFfbRumble(float left, float right, int duration_ms)
@@ -779,6 +841,7 @@ void sdlFfbShutdown(void)
 {
     if (wheelThread)
     {
+        SDL_RemoveEventWatch(ffbEventWatch, NULL);
         SDL_LockMutex(boardLock);
         wheelQuit = true;
         SDL_SignalCondition(boardChanged);
