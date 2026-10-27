@@ -6,3 +6,4 @@ void processDrivePacket(uint8_t *buf, int player);
 ssize_t driveboardRead(int fd, void *buf, size_t count);
 ssize_t driveboardWrite(int fd, const void *buf, size_t count);
 int driveBoardioctl(int fd, unsigned int request, void *data);
+void driveboardFlush(int fd, int queue); // tcflush: 0 the input, 1 the output, 2 both

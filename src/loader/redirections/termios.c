@@ -5,6 +5,7 @@
 #include "../config/config.h"
 #include "termios.h"
 #include "filesystemShared.h"
+#include "../hardware/lindbergh/driveBoard.h"
 
 #define REAL_FUNC(name) dlsym(RTLD_NEXT, #name)
 
@@ -32,6 +33,21 @@ int tcsetattr(int fd, int optional_actions, const struct termios *termios_p)
         return 0;
 
     return _tcsetattr(fd, optional_actions, termios_p);
+}
+
+static int (*_tcflush)(int fd, int queue_selector) = NULL;
+int tcflush(int fd, int queue_selector)
+{
+    if (_tcflush == NULL)
+        _tcflush = REAL_FUNC(tcflush);
+
+    if (fd == hooks[SERIAL0] && getConfig()->emulateDriveboard == 1)
+    {
+        driveboardFlush(fd, queue_selector);
+        return 0;
+    }
+
+    return _tcflush(fd, queue_selector);
 }
 
 static speed_t (*_cfgetispeed)(const struct termios *termios_p) = NULL;

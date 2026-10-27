@@ -7,6 +7,8 @@
 #include <map>
 #include <cstring>
 
+extern "C" void driveboardFlush(int fd, int queue);
+
 #define MAP(name, func) SymbolResolver::GetInstance().RegisterVTable(name, reinterpret_cast<void *>(func))
 
 namespace TermiosBridge
@@ -67,6 +69,7 @@ namespace TermiosBridge
     int bridgeTcflush(int fd, int queue_selector)
     {
         serialPortFlush(fd, queue_selector); // a COM port a board is passed to
+        driveboardFlush(fd, queue_selector); // the emulated drive board's replies
         return 0;
     }
 
