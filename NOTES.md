@@ -95,7 +95,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
-| 119 | 27/10 | (relayée par la session « Driveboard émulation et force feedback ») Choisir le périphérique de retour de force dans Tab > Contrôles > Retour de force : « Automatique » ou un périphérique branché, par son nom ; lui seul reçoit les effets, où que soit lu le volant ; changement en direct ; `[ForceFeedback] FFB_DEVICE`, réglable par `--set` | ✅ `FFB_DEVICE = AUTO` ou le nom SDL du périphérique (nom produit DirectInput sous Windows), comparé sans la casse ni les espaces autour ; liste dans Contrôles, changement en direct ; essayé sur vJoy (voir journal) |
+| 119 | 27/10 | (relayée par la session « Driveboard émulation et force feedback ») Choisir le périphérique de retour de force dans Tab > Contrôles > Retour de force : « Automatique » ou un périphérique branché, par son nom ; lui seul reçoit les effets, où que soit lu le volant ; changement en direct ; `[ForceFeedback] FFB_DEVICE`, réglable par `--set` | ✅ `FFB_DEVICE = AUTO` ou le nom SDL du périphérique (nom produit DirectInput sous Windows), comparé sans la casse ni les espaces autour ; Automatique tant qu'il est absent, repris dès qu'il est branché (règle du propriétaire pour tous les émulateurs) ; liste dans Contrôles, changement en direct ; essayé sur vJoy (voir journal) |
 | 118 | 26/10 | Nommer les lampes connues dans la liste des sorties, documenter les modes `_POSITIVE_SIDE` / `_NEGATIVE_SIDE` (retour d'un utilisateur d'OutRun 2 : pédales actives au repos, pas de retour de force, lampe Start) | ✅ lampes d'OutRun 2 nommées, guide des contrôles complété ; réponse rédigée pour l'utilisateur (voir journal) |
 | 117 | 26/10 | Commencer le link à deux bornes demandé par Image borne : OutRun 2, Hummer, Sega Race TV, Initial D 4 et 5 | ✅ côté loader : sockets non bloquantes par `fcntl`, pas d'erreur `WSAECONNRESET` en UDP, eth0 sur l'adresse de la borne ; réglages par borne transmis à Image borne ; essai à deux bornes à faire par Image borne ; Initial D 4 japonais pas pris en charge (voir journal) |
 | 116 | 26/10 | Demander aux sessions sm2-emu, Flycast et Supermodel d'afficher aussi les noms des variables à côté de l'option des sorties réseau, dans le même style, selon le jeu en cours | ✅ consigne envoyée aux trois sessions avec la capture et le code de référence (`drawOutputsList`) |
@@ -183,6 +183,16 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   `build-mingw`). Le nom de retour de force n'est pas celui du joystick : vJoy s'appelle « Shaul Eizikovich vJoy -
   Virtual Joystick » dans la liste des périphériques et « vJoy Device » en retour de force. Pas essayé dans un jeu,
   ni avec deux vrais périphériques à retour de force (un seul ici).
+- Règle du propriétaire pour tous les émulateurs, transmise par la session Flycast (« Multi-Board en thread et non
+  process ») : Automatique tant que le périphérique choisi est absent, puis ce périphérique dès qu'il est branché.
+  Ajouté : une surveillance des événements SDL (`SDL_AddEventWatch`, sur le fil qui pompe les événements, où SDL met
+  aussi à jour sa liste des périphériques à retour de force, avant d'envoyer l'événement) ; à chaque manette branchée
+  ou débranchée, le périphérique nommé débranché laisse les effets au choix automatique (« FFB: "…" unplugged »), et
+  un périphérique nommé absent jusque-là les reprend dès qu'il apparaît (« FFB: "…" plugged in »), avec l'état
+  courant de la carte. Essayé avec le même petit programme et des événements de manette simulés : nom absent, puis
+  « vJoy Device » qui « apparaît » à l'événement de branchement (effets créés, couple courant -5039 rejoué), un
+  débranchement d'une autre manette ne change rien. Un vrai débranchement n'est pas essayé (il faudrait toucher à
+  la configuration du pilote vJoy, partagé avec les autres sessions).
 
 ### Lampes d'OutRun 2, guide des pédales (demande 118)
 - Retour d'un utilisateur d'OutRun 2 transmis par le propriétaire : pédales relâchées qui accélèrent et freinent,
