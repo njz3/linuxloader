@@ -95,6 +95,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 119 | 27/10 | (relayée par la session « Driveboard émulation et force feedback ») Choisir le périphérique de retour de force dans Tab > Contrôles > Retour de force : « Automatique » ou un périphérique branché, par son nom ; lui seul reçoit les effets, où que soit lu le volant ; changement en direct ; `[ForceFeedback] FFB_DEVICE`, réglable par `--set` | ✅ `FFB_DEVICE = AUTO` ou le nom SDL du périphérique (nom produit DirectInput sous Windows), comparé sans la casse ni les espaces autour ; liste dans Contrôles, changement en direct ; essayé sur vJoy (voir journal) |
 | 118 | 26/10 | Nommer les lampes connues dans la liste des sorties, documenter les modes `_POSITIVE_SIDE` / `_NEGATIVE_SIDE` (retour d'un utilisateur d'OutRun 2 : pédales actives au repos, pas de retour de force, lampe Start) | ✅ lampes d'OutRun 2 nommées, guide des contrôles complété ; réponse rédigée pour l'utilisateur (voir journal) |
 | 117 | 26/10 | Commencer le link à deux bornes demandé par Image borne : OutRun 2, Hummer, Sega Race TV, Initial D 4 et 5 | ✅ côté loader : sockets non bloquantes par `fcntl`, pas d'erreur `WSAECONNRESET` en UDP, eth0 sur l'adresse de la borne ; réglages par borne transmis à Image borne ; essai à deux bornes à faire par Image borne ; Initial D 4 japonais pas pris en charge (voir journal) |
 | 116 | 26/10 | Demander aux sessions sm2-emu, Flycast et Supermodel d'afficher aussi les noms des variables à côté de l'option des sorties réseau, dans le même style, selon le jeu en cours | ✅ consigne envoyée aux trois sessions avec la capture et le code de référence (`drawOutputsList`) |
@@ -151,6 +152,37 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Choix du périphérique de retour de force (demande 119)
+- Demande du propriétaire relayée par la session « Driveboard émulation et force feedback (Berstett) », la même
+  dans les autres émulateurs : sur une borne, le volant peut être lu sur un périphérique et le moteur branché sur un
+  autre. Jusqu'ici les effets allaient au périphérique du joystick 0 (ou au premier périphérique à retour de force
+  trouvé seul, en repli).
+- `[ForceFeedback] FFB_DEVICE` : `AUTO` (par défaut, ou vide) garde ce choix ; sinon le nom du périphérique tel que
+  SDL le donne (`SDL_GetHapticNameForID`, le nom produit DirectInput sous Windows, celui d'evdev sous Linux), comparé
+  sans la casse ni les espaces autour ; le premier branché qui porte ce nom et sait jouer une force constante ou une
+  vibration est pris. Un nom absent : ligne WARN et choix automatique. Deux périphériques du même nom ne se
+  distinguent pas (le premier). `--set ForceFeedback.FFB_DEVICE=...` le règle pour un lancement.
+- `forceFeedback.c` : un seul périphérique cible (`ffbHaptic`) au lieu de `sdlJoysticks.haptics[0]`. Le modèle de la
+  carte suit maintenant les trames du jeu quel que soit le périphérique, y compris une manette à vibration, pour
+  qu'un volant choisi en cours de partie joue l'état courant. Changement (`sdlFfbSelect`, appelé par la page
+  Contrôles) : sous un verrou que le fil FFB prend aussi pour parler au périphérique, effets arrêtés et détruits sur
+  l'ancien, créés sur le nouveau, puis le fil FFB renvoie l'état de la carte (en pause tant que les paramètres sont
+  ouverts, comme avant). Le fil du jeu ne prend jamais ce verrou.
+- Tab > Contrôles > Retour de force : liste « Périphérique » (Automatique, puis les périphériques à retour de force
+  branchés ; un nom enregistré absent apparaît grisé « (non connecté) »), en jeu la ligne « Forces envoyées à : … » ;
+  « (retour de force) » marque dans la liste des périphériques la manette qui reçoit les effets.
+- Essais sur vJoy avec un petit programme qui lie `forceFeedback.c` seul (`ffb_device_test.c`, dans le scratchpad) :
+  `FFB_DEVICE = "  vjoy DEVICE "` ouvre « vJoy Device » en mode volant, couple reçu par vJoy (+5039 puis -5039 sur
+  ±10000 pour 84 à ±0x40), « vJoy » seul ne correspond pas, un nom absent retombe sur le choix automatique. Première
+  manette sans retour de force simulée (Automatique = aucun périphérique) : passer à Automatique arrête et libère les
+  quatre effets sur vJoy ; revenir à « VJOY device » les recrée et rejoue l'état de la carte, dont le couple à droite
+  reçu entre-temps (-5039). Compilé MinGW et MSVC.
+- Page vue dans le sélecteur (MinGW, fenêtre visible) : « Périphérique » propose Automatique et « vJoy Device »,
+  le choix est enregistré par Sauvegarder (`FFB_DEVICE = vJoy Device`, ligne retirée ensuite du `linuxloader.ini` de
+  `build-mingw`). Le nom de retour de force n'est pas celui du joystick : vJoy s'appelle « Shaul Eizikovich vJoy -
+  Virtual Joystick » dans la liste des périphériques et « vJoy Device » en retour de force. Pas essayé dans un jeu,
+  ni avec deux vrais périphériques à retour de force (un seul ici).
 
 ### Lampes d'OutRun 2, guide des pédales (demande 118)
 - Retour d'un utilisateur d'OutRun 2 transmis par le propriétaire : pédales relâchées qui accélèrent et freinent,
