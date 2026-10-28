@@ -95,6 +95,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 126 | 28/10 | Merge avec upstream | ✅ `lindbergh-loader/linuxloader` `4ffa095` (3.0.13 : VF5, alignement de pile, GSEvo, pbuffers en FBO, libsegaapi complète, shaders Race TV et Initial D) fusionné dans `dev/ffbedition` (`0b3f5a9`) ; 15 fichiers en conflit résolus ; plantage d'OutRun au départ de la course causé par un correctif d'upstream sur les ELF déjà patchés, corrigé ; MinGW et MSVC, OutRun jusqu'en course ; non poussé (voir journal) |
 | 125 | 28/10 | Commit, push, une release, prévenir Image borne | ✅ rien de plus à commiter, déjà poussé jusqu'à `8752305` ; `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261028-njz3-win32.zip` ; Image borne prévenue (voir journal) |
 | 124 | 27/10 | D'autres utilisateurs disent que les pédales ne marchent pas : vérifier les axes analogiques dans le menu de test | ✅ le jeu lit bien ses axes (OutRun, INPUT TEST : `00H` à `FFH`, `7FH` à mi-course, volant `00H`/`7FH`/`FFH`) ; par vJoy et `controls.ini`, une pédale qui repose en haut de son axe donne `FFH` au repos, au milieu `7FH`, et sans `controls.ini` l'accélérateur attend l'axe 5 (absent sur vJoy et bien des volants) ; la capture de Tab > Contrôles n'ajoutait jamais `_INVERTED` ni `_SIDE`. Corrigé : la capture prend le mode d'après la position de repos, les barres montrent la pédale telle qu'elle est lue, les liaisons par défaut suivent le BFF (accélérateur Y−, frein Z−) ; vérifié avec vJoy dans INPUT TEST, MinGW (voir journal) |
 | 123 | 27/10 | Copier OutRun 2 et essayer en jeu les nouvelles réponses de la servoboard | ✅ démarrage (« Initializing the drive board », pas de faute), démo, course atteinte, DRIVE BOARD TEST MENU (il attend les 4 s de la recherche d'index par `FD`, comme sur la borne) ; mode agent caché, MinGW (voir journal) |
@@ -158,6 +159,51 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Merge avec upstream (demande 126)
+- Upstream : `lindbergh-loader/linuxloader` (le parent du fork njz3), remote `upstream` ajouté. Un seul commit depuis
+  notre base `9aa6e3e` : `4ffa095` du 28/10 (dkeruza-neo), 68 fichiers, +8 784 lignes, changelog 3.0.13 : Virtua
+  Fighter 5 sous Windows et en réseau sous Linux, alignement de la pile (distributions récentes, MinGW), GSEvo rendu à
+  la résolution choisie, pbuffers en FBO sous Windows (`pbufferEmu.c`), émulation complète de libsegaapi (effets),
+  éclairage et flou de Race TV, shader des Initial D, marqueur de Harley, fenêtre de Let's Go Jungle redimensionnable,
+  calibration du pistolet de Primeval Hunt gardée, un paquet Mesa figé (`libs/assets/mesa-kisak-pinned.tar`, 24 Mo).
+- Fusion dans `dev/ffbedition` (`0b3f5a9`), 15 fichiers en conflit :
+  - `glHooks.cpp` : tout le fichier en conflit (nos fins de ligne LF) ; le nôtre gardé, les trois changements
+    d'upstream reportés (`bridgeglCopyTexSubImage2D`, `gsevoBleedAlpha` après les textures compressées) ;
+  - `filesystemBridge` : `readdir_r` (upstream) et notre `readdir64_r` passent par `bridgeReaddir`, qui liste aussi
+    le dossier d'écriture ; le `readdir64_r` d'upstream (lecture Windows directe, entrée remise à zéro en entier)
+    retiré ; `linux_dirent64` : la nôtre, compactée comme celle de glibc i386 (276 octets) ;
+  - `libcBridge.cpp` : `qsort`, `bsearch` et les gestionnaires de signaux du jeu passent par les trampolines
+    d'upstream en MinGW (`force_align_arg_pointer`), par les nôtres (`elfCall`) en MSVC, qui ignore cet attribut ;
+    `setlocale` : le nôtre (la locale du processus reste « C »), jamais NULL désormais, pour les 13 catégories ;
+    nos traductions de `system()` gardées ;
+  - `mathBridge` : notre `div` (MSVC aussi), `difftime`, `ceil`, `floor`, `strto*` ; d'upstream `fabs`, `nextafter`,
+    `trunc` ; son `sincos` (`::sincos`, absent de MSVC) retiré au profit du nôtre ;
+  - `symbolResolver.cpp` : notre façon de nommer `strchr` et consorts (MinGW et MSVC) ;
+  - `glxBridge.c` : les pbuffers d'upstream (`pbufferEmu.c`), notre mémoire NV (jeux Gaelco) gardée ;
+  - `sdlCalls.c` : plus de taille maximale (Let's Go Jungle, Primeval Hunt), bascule plein écran pour tous les jeux
+    (upstream), avec notre taille de fenêtre au rapport d'aspect et notre taille minimale hors écran ;
+  - `libsegaapi.c` : la nouvelle d'upstream, avec notre pause (Tab) et le silence du mode agent (voix maître) ;
+  - `CMakeLists.txt` : nos branches MSVC et MinGW ; en MinGW les drapeaux d'upstream (`-mincoming-stack-boundary=2`,
+    `-mpreferred-stack-boundary=4`, pile de 4 Mo engagée, `iphlpapi`) ; en MSVC `/STACK:4194304,4194304` aussi ;
+  - `filesystemShared.c` : nos ioctl réseau Windows gardés ; macros `LINUX_FD_SET/CLR/ZERO_BIT` remises (upstream
+    ne garde que `ISSET`) ; `TCFLSH` va toujours à la servoboard émulée (upstream ne passe plus que FIONREAD aux
+    ports série) ; `blitStretching.h`, `eepromSettings.c`, `shaderCache.c` (upstream n'écrit plus les shaders
+    patchés) : les deux côtés, ou celui d'upstream.
+- Après la fusion : `hooks` est un `int` (upstream), `driveBoard.c` suit ; l'option de jeu « Rendu avec Zink » de
+  Primeval Hunt retirée avec le réglage (upstream n'en a plus besoin) ; `readTsc` (HOD4) et une somme sur `void *`
+  rendus compilables par MSVC.
+- **Plantage d'OutRun au départ de la course** (MinGW et MSVC), trouvé sous cdb : `call [eax-0x6f6f6f70]` en
+  `0x08105334`. Upstream a remplacé le saut `e9 1f 00 00 00` en `0x08105317` (qui enjambait le contrôle de la vue
+  caméra du retour de force) par un octet `ff` en `0x08105334`, écrit pour l'ELF propre. L'ELF des bornes
+  (TeknoParrot, « not clean ») a déjà ce contrôle remplacé par des NOP de `0x08105317` à `0x0810533a` : l'octet en
+  faisait un appel. Il n'est plus écrit que sur le code d'origine (pas de `0x90` à cette adresse), pour les deux
+  versions d'OutRun (`0x08105334`, `0x081053a0`). À signaler à upstream.
+- Vérifié : MinGW et MSVC compilent ; OutRun (mode agent caché) jusqu'en course, rendu complet, retour de force en
+  virage (forces constantes jusqu'à ±0,25, rappel, amortisseur), démo et menus comme avant ; banc d'essai de la
+  servoboard identique. Le son n'est pas écouté (nouvelle libsegaapi). Les autres jeux ne sont pas relancés (pas de
+  copie locale) : Race TV, Initial D et Hummer sont touchés par les correctifs d'upstream. Non poussé.
+- Prochaine release : 3.0.13 (`release.py`).
 
 ### Release du 28/10 (demande 125)
 - Rien de plus à commiter : `origin/dev/ffbedition` était déjà à `8752305` (réponses de la servoboard, pédales).
