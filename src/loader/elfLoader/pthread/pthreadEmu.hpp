@@ -147,6 +147,8 @@ public:
         const void* param);
     static int pthreadGetSchedparam(uint32_t thread, int* policy,
         void* param);
+    static int pthreadSetaffinityNp(uint32_t thread, size_t cpusetsize,
+        const void* cpuset);
     static int schedYield();
 
     // --------------------------------------------------------

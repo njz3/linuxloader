@@ -393,21 +393,98 @@ int bridgegluBuild2DMipmaps(unsigned int target, int internalFormat, int width, 
     return 0;
 }
 
-int bridgegluProject(double objX, double objY, double objZ, const double *model, const double *proj, const int *view, double* winX, double* winY, double* winZ)
+// GLU's matrices are column-major, as OpenGL's: out = m * in
+static void gluTransform(const double m[16], const double in[4], double out[4])
 {
-    log_trace("gluProject(objX=%f, objY=%f, objZ=%f) - STUB", objX, objY, objZ);
-    if (winX) *winX = 0.0;
-    if (winY) *winY = 0.0;
-    if (winZ) *winZ = 0.0;
+    for (int i = 0; i < 4; i++)
+        out[i] = m[i] * in[0] + m[4 + i] * in[1] + m[8 + i] * in[2] + m[12 + i] * in[3];
+}
+
+// r = a * b
+static void gluMultiply(const double a[16], const double b[16], double r[16])
+{
+    for (int column = 0; column < 4; column++)
+        for (int row = 0; row < 4; row++)
+            r[column * 4 + row] = a[row] * b[column * 4] + a[4 + row] * b[column * 4 + 1] + a[8 + row] * b[column * 4 + 2] +
+                                  a[12 + row] * b[column * 4 + 3];
+}
+
+// Gauss-Jordan with partial pivoting; 0 when m cannot be inverted
+static int gluInvert(const double m[16], double inverse[16])
+{
+    double a[4][8];
+    for (int row = 0; row < 4; row++)
+        for (int column = 0; column < 4; column++)
+        {
+            a[row][column] = m[column * 4 + row];
+            a[row][column + 4] = row == column ? 1.0 : 0.0;
+        }
+    for (int column = 0; column < 4; column++)
+    {
+        int pivot = column;
+        for (int row = column + 1; row < 4; row++)
+            if (fabs(a[row][column]) > fabs(a[pivot][column]))
+                pivot = row;
+        if (a[pivot][column] == 0.0)
+            return 0;
+        if (pivot != column)
+            for (int k = 0; k < 8; k++)
+            {
+                double t = a[column][k];
+                a[column][k] = a[pivot][k];
+                a[pivot][k] = t;
+            }
+        double scale = 1.0 / a[column][column];
+        for (int k = 0; k < 8; k++)
+            a[column][k] *= scale;
+        for (int row = 0; row < 4; row++)
+            if (row != column && a[row][column] != 0.0)
+            {
+                double factor = a[row][column];
+                for (int k = 0; k < 8; k++)
+                    a[row][k] -= factor * a[column][k];
+            }
+    }
+    for (int row = 0; row < 4; row++)
+        for (int column = 0; column < 4; column++)
+            inverse[column * 4 + row] = a[row][column + 4];
     return 1;
 }
-int bridgegluUnProject(double winX, double winY, double winZ, const double *model, const double *proj, const int *view, double* objX, double* objY, double* objZ)
+
+// Nirin's headlight (GetHeadLightMatrix, the light it projects on the road at night), its tail light trails and its
+// map: the point through the model and projection matrices, then the viewport, as GLU computes it
+int bridgegluProject(double objX, double objY, double objZ, const double *model, const double *proj, const int *view, double *winX,
+                     double *winY, double *winZ)
 {
-    log_trace("gluUnProject(winX=%f, winY=%f, winZ=%f) - STUB", winX, winY, winZ);
-    if (objX) *objX = 0.0;
-    if (objY) *objY = 0.0;
-    if (objZ) *objZ = 0.0;
-    return 1; 
+    double object[4] = {objX, objY, objZ, 1.0}, eye[4], clip[4];
+    gluTransform(model, object, eye);
+    gluTransform(proj, eye, clip);
+    if (clip[3] == 0.0)
+        return GL_FALSE;
+    for (int i = 0; i < 3; i++)
+        clip[i] = clip[i] / clip[3] * 0.5 + 0.5;
+    *winX = clip[0] * view[2] + view[0];
+    *winY = clip[1] * view[3] + view[1];
+    *winZ = clip[2];
+    return GL_TRUE;
+}
+
+int bridgegluUnProject(double winX, double winY, double winZ, const double *model, const double *proj, const int *view, double *objX,
+                       double *objY, double *objZ)
+{
+    double both[16], inverse[16];
+    gluMultiply(proj, model, both);
+    if (!gluInvert(both, inverse))
+        return GL_FALSE;
+    double window[4] = {(winX - view[0]) / view[2] * 2.0 - 1.0, (winY - view[1]) / view[3] * 2.0 - 1.0, winZ * 2.0 - 1.0, 1.0};
+    double object[4];
+    gluTransform(inverse, window, object);
+    if (object[3] == 0.0)
+        return GL_FALSE;
+    *objX = object[0] / object[3];
+    *objY = object[1] / object[3];
+    *objZ = object[2] / object[3];
+    return GL_TRUE;
 }
 
 #endif

@@ -1,6 +1,7 @@
 #include <glad/gl.h>
 #include <SDL3/SDL.h>
 #include <string.h>
+#include <ctype.h>
 #include <string>
 #include "glHooks.hpp"
 #include "../graphics/shaderPatches.h"
@@ -603,8 +604,12 @@ extern "C" void __attribute__((cdecl)) wrap_glTexCoord4f(GLfloat s, GLfloat t, G
 
 extern "C" void __attribute__((cdecl)) wrap_glTexParameterfv(GLenum target, GLenum pname, const GLfloat *params)
 {
-    if (glad_glTexParameterfv)
-        glad_glTexParameterfv(target, pname, params);
+    if (!glad_glTexParameterfv)
+        return;
+    // a wrap mode only (a border colour has four values)
+    const GLfloat edge = (GLfloat)GL_CLAMP_TO_EDGE;
+    bool clamp = params && params[0] == (GLfloat)GL_CLAMP && nvidiaClamp(pname, GL_CLAMP) != GL_CLAMP;
+    glad_glTexParameterfv(target, pname, clamp ? &edge : params);
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glPointParameterf(GLenum pname, GLfloat param)
@@ -860,12 +865,52 @@ static bool deadHeatShaders()
     return gGrp == GROUP_DEAD_HEAT; // Maximum Heat 3D: the same engine
 }
 
+// A local declared without a value ("    vec4 ret;") gets zero, as NVIDIA's compiler of the time left it: Nirin's
+// map_3rd_pass.frag adds to such a vec4 (getNeonColor) and returns it untouched where no neon light falls, which
+// today's compilers leave undefined. Indented lines only (the globals have their qualifiers), not in a source with a
+// struct (its members cannot have a value).
+static void zeroLocals(std::string &source)
+{
+    if (source.find("struct") != std::string::npos)
+        return;
+    static const char *const types[] = {"float", "vec2", "vec3", "vec4", "int", "ivec2", "ivec3", "ivec4"};
+    size_t start = 0;
+    while (start < source.size())
+    {
+        size_t end = source.find('\n', start);
+        if (end == std::string::npos)
+            end = source.size();
+        size_t p = source.find_first_not_of(" \t", start);
+        for (const char *type : types)
+        {
+            size_t length = strlen(type);
+            if (p == start || p + length >= end || source.compare(p, length, type) != 0 || !isblank((unsigned char)source[p + length]))
+                continue;
+            size_t name = source.find_first_not_of(" \t", p + length);
+            size_t nameEnd = name;
+            while (nameEnd < end && (isalnum((unsigned char)source[nameEnd]) || source[nameEnd] == '_'))
+                nameEnd++;
+            size_t semicolon = source.find_first_not_of(" \t", nameEnd);
+            if (nameEnd == name || isdigit((unsigned char)source[name]) || semicolon >= end || source[semicolon] != ';')
+                break;
+            std::string zero = strcmp(type, "float") == 0 ? " = 0.0"
+                               : strcmp(type, "int") == 0 ? " = 0"
+                                                          : std::string(" = ") + type + (type[0] == 'i' ? "(0)" : "(0.0)");
+            source.insert(nameEnd, zero);
+            end += zero.size();
+            break;
+        }
+        start = end + 1;
+    }
+}
+
 static std::string deadHeatSource(GLsizei count, const char *const *strings, const GLint *lengths)
 {
     std::string source;
     for (GLsizei i = 0; i < count; i++)
         if (strings[i])
             source.append(strings[i], lengths && lengths[i] >= 0 ? (size_t)lengths[i] : strlen(strings[i]));
+    zeroLocals(source);
     std::string texCoord = source.find("vec4 gl_TexCoord") == std::string::npos ? "varying vec4 gl_TexCoord[8];\n" : "";
     size_t version = source.find("#version");
     if (version == std::string::npos)
@@ -1108,7 +1153,7 @@ extern "C" void __attribute__((cdecl)) wrap_glVertexAttribPointer(GLuint index, 
 extern "C" void __attribute__((cdecl)) wrap_glTexParameterf(GLenum target, GLenum pname, GLfloat param)
 {
     if (glad_glTexParameterf)
-        glad_glTexParameterf(target, pname, param);
+        glad_glTexParameterf(target, pname, param == (GLfloat)GL_CLAMP ? (GLfloat)nvidiaClamp(pname, GL_CLAMP) : param);
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glInterleavedArrays(GLenum format, GLsizei stride, const GLvoid *pointer)

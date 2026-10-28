@@ -136,6 +136,7 @@ typedef struct PthreadThreadInternal {
     void* retval;
     volatile int        detached;
     volatile int        exited;
+    DWORD_PTR           affinity;   // pthread_setaffinity_np's CPUs, given to the threads it creates (0: none)
 } PthreadThreadInternal;
 
 // Thread attribute

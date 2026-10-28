@@ -221,14 +221,20 @@ int PthreadEmu::pthreadCreate(void *thread, const void *attr, void *(*start_rout
 
     thread_info->detached = (detach_state == LINUX_PTHREAD_CREATE_DETACHED);
 
+    // A new thread runs on its creator's CPUs, as Linux makes it (Windows gives it the process's): created suspended
+    // to be put there before it runs
+    PthreadThreadInternal *creator = PthreadMapper::FindThreadByWinId(GetCurrentThreadId());
+    DWORD_PTR affinity = creator ? creator->affinity : 0;
+    thread_info->affinity = affinity;
+
     // Create the thread
     unsigned thread_id;
-    HANDLE handle = (HANDLE)_beginthreadex(NULL,                 // Security
-                                           (unsigned)stack_size, // Stack size
-                                           ThreadEntryPoint,     // Entry point
-                                           ctx,                  // Argument
-                                           0,                    // Creation flags
-                                           &thread_id            // Thread ID
+    HANDLE handle = (HANDLE)_beginthreadex(NULL,                            // Security
+                                           (unsigned)stack_size,            // Stack size
+                                           ThreadEntryPoint,                // Entry point
+                                           ctx,                             // Argument
+                                           affinity ? CREATE_SUSPENDED : 0, // Creation flags
+                                           &thread_id                       // Thread ID
     );
 
     if (!handle)
@@ -240,6 +246,11 @@ int PthreadEmu::pthreadCreate(void *thread, const void *attr, void *(*start_rout
 
     thread_info->handle = handle;
     thread_info->win_thread_id = thread_id;
+    if (affinity)
+    {
+        SetThreadAffinityMask(handle, affinity);
+        ResumeThread(handle);
+    }
 
     // Register Windows TID -> Linux TID mapping
     // (done internally in mapper)
@@ -443,6 +454,47 @@ int PthreadEmu::pthreadGetSchedparam(uint32_t thread, int *policy, void *param)
         *policy = 0; // SCHED_OTHER equivalent
     }
 
+    return 0;
+}
+
+// The game's threads on the CPUs it asks for, and the threads they create after on the same ones (pthreadCreate), as
+// Linux does. Nirin pins its rendering (main), its game sequence and its file cache on CPU 0, and the sequences it
+// creates from there ("fibers") inherit it. Linux's cpu_set_t: bit n for CPU n, cpusetsize bytes; only the CPUs this
+// process may use are kept.
+int PthreadEmu::pthreadSetaffinityNp(uint32_t thread, size_t cpusetsize, const void *cpuset)
+{
+    PthreadThreadInternal *thread_info = PthreadMapper::FindThread(thread);
+    if (!thread_info)
+        return LINUX_ESRCH;
+    if (!cpuset)
+        return LINUX_EINVAL;
+    DWORD_PTR wanted = 0;
+    const unsigned char *bytes = (const unsigned char *)cpuset;
+    for (size_t i = 0; i < cpusetsize && i < sizeof(DWORD_PTR); i++)
+        wanted |= (DWORD_PTR)bytes[i] << (8 * i);
+    DWORD_PTR processMask = 0, systemMask = 0;
+    if (!GetProcessAffinityMask(GetCurrentProcess(), &processMask, &systemMask))
+        return LINUX_EINVAL;
+    wanted &= processMask;
+    if (!wanted)
+        return LINUX_EINVAL;
+
+    // A thread known by its pseudo-handle (one not made by pthread_create) is opened by its id from another thread
+    bool self = thread_info->win_thread_id == GetCurrentThreadId();
+    HANDLE handle = self ? GetCurrentThread() : thread_info->handle;
+    bool opened = false;
+    if (!self && (handle == NULL || handle == GetCurrentThread()))
+    {
+        handle = OpenThread(THREAD_SET_INFORMATION | THREAD_QUERY_INFORMATION, FALSE, thread_info->win_thread_id);
+        opened = handle != NULL;
+    }
+    DWORD_PTR previous = handle ? SetThreadAffinityMask(handle, wanted) : 0;
+    if (opened)
+        CloseHandle(handle);
+    if (!previous)
+        return LINUX_EINVAL;
+    thread_info->affinity = wanted;
+    log_info("Thread %u on the CPUs 0x%lx", thread, (unsigned long)wanted);
     return 0;
 }
 

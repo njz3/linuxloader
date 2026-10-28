@@ -70,6 +70,8 @@ void bridgeglViewport(GLint x, GLint y, GLsizei width, GLsizei height);
 void bridgeglTexImage2D (GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border,
                         GLenum format, GLenum type, const void *pixels);
 void bridgeglTexParameteri(GLenum target, GLenum pname, GLint param);
+// GL_CLAMP as NVIDIA's Linux driver has it, for the glTexParameter calls: the edge texels (see patchResolution.c)
+int nvidiaClamp(GLenum pname, int param);
 void myGlBindTexture(unsigned int target, unsigned int texture);
 // Call after uploading a compressed texture level, see patchResolution.c.
 void gsevoBleedAlpha(unsigned int target, int level, unsigned int internalformat, int width, int height);

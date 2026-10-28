@@ -596,6 +596,16 @@ void glCompressedTexImage2D(unsigned int target, int level, unsigned int interna
     gsevoBleedAlpha(target, level, internalformat, width, height);
 }
 
+// The games were made on NVIDIA's Linux driver, which clamps a GL_CLAMP wrap to the edge texels, as GL_CLAMP_TO_EDGE.
+// A conformant driver blends in the border colour, black, outside the texture: Nirin's projected textures (headlight,
+// neon, shadows) are GL_CLAMP.
+int nvidiaClamp(GLenum pname, int param)
+{
+    if (param == GL_CLAMP && (pname == GL_TEXTURE_WRAP_S || pname == GL_TEXTURE_WRAP_T || pname == GL_TEXTURE_WRAP_R))
+        return GL_CLAMP_TO_EDGE;
+    return param;
+}
+
 #ifdef __linux__
 #undef glTexParameteri
 void glTexParameteri(GLenum target, GLenum pname, GLint param)
@@ -606,6 +616,7 @@ void bridgeglTexParameteri(GLenum target, GLenum pname, GLint param)
     if (!glad_glTexParameteri)
         return;
 
+    param = nvidiaClamp(pname, param);
     if (gGrp == GROUP_OUTRUN)
     {
         if (param == GL_NEAREST)
