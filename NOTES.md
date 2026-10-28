@@ -95,6 +95,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 128 | 28/10 | Une option en ligne de commande qui liste les jeux supportés : nom, nom court (nom de rom), version, exécutable attendu, CRC32 de l'exécutable (le CRC32 seulement indicatif, un autre exécutable n'est pas refusé) | ✅ `--list-games` (tableau) et `--list-games csv` ; les 91 jeux de `gameData.c` ; CRC32 du fichier entier de l'exécutable propre, quand il est connu ; MinGW et MSVC (voir journal) |
 | 127 | 28/10 | (relayée par la session « Image borne ») Amorcer le dossier d'écriture d'un jeu depuis un dossier de modèles, pas seulement depuis le dossier du jeu : les NVRAM d'une cabine link (LINK ID, siège) ne peuvent pas vivre dans le dossier du jeu, commun au solo et au link | ✅ `--seed-dir PATH` ou `[Paths] SEED_DIR` (relatif au dossier du chargeur, ou chemin complet), avec un dossier d'écriture seulement : au lancement du jeu, `<seed>\<jeu>` est recopié dans `WRITE_DIR\<jeu>`, sans jamais remplacer un fichier déjà là, une ligne de journal par fichier ; sans l'option rien ne change ; MinGW et MSVC, OutRun 2 ; branche `dev/seed-dir`, non poussée (voir journal) |
 | 126 | 28/10 | Merge avec upstream | ✅ `lindbergh-loader/linuxloader` `4ffa095` (3.0.13 : VF5, alignement de pile, GSEvo, pbuffers en FBO, libsegaapi complète, shaders Race TV et Initial D) fusionné dans `dev/ffbedition` (`0b3f5a9`) ; 15 fichiers en conflit résolus ; plantage d'OutRun au départ de la course causé par un correctif d'upstream sur les ELF déjà patchés, corrigé ; MinGW et MSVC, OutRun jusqu'en course ; non poussé (voir journal) |
 | 125 | 28/10 | Commit, push, une release, prévenir Image borne | ✅ rien de plus à commiter, déjà poussé jusqu'à `8752305` ; `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261028-njz3-win32.zip` ; Image borne prévenue (voir journal) |
@@ -160,6 +161,26 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Liste des jeux supportés, `--list-games` (demande 128)
+- `linuxloader --list-games` : un tableau, un jeu par ligne, colonnes NOM COURT (le nom de rom, celui du dossier
+  d'écriture et de `[Game.<nom court>]`), VERSION (le numéro DVP, ou la version Namco : `US DRIVE`, `NRN100`...),
+  EXÉCUTABLE (le fichier que le dossier du jeu contient, celui du mode test pour une entrée de test : `JenTest`,
+  `hod4testM.elf`...), CRC32, NOM. `--list-games csv` : la même chose en CSV (`short_name,version,executable,crc32,name`),
+  pour les scripts.
+- Le CRC32 est celui du fichier entier de l'exécutable d'un dump propre : la liste `cleanElfCRC32` de `mainShared.c`
+  n'avait le DVP et le nom du fichier qu'en commentaire ; elle est devenue une table (`cleanElfs` : CRC, DVP,
+  exécutable, note), dont l'avertissement « not Clean » se sert comme avant. Plusieurs CRC quand le jeu en a eu
+  plusieurs (VF5 Final Showdown Rev B), « - » quand aucun n'est connu (Namco, Gaelco, segaboot, ID4 Rev Z...).
+- Indicatif seulement, à la demande du propriétaire : le loader reconnaît un jeu par un CRC partiel de son code
+  chargé (0x4000 octets), pas par celui du fichier ; un exécutable patché (TeknoParrot) n'est pas refusé, il reçoit
+  seulement l'avertissement. Vérifié : OutRun (ELF des bornes) démarre comme avant, un avertissement.
+- L'exécutable de chaque jeu : table `gameElfs` (entrée de `gameData.c` → fichier), tirée des commentaires de la liste
+  propre (le fichier de test pour les entrées `_TEST`), complétée pour les jeux qui n'y sont pas, d'après `BILAN.md` :
+  `a.elf` (Dead Heat, Maximum Heat 3D, Dead Heat Riders), `exec/a.elf` (Nirin), `main` (Maximum Tune 3 et 3DX+), `car`
+  (Gaelco Tuning), `gameport` (Ring Riders, Tokyo Cop), et `id4_serverbox.elf` / `id5_serverbox.elf` pour les serveurs.
+  `gameData.c` gagne seulement deux accesseurs (`gameDataCount`, `gameDataAt`), pour garder ses lignes comme upstream.
+- MinGW et MSVC ; `--help` mentionne l'option.
 
 ### Dossier de modèles du dossier d'écriture (demande 127)
 - Demande du propriétaire relayée par la session « Image borne (Berstett) ». Avec `--write-dir`, un fichier du jeu
