@@ -65,6 +65,7 @@ static char **s_argv = NULL;
 static char s_startDir[MAX_PATH_LENGTH] = "";
 static time_t s_startTime = 0;
 static const char *s_writeDir = NULL; // --write-dir
+static const char *s_seedDir = NULL;  // --seed-dir
 static bool s_segabootChild = false;  // --segaboot-child: started by segabootSupervise, which reads the exit code
 
 // The exit codes a program started by segabootSupervise ends with to ask for the next one
@@ -263,7 +264,8 @@ int main(int argc, char *argv[], char *envp[])
     }
 
     // --agent / --agent-show: the game driven over stdin/stdout (agent/agent.c); --write-dir PATH: the folder
-    // everything is written to (redirections/writeDir.c). Not arguments of the game.
+    // everything is written to, --seed-dir PATH: the templates of its first files (redirections/writeDir.c). Not
+    // arguments of the game.
     static std::vector<char *> args;
     int agentMode = 0;
     const int rawArgc = argc; // as given, for the programs segabootSupervise starts
@@ -280,6 +282,10 @@ int main(int argc, char *argv[], char *envp[])
             s_writeDir = argv[i] + 12;
         else if (strcmp(argv[i], "--write-dir") == 0 && i + 1 < argc)
             s_writeDir = argv[++i];
+        else if (strncmp(argv[i], "--seed-dir=", 11) == 0)
+            s_seedDir = argv[i] + 11;
+        else if (strcmp(argv[i], "--seed-dir") == 0 && i + 1 < argc)
+            s_seedDir = argv[++i];
         else if (strncmp(argv[i], "--set=", 6) == 0)
             configAddOverride(argv[i] + 6);
         else if (strcmp(argv[i], "--set") == 0 && i + 1 < argc)
@@ -345,7 +351,7 @@ int main(int argc, char *argv[], char *envp[])
     initBridges();
 
     // The settings, and what the game writes, in the write folder when there is one
-    writeDirSettings(s_writeDir, &configPath, &controlsPath);
+    writeDirSettings(s_writeDir, s_seedDir, &configPath, &controlsPath);
 
     log_info("Loading ELF file: %s\n", elfPath);
     ElfLoader loader;

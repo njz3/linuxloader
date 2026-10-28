@@ -427,6 +427,11 @@ void printUsage(char *programName)
     printf("  --library-path     | -L  Specifies library path\n");
     printf("  --gamepath         | -g  Specifies game path without ELF name\n");
     printf("  --create           | -C  Creates a default config or controls file. Use '--create --help' for more info.\n");
+#ifdef _WIN32
+    printf("  --write-dir PATH         The folder everything is written to ([Paths] WRITE_DIR)\n");
+    printf("  --seed-dir PATH          With a write folder: PATH\\<short name> holds the files it starts with, in place of\n");
+    printf("                           the game folder's ([Paths] SEED_DIR); a file already there is never replaced\n");
+#endif
 }
 
 void printCreateUsage(char *programName)

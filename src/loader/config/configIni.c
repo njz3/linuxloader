@@ -107,6 +107,10 @@ int createDefaultIni(const char *filePath)
     fprintf(file, "# Once it is set, the linuxloader.ini and controls.ini read are the copies in that folder: change those, not\n");
     fprintf(file, "# the ones beside the loader.\n");
     fprintf(file, "# For Example: C:\\Racecab\\Saves\\linuxloader_single\nWRITE_DIR = \"\"\n\n");
+    fprintf(file, "# Windows, with WRITE_DIR (or --seed-dir): SEED_DIR\\<game> holds the files WRITE_DIR\\<game> starts with, in\n");
+    fprintf(file, "# place of the game folder's (a link cabinet's NVRAM, its LINK ID set), copied there when the game starts; a\n");
+    fprintf(file, "# file already in WRITE_DIR\\<game> is never replaced. Relative to the loader's folder, or a full path.\n");
+    fprintf(file, "# For Example: saves\nSEED_DIR = \"\"\n\n");
     fprintf(file, "# If set, libCG.so needed for 2Spicy, Harley, Rambo and HOD-Ex shader recompilation\n");
     fprintf(file, "# will be loaded from the specified location. (include the name of file in the location ");
     fprintf(file, "For Example: /my/file/location/myLibCg.so)\nLIBCG_PATH = \"%s\"\n\n", defaults.libCgPath);

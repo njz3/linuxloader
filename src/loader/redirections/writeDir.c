@@ -15,6 +15,7 @@
 #include "../log/log.h"
 
 static char rootDir[MAX_PATH] = "";      // WRITE_DIR
+static char seedRoot[MAX_PATH] = "";     // SEED_DIR: <seed>\<game> holds WRITE_DIR\<game>'s first files
 static char gameWriteDir[MAX_PATH] = ""; // WRITE_DIR\<game>, the current folder while the game runs
 static char gameDir[MAX_PATH] = "";      // the game's folder, only read
 static char currentSub[MAX_PATH] = "";   // where the game's chdir took it, in WRITE_DIR\<game> ("": its root)
@@ -294,12 +295,12 @@ int writeDirRename(const char *from, const char *to)
     return 0;
 }
 
-// WRITE_DIR relative to the loader's folder
-static void absoluteRoot(const char *writeDir)
+// WRITE_DIR or SEED_DIR, relative to the loader's folder
+static void absoluteFolder(char *out, size_t size, const char *folder)
 {
-    if (isAbsolute(writeDir))
+    if (isAbsolute(folder))
     {
-        snprintf(rootDir, sizeof(rootDir), "%s", writeDir);
+        snprintf(out, size, "%s", folder);
     }
     else
     {
@@ -308,14 +309,73 @@ static void absoluteRoot(const char *writeDir)
         char *slash = strrchr(exe, '\\');
         if (slash)
             *slash = '\0';
-        snprintf(rootDir, sizeof(rootDir), "%s\\%s", exe, writeDir);
+        snprintf(out, size, "%s\\%s", exe, folder);
     }
-    for (char *c = rootDir; *c; c++)
+    for (char *c = out; *c; c++)
         if (*c == '/')
             *c = '\\';
-    size_t length = strlen(rootDir);
-    while (length > 3 && rootDir[length - 1] == '\\')
-        rootDir[--length] = '\0';
+    size_t length = strlen(out);
+    while (length > 3 && out[length - 1] == '\\')
+        out[--length] = '\0';
+}
+
+// [Paths] KEY of the ini, its quotes dropped as getString does
+static void iniPath(IniConfig *ini, const char *key, char *out, size_t size)
+{
+    const char *value = iniGetValue(ini, "Paths", key);
+    if (!value)
+        return;
+    snprintf(out, size, "%s", value);
+    size_t length = strlen(out);
+    if (length >= 2 && out[0] == '"' && out[length - 1] == '"')
+    {
+        memmove(out, out + 1, length - 2);
+        out[length - 2] = '\0';
+    }
+}
+
+// The files of from, its folders' too, copied into to where it has none of the same name: a file already in the write
+// folder is never replaced. relative: from's place in <seed>\<game>, for the log. The count copied.
+static int seedFolder(const char *from, const char *to, const char *relative)
+{
+    char pattern[MAX_PATH];
+    join(pattern, sizeof(pattern), from, "*");
+    WIN32_FIND_DATAA found;
+    HANDLE find = FindFirstFileA(pattern, &found);
+    if (find == INVALID_HANDLE_VALUE)
+        return 0;
+    int copied = 0;
+    do
+    {
+        if (strcmp(found.cFileName, ".") == 0 || strcmp(found.cFileName, "..") == 0)
+            continue;
+        char source[MAX_PATH], target[MAX_PATH], name[MAX_PATH];
+        join(source, sizeof(source), from, found.cFileName);
+        join(target, sizeof(target), to, found.cFileName);
+        if (relative[0])
+            snprintf(name, sizeof(name), "%s\\%s", relative, found.cFileName);
+        else
+            snprintf(name, sizeof(name), "%s", found.cFileName);
+        if (found.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        {
+            CreateDirectoryA(target, NULL);
+            copied += seedFolder(source, target, name);
+        }
+        else if (!exists(target))
+        {
+            if (CopyFileA(source, target, TRUE))
+            {
+                log_info("write folder: %s seeded from %s", name, source);
+                copied++;
+            }
+            else
+            {
+                log_warn("write folder: %s could not be seeded from %s (error %lu)", name, source, GetLastError());
+            }
+        }
+    } while (FindNextFileA(find, &found));
+    FindClose(find);
+    return copied;
 }
 
 // The settings file at WRITE_DIR's root, copied there from its first place the first time. Changed in its first place
@@ -342,33 +402,31 @@ static void overlaySettings(char **path, const char *name)
     *path = _strdup(overlay);
 }
 
-void writeDirSettings(const char *writeDir, char **configPath, char **controlsPath)
+void writeDirSettings(const char *writeDir, const char *seedDir, char **configPath, char **controlsPath)
 {
-    char fromIni[MAX_PATH] = "";
-    if ((!writeDir || !writeDir[0]) && configPath && *configPath && (*configPath)[0])
+    char writeFromIni[MAX_PATH] = "", seedFromIni[MAX_PATH] = "";
+    int writeAsked = writeDir && writeDir[0], seedAsked = seedDir && seedDir[0];
+    if ((!writeAsked || !seedAsked) && configPath && *configPath && (*configPath)[0])
     {
         IniConfig *ini = iniLoad(*configPath);
         if (ini)
         {
-            const char *value = iniGetValue(ini, "Paths", "WRITE_DIR");
-            if (value)
-            {
-                snprintf(fromIni, sizeof(fromIni), "%s", value);
-                // The ini's quotes, as getString drops them
-                size_t length = strlen(fromIni);
-                if (length >= 2 && fromIni[0] == '"' && fromIni[length - 1] == '"')
-                {
-                    memmove(fromIni, fromIni + 1, length - 2);
-                    fromIni[length - 2] = '\0';
-                }
-            }
+            iniPath(ini, "WRITE_DIR", writeFromIni, sizeof(writeFromIni));
+            iniPath(ini, "SEED_DIR", seedFromIni, sizeof(seedFromIni));
             iniFree(ini);
         }
-        writeDir = fromIni;
+        if (!writeAsked)
+            writeDir = writeFromIni;
+        if (!seedAsked)
+            seedDir = seedFromIni;
     }
     if (!writeDir || !writeDir[0])
+    {
+        if (seedDir && seedDir[0])
+            log_warn("seed folder %s: only used with a write folder (--write-dir or [Paths] WRITE_DIR)", seedDir);
         return;
-    absoluteRoot(writeDir);
+    }
+    absoluteFolder(rootDir, sizeof(rootDir), writeDir);
     makeFolders(rootDir, 1);
     if (!isFolder(rootDir))
     {
@@ -379,6 +437,19 @@ void writeDirSettings(const char *writeDir, char **configPath, char **controlsPa
     overlaySettings(configPath, "linuxloader.ini");
     overlaySettings(controlsPath, "controls.ini");
     log_info("write folder: %s", rootDir);
+    if (seedDir && seedDir[0])
+    {
+        absoluteFolder(seedRoot, sizeof(seedRoot), seedDir);
+        if (isFolder(seedRoot))
+        {
+            log_info("seed folder: %s", seedRoot);
+        }
+        else
+        {
+            log_warn("seed folder: %s not found, the game's files are copied as without it", seedRoot);
+            seedRoot[0] = '\0';
+        }
+    }
 }
 
 void writeDirEnterGame(const char *gameName)
@@ -401,6 +472,17 @@ void writeDirEnterGame(const char *gameName)
     }
     active = 1;
     log_info("write folder: the game writes in %s, reads %s", gameWriteDir, gameDir);
+    // The cabinet's templates (a link cabinet's NVRAM, its LINK ID set), in place of the game folder's files: copied
+    // once, before the game reads or lists anything
+    if (seedRoot[0])
+    {
+        char seedGame[MAX_PATH];
+        join(seedGame, sizeof(seedGame), seedRoot, name);
+        if (isFolder(seedGame))
+            log_info("seed folder: %d file(s) of %s seeded", seedFolder(seedGame, gameWriteDir, ""), seedGame);
+        else
+            log_info("seed folder: no %s, nothing to seed", seedGame);
+    }
 }
 
 #else
@@ -410,9 +492,10 @@ void writeDirEnterGame(const char *gameName)
 #include <sys/stat.h>
 #include <unistd.h>
 
-void writeDirSettings(const char *writeDir, char **configPath, char **controlsPath)
+void writeDirSettings(const char *writeDir, const char *seedDir, char **configPath, char **controlsPath)
 {
     (void)writeDir;
+    (void)seedDir;
     (void)configPath;
     (void)controlsPath;
 }

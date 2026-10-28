@@ -6,6 +6,9 @@
 // cards), saves, logs, temporary files, compiled shaders. A file read is taken from WRITE_DIR\<game> when it is there,
 // else from the game's folder; a file opened to be modified is copied there first. With a write filter on the disk
 // (UWF), WRITE_DIR is the one folder left writable, and the games' folders can be on a read-only network share.
+// The seed folder (--seed-dir PATH, or [Paths] SEED_DIR), with a write folder only: <seed>\<game> holds the files
+// WRITE_DIR\<game> starts with in place of the game folder's (a link cabinet's NVRAM, its LINK ID set in the test
+// menu), copied there when the game starts, a file already in WRITE_DIR\<game> never replaced.
 // Windows only: elsewhere the paths go through unchanged.
 
 #include <stddef.h>
@@ -16,10 +19,12 @@ extern "C"
 {
 #endif
 
-    // Before the settings are read. writeDir: the command line's, else [Paths] WRITE_DIR of *configPath. When there is
-    // one, *configPath and *controlsPath become WRITE_DIR's linuxloader.ini and controls.ini.
-    void writeDirSettings(const char *writeDir, char **configPath, char **controlsPath);
-    // Once the game is known, before it runs: WRITE_DIR\<game> made and made the current folder.
+    // Before the settings are read. writeDir, seedDir: the command line's, else [Paths] WRITE_DIR and SEED_DIR of
+    // *configPath, relative to the loader's folder. When there is a write folder, *configPath and *controlsPath become
+    // WRITE_DIR's linuxloader.ini and controls.ini.
+    void writeDirSettings(const char *writeDir, const char *seedDir, char **configPath, char **controlsPath);
+    // Once the game is known, before it runs: WRITE_DIR\<game> made and made the current folder, <seed>\<game>'s files
+    // copied there where it has none of theirs.
     void writeDirEnterGame(const char *gameName);
     int writeDirActive(void);
     // The game's folder, the current one before writeDirEnterGame: 0 when the write folder is not in use
