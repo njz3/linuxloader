@@ -58,6 +58,10 @@ char *sharedStrncpy(char *dest, const char *src, size_t n)
                 return _strncpy(dest, "../../data/compiledmesa", n);
             break;
     }
+    if (gGrp == GROUP_VF5 && getConfig()->enableNetworkPatches)
+        if (strcmp(src, "eth0") == 0)
+            return _strncpy(dest, getConfig()->nicName, 16);
+
     return _strncpy(dest, src, n);
 }
 
@@ -144,7 +148,6 @@ int sharedUnsetenv(const char *name)
     return _putenv_s(name, "");
 #endif
 }
-
 
 struct tm *sharedLocaltime_R(const time_t *timep, struct tm *result)
 {

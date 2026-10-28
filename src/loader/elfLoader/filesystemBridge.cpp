@@ -144,9 +144,11 @@ namespace FileSystemBridge
         MAP("select", sharedSelect);
         MAP("creat", bridgeCreat);
         MAP("mkdir", sharedMkdir);
+        MAP("rmdir", bridgeRmdir);
         MAP("getcwd", bridgeGetcwd);
         MAP("opendir", bridgeOpendir);
         MAP("readdir", bridgeReaddir);
+        MAP("readdir_r", bridgeReaddir_r);
         MAP("readdir64_r", bridgeReaddir64R);
         MAP("rewinddir", bridgeRewinddir);
         MAP("closedir", bridgeClosedir);
@@ -361,6 +363,16 @@ namespace FileSystemBridge
         return _creat(writeDirForWrite(winPath, 0, redirected, sizeof(redirected)), mode);
     }
 
+    int bridgeRmdir(const char *path)
+    {
+        if (strncmp(path, "/home/disk2/ram/tmp", 4) == 0)
+            return 0;
+
+        char winPath[MAX_PATH];
+        ConvertPath(winPath, path, MAX_PATH);
+        return _rmdir(winPath);
+    }
+
     char *bridgeGetcwd(char *buf, size_t size)
     {
         if (buf != nullptr)
@@ -510,6 +522,22 @@ extern "C"
         }
 
         return &dir->ent;
+    }
+
+    // readdir_r: the next entry as readdir gives it, the write folder's included, copied into the caller's
+    int bridgeReaddir_r(void *dirp, struct linux_dirent *entry, struct linux_dirent **result)
+    {
+        if (!dirp || !entry || !result)
+            return -1;
+        struct linux_dirent *ent = bridgeReaddir(dirp);
+        if (!ent)
+        {
+            *result = NULL;
+            return 0;
+        }
+        memcpy(entry, ent, sizeof(*entry));
+        *result = entry;
+        return 0;
     }
 
     int bridgeClosedir(void *dirp)

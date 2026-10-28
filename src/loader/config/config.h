@@ -122,6 +122,14 @@
 
 typedef enum
 {
+    SATELLITE = 0x80,
+    SERVER = 0x81,
+    TV = 0x82,
+    TERMINAL = 0x83
+} VF5CabinetMode;
+
+typedef enum
+{
     YELLOW,
     RED,
     BLUE,
@@ -345,7 +353,7 @@ typedef struct
     float idSteeringPercentageReduction;
     int phScreenMode;
     int phTestScreenSingle;
-    int phUseZink;
+    VF5CabinetMode vf5CabinetMode;
     int disableBuiltinFont;
     int disableBuiltinLogos;
     int hideCursor;

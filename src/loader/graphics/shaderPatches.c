@@ -23,6 +23,7 @@
 #include "../config/config.h"
 #include "../patching/flowControl.h"
 #include "../log/log.h"
+#include "glEntryRealign.h"
 #include "shaderWork/common.h"
 #include "nvProgramToArb.h"
 
@@ -546,6 +547,10 @@ void gl_ProgramStringARB(int target, int program_fmt, int program_len, char *pro
 
     if (gId == GHOST_SQUAD_EVOLUTION_SBNJ)
     {
+        //   Patch to prevent speckles in the final render.
+        if (target == GL_FRAGMENT_PROGRAM_ARB && getConfig()->GPUVendor == INTEL_GPU)
+            newProgram = replaceInBlock(program, gsevoIntelFs, gsevoIntelFsCount, "", "");
+
         if (addr == (void *)0x8179fab)
         {
             newProgram = replaceInBlock(program, gsevoSet1, gsevoSetCount1, "", "");
@@ -643,9 +648,14 @@ void gl_ProgramStringARB(int target, int program_fmt, int program_len, char *pro
     }
     else if ((gGrp == GROUP_ID4_JAP || gGrp == GROUP_ID4_EXP || gGrp == GROUP_ID5) && getConfig()->GPUVendor == ATI_GPU)
     {
-        if (strstr(program, "vertex.attrib[1]") != NULL)
-            return;
-        newProgram = replaceInBlock(program, idFsAti, idFsAtiCount, "", "");
+        if (target == GL_VERTEX_PROGRAM_ARB)
+        {
+            char *split = splitParamLiterals(program);
+            if (split != NULL)
+                newProgram = split;
+        }
+        else
+            newProgram = replaceInBlock(program, idFsAti, idFsAtiCount, "", "");
     }
     else if (gGrp == GROUP_ID4_JAP || gGrp == GROUP_ID4_EXP || gGrp == GROUP_ID5)
     {
@@ -925,6 +935,46 @@ void gl_ShaderSourceARB(GLhandleARB shaderObj, GLsizei count, const GLcharARB **
     }
 }
 
+/* Same reasoning as glxStackAlign.c: the Lindbergh binaries predate the i386
+ * ABI's 16-byte stack guarantee and do not honour it, so any entry point they
+ * call straight into a modern driver has to realign first. The loader is built
+ * with -mincoming-stack-boundary=2 which already forces this, but the explicit
+ * attribute is kept so the shim keeps working if that flag is ever dropped. */
+#if defined(__GNUC__) && defined(__i386__)
+#define REALIGN __attribute__((force_align_arg_pointer))
+#else
+#define REALIGN
+#endif
+
+/**
+ *   Realigning passthrough for glProgramStringARB.
+ *
+ *   The games do not import glProgramStringARB; they fetch it through
+ *   glXGetProcAddressARB and stash it in one of their _gl* pointers. That means
+ *   it cannot be interposed as a symbol, and it also means the driver is entered
+ *   with the game's own %esp. Sega Race TV hands it a stack that is not 16-byte
+ *   aligned, and Mesa stores xmm registers to its own frame with vmovaps inside
+ *   yyparse (reached from _mesa_parse_arb_program), which raises #GP -- delivered
+ *   as SIGSEGV -- the moment the incoming stack is misaligned.
+ *
+ *   This realigns and forwards, nothing else. In particular the caller's length
+ *   is passed through untouched rather than recomputed with strlen, because the
+ *   length is part of the ARB program API and the caller is not obliged to
+ *   NUL-terminate within it.
+ */
+REALIGN void gl_ProgramStringARBRealign(int target, int program_fmt, int program_len, const void *program)
+{
+    glad_glProgramStringARB((GLenum)target, (GLenum)program_fmt, (GLsizei)program_len, program);
+}
+
+/* Driver entry points handed back to the game are called straight out of its
+ * own frame, so on Linux they go out behind a realigning trampoline. */
+#ifdef __linux__
+#define DRIVER_PROC(fn) glRealignWrap((void *)(fn))
+#else
+#define DRIVER_PROC(fn) ((void *)(fn))
+#endif
+
 /**
  * This function intercepts glXGetProcAddressARB
  * to point non existing functions to existing functions
@@ -940,21 +990,21 @@ void *gl_XGetProcAddressARB(const unsigned char *procName)
             if (dbgMsg)
                 log_debug("%s Intercepted.\n", procName);
 
-            return (void *)glad_glGenQueriesARB;
+            return DRIVER_PROC(glad_glGenQueriesARB);
         }
         else if (strcmp((const char *)procName, "glDeleteOcclusionQueriesNV") == 0)
         {
             if (dbgMsg)
                 log_debug("%s Intercepted.\n", procName);
 
-            return (void *)glad_glDeleteQueriesARB;
+            return DRIVER_PROC(glad_glDeleteQueriesARB);
         }
         else if (strcmp((const char *)procName, "glIsOcclusionQueryNV") == 0)
         {
             if (dbgMsg)
                 log_debug("%s Intercepted.\n", procName);
 
-            return (void *)glad_glIsQueryARB;
+            return DRIVER_PROC(glad_glIsQueryARB);
         }
         else if (strcmp((const char *)procName, "glBeginOcclusionQueryNV") == 0)
         {
@@ -975,14 +1025,14 @@ void *gl_XGetProcAddressARB(const unsigned char *procName)
             if (dbgMsg)
                 log_debug("%s Intercepted.\n", procName);
 
-            return (void *)glad_glGetQueryObjectuivARB;
+            return DRIVER_PROC(glad_glGetQueryObjectuivARB);
         }
         else if (strcmp((const char *)procName, "glGetOcclusionQueryuivNV") == 0)
         {
             if (dbgMsg)
                 log_debug("%s Intercepted.\n", procName);
 
-            return (void *)glad_glGenQueriesARB;
+            return DRIVER_PROC(glad_glGetQueryObjectuivARB);
         }
         else if (strcmp((const char *)procName, "glBeginConditionalRenderNVX") == 0)
         {
@@ -996,7 +1046,7 @@ void *gl_XGetProcAddressARB(const unsigned char *procName)
             if (dbgMsg)
                 log_debug("%s Intercepted.\n", procName);
 
-            return (void *)glad_glEndConditionalRender;
+            return DRIVER_PROC(glad_glEndConditionalRender);
         }
         if (strstr((const char *)procName, "glProgramParameters4fvNV") != NULL)
         {
@@ -1005,22 +1055,23 @@ void *gl_XGetProcAddressARB(const unsigned char *procName)
 
             if (getConfig()->GPUVendor == ATI_GPU && gGrp == GROUP_LGJ)
                 return 0;
-            return (void *)glad_glProgramEnvParameters4fvEXT;
+            return DRIVER_PROC(glad_glProgramEnvParameters4fvEXT);
         }
-        else 
-        if (strstr((const char *)procName, "glProgramEnvParameters4fv\0") != NULL && getConfig()->GPUVendor != ATI_GPU && getConfig()->GPUVendor != INTEL_GPU)
+        else if (strstr((const char *)procName, "glProgramEnvParameters4fv\0") != NULL && getConfig()->GPUVendor != ATI_GPU &&
+                 getConfig()->GPUVendor != INTEL_GPU)
         {
             if (dbgMsg)
                 log_debug("%s Intercepted.\n", procName);
 
-            return (void *)glad_glProgramEnvParameters4fvEXT;
+            return DRIVER_PROC(glad_glProgramEnvParameters4fvEXT);
         }
-        else if (strstr((const char *)procName, "glProgramLocalParameters4fv\0") != NULL && getConfig()->GPUVendor != ATI_GPU && getConfig()->GPUVendor != INTEL_GPU)
+        else if (strstr((const char *)procName, "glProgramLocalParameters4fv\0") != NULL && getConfig()->GPUVendor != ATI_GPU &&
+                 getConfig()->GPUVendor != INTEL_GPU)
         {
             if (dbgMsg)
                 log_debug("%s Intercepted.\n", procName);
 
-            return (void *)glad_glProgramLocalParameters4fvEXT;
+            return DRIVER_PROC(glad_glProgramLocalParameters4fvEXT);
         }
         else if (strcmp((const char *)procName, "glGetObjectParameterivARB\0") == 0)
         {
@@ -1047,8 +1098,17 @@ void *gl_XGetProcAddressARB(const unsigned char *procName)
         return (void *)gl_ProgramStringARB;
     }
 
+    if (strcmp((const char *)procName, "glProgramStringARB\0") == 0)
+    {
+        if (dbgMsg)
+        {
+            printf("glProgramStringARB Intercepted.\n");
+        }
+        return (void *)gl_ProgramStringARBRealign;
+    }
+
 #ifdef __linux__
-    return glXGetProcAddressARB(procName);
+    return glRealignWrap((void *)glXGetProcAddressARB(procName));
 #else
     return GLHooks_GetProcAddress((const char *)procName);
     // return SDL_GL_GetProcAddress(procName);
@@ -1106,13 +1166,11 @@ GLboolean gl_IsProgramNV(GLuint program)
 #undef glBindTexture
 void glBindTexture(GLenum target, GLuint texture)
 {
-    // void (*_glBindTexture)(GLenum target, GLuint texture) = dlsym(RTLD_NEXT, "glBindTexture");
-    // _glBindTexture(target, texture);
 #else
 void bridgeglBindTexture(GLenum target, GLuint texture)
 {
 #endif
-    if(!glad_glBindTexture)
+    if (!glad_glBindTexture)
         return;
 
     glad_glBindTexture(target, texture);
@@ -1236,7 +1294,7 @@ char *findLibCg()
             free(pathsToCheck[0]);
             pathsToCheck[0] = NULL;
         }
-        if(pathsToCheck[0] == NULL)
+        if (pathsToCheck[0] == NULL)
         {
             pathLen = strlen(envPath) + strlen("/libCg2.so") + 1;
             pathsToCheck[0] = malloc(pathLen);
@@ -1249,7 +1307,7 @@ char *findLibCg()
         }
     }
 
-    if(pathsToCheck[0] == NULL) 
+    if (pathsToCheck[0] == NULL)
     {
         envPath = getenv("LINUX_LOADER_DEPS_PATH");
         if (envPath != NULL)
@@ -1257,7 +1315,7 @@ char *findLibCg()
             size_t pathLen = strlen(envPath) + strlen("/libCg2.so") + 1;
             pathsToCheck[0] = malloc(pathLen);
             snprintf(pathsToCheck[0], pathLen, "%s/libCg2.so", envPath);
-            if(access(pathsToCheck[0], F_OK) != 0)
+            if (access(pathsToCheck[0], F_OK) != 0)
             {
                 free(pathsToCheck[0]);
                 pathsToCheck[0] = NULL;

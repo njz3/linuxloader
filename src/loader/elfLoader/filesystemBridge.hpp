@@ -211,6 +211,7 @@ namespace FileSystemBridge
     int bridgeChmod(const char *filename, int pmode);
 
     int bridgeCreat(const char *pathname, int mode);
+    int bridgeRmdir(const char *path);
     char *bridgeGetcwd(char *buf, size_t size);
 } // namespace FileSystemBridge
 extern "C"
@@ -222,6 +223,7 @@ extern "C"
 
     void *bridgeOpendir(const char *name);
     struct linux_dirent *bridgeReaddir(void *dirp);
+    int bridgeReaddir_r(void *dirp, struct linux_dirent *entry, struct linux_dirent **result);
     int bridgeReaddir64R(void *dirp, struct linux_dirent64 *entry, struct linux_dirent64 **result);
     void bridgeRewinddir(void *dirp);
     int bridgeClosedir(void *dirp);

@@ -1200,7 +1200,7 @@ extern "C" void __attribute__((cdecl)) wrap_glCopyTexSubImage2D(GLenum target, G
                                                                 GLsizei width, GLsizei height)
 {
     if (glad_glCopyTexSubImage2D)
-        glad_glCopyTexSubImage2D(target, level, xoffset, yoffset, x, y, width, height);
+        bridgeglCopyTexSubImage2D(target, level, xoffset, yoffset, x, y, width, height);
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glBufferDataARB(GLenum target, GLsizeiptrARB size, const GLvoid *data, GLenum usage)
@@ -1956,7 +1956,10 @@ extern "C" void __attribute__((cdecl)) wrap_glCompressedTexImage2DARB(GLenum tar
                                                                       GLsizei height, GLint border, GLsizei imageSize, const void *data)
 {
     if (glad_glCompressedTexImage2DARB)
+    {
         glad_glCompressedTexImage2DARB(target, level, internalformat, width, height, border, imageSize, data);
+        gsevoBleedAlpha(target, level, internalformat, width, height);
+    }
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width,
@@ -1978,7 +1981,10 @@ extern "C" void __attribute__((cdecl)) wrap_glCompressedTexImage2D(GLenum target
                                                                    GLsizei height, GLint border, GLsizei imageSize, const void *data)
 {
     if (glad_glCompressedTexImage2D)
+    {
         glad_glCompressedTexImage2D(target, level, internalformat, width, height, border, imageSize, data);
+        gsevoBleedAlpha(target, level, internalformat, width, height);
+    }
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glTexImage1D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border,

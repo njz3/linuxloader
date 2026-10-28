@@ -232,8 +232,6 @@ const std::unordered_map<std::string, const char *> &frenchTexts()
         {"Touch screen below", "Écran tactile en dessous"},
         {"Test menu on one screen", "Menu de test sur un écran"},
         {"The test menu on the main screen alone.", "Le menu de test sur l'écran principal seul."},
-        {"Render with Zink", "Rendu avec Zink"},
-        {"A special OpenGL library that fixes the graphic glitches.", "Une bibliothèque OpenGL spéciale qui corrige les défauts graphiques."},
         {"Playable at any time", "Jouable à toute heure"},
         {"The game also runs at the hours its servers refused.", "Le jeu tourne aussi aux heures que ses serveurs refusaient."},
         {"Other gun display", "Autre affichage des armes"},

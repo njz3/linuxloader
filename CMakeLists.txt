@@ -86,7 +86,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "Linux" AND NOT MINGW AND NOT CMAKE_C_COMPILER MATC
     target_compile_options(linuxloader_exe PRIVATE ${LINUXLOADER_EXE_C_FLAGS})
 
     # Common options for shared libraries
-    set(LIBS_C_FLAGS -m32 -fPIC -shared)
+    set(LIBS_C_FLAGS -m32 -mincoming-stack-boundary=2 -fPIC -shared)
     set(SHARED_LINKER_FLAGS -m32 -Wl,-z,defs -rdynamic)
 
     # libkswapapi.so
@@ -102,14 +102,14 @@ if(CMAKE_SYSTEM_NAME MATCHES "Linux" AND NOT MINGW AND NOT CMAKE_C_COMPILER MATC
 
     # libsegaapi.so
     add_library(segaapi SHARED src/loader/audio/lindbergh/libsegaapi/libsegaapi.c)
-    set(LIBSEGAAPI_C_FLAGS -m32 -fPIC -shared)
+    set(LIBSEGAAPI_C_FLAGS -m32 -mincoming-stack-boundary=2 -fPIC -shared)
     set(LIBSEGAAPI_LINKER_FLAGS -O0 -g -m32 -Wl,-Bstatic -lFAudio -Wl,-Bdynamic -fPIC -shared)
     target_link_libraries(segaapi ${LIBSEGAAPI_LINKER_FLAGS})
     target_compile_options(segaapi PRIVATE ${LIBSEGAAPI_C_FLAGS})
 
     # linuxloader.so
     set(LINUX_LOADER_SO_LINKER_FLAGS -m32 -Wl,-z,defs -rdynamic -static-libstdc++ -static-libgcc -lc -ldl -lGL -lglut -lX11 -lXcursor -lSDL3 -lSDL3_ttf -lSDL3_image -ludev -lm -lpthread -shared -lstdc++ -nostdlib)
-    set(LINUX_LOADER_SO_C_FLAGS -g -fPIC -m32 -Wall -Wno-unused-variable -Wno-unused-function -D_GNU_SOURCE -Wno-format-truncation -Wno-strict-aliasing -Wno-discarded-qualifiers -Wno-stringop-truncation -Wno-format-overflow)
+    set(LINUX_LOADER_SO_C_FLAGS -g -fPIC -m32 -mincoming-stack-boundary=2 -Wall -Wno-unused-variable -Wno-unused-function -D_GNU_SOURCE -Wno-format-truncation -Wno-strict-aliasing -Wno-discarded-qualifiers -Wno-stringop-truncation -Wno-format-overflow)
     file(GLOB LINUX_LOADER_OBJS
         src/loader/init.c
         src/loader/mainL.c
@@ -213,9 +213,9 @@ elseif(WIN32 OR MINGW OR CMAKE_C_COMPILER MATCHES "mingw")
             /wd4996 # deprecated POSIX names
         )
 
-        # Increase stack size to 4MB to prevent stack overflow on startup
+        # 4 MB reserved and committed: the guest emits no stack probes, so a large frame skips the guard page
         target_link_options(${PROJECT_NAME} PRIVATE
-            /STACK:4194304
+            /STACK:4194304,4194304
             /LARGEADDRESSAWARE
         )
 
@@ -225,7 +225,11 @@ elseif(WIN32 OR MINGW OR CMAKE_C_COMPILER MATCHES "mingw")
             gdi32 winmm ole32 ws2_32 psapi usp10 rpcrt4 setupapi version imm32 hid dbghelp iphlpapi opengl32
         )
     else()
+        # Guest code is i386 SysV and needs a 16-byte aligned ESP at every call;
+        # MinGW defaults to 4, so both flags are required to realign native->guest calls.
         target_compile_options(${PROJECT_NAME} PRIVATE
+            -mincoming-stack-boundary=2
+            -mpreferred-stack-boundary=4
             -Wall
             -Wextra
             -fpermissive
@@ -236,17 +240,18 @@ elseif(WIN32 OR MINGW OR CMAKE_C_COMPILER MATCHES "mingw")
             -Wstrict-aliasing=0
         )
 
-        # Increase stack size to 4MB to prevent stack overflow on startup
+        # 4 MB reserved AND committed: the guest emits no stack probes, so a large
+        # frame skips the guard page. -Wl, splits on commas and drops the commit value.
         target_link_options(${PROJECT_NAME} PRIVATE
             -s
-            -Wl,--stack,4194304
+            "-Xlinker" "--stack" "-Xlinker" "4194304,4194304"
             -Wl,--large-address-aware
         )
 
         # Link dependencies
         target_link_directories(${PROJECT_NAME} PRIVATE "libs/win32")
         target_link_libraries(${PROJECT_NAME}
-            minhook xdiff -Wl,-Bstatic SDL3 SDL3_ttf SDL3_image FAudio freetype harfbuzz winpthread stdc++ gcc gcc_eh -Wl,-Bdynamic gdi32 winmm ole32 ws2_32 psapi usp10 rpcrt4 setupapi version imm32 hid delayimp
+            minhook xdiff -Wl,-Bstatic SDL3 SDL3_ttf SDL3_image FAudio freetype harfbuzz winpthread stdc++ gcc gcc_eh -Wl,-Bdynamic gdi32 winmm ole32 ws2_32 psapi usp10 rpcrt4 setupapi version imm32 hid delayimp iphlpapi
         )
     endif()
 

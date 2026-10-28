@@ -31,7 +31,7 @@
 
 extern uint32_t gId;
 extern int gGrp;
-extern DeviceType hooks[5];
+extern int hooks[DEVICE_COUNT];
 
 // What FA 00 address reads, read on a cold board: 00 to 0F hold the last 80 to 8F, 1D the last 9D; 10 (the state)
 // and 14 (the encoder) are worked out when read
@@ -255,7 +255,7 @@ ssize_t driveboardWrite(int fd, const void *buf, size_t count)
             // }
             processDrivePacket(buffer, 1);
             // The replies are read on the first port only
-            if (fd == (int)hooks[SERIAL0])
+            if (fd == hooks[SERIAL0])
                 boardCommand(buffer);
             sdlFfbDriveboard(buffer, 4);
             if (count != 7)
@@ -340,7 +340,7 @@ void processDrivePacket(uint8_t *buf, int player)
 // tcflush on the board's port: 0 the input, 1 the output, 2 both. Only the replies wait here.
 void driveboardFlush(int fd, int queue)
 {
-    if (getConfig()->emulateDriveboard && fd == (int)hooks[SERIAL0] && (queue == 0 || queue == 2))
+    if (getConfig()->emulateDriveboard && fd == hooks[SERIAL0] && (queue == 0 || queue == 2))
     {
         replyFrames = 0;
         replyOffset = 0;

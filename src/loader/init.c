@@ -46,9 +46,10 @@ void initMain(char *configPath, char *controlsPath)
     controlsPath = getenv("LINUX_LOADER_CONTROLS_PATH");
     if (controlsPath == NULL || controlsPath[0] == '\0')
         controlsPath = "";
-#endif
 
+#endif
     initConfig(configPath);
+
 
     gId = getConfig()->crc32;
     gGrp = getConfig()->gameGroup;
@@ -71,6 +72,10 @@ void initMain(char *configPath, char *controlsPath)
         exit(1);
     }
 
+    if (initEeprom() != 0)
+        exit(1);
+    log_info("EEPROM initialized");
+
     if (initPatch() != 0)
         exit(1);
     log_info("Patches initialized");
@@ -88,10 +93,6 @@ void initMain(char *configPath, char *controlsPath)
     if (initSDL() != 0)
         exit(1);
     log_info("SDL initialized");
-
-    if (initEeprom() != 0)
-        exit(1);
-    log_info("EEPROM initialized");
 
     if (initBaseboard() != 0)
         exit(1);

@@ -54,14 +54,17 @@ namespace MathBridge
         MAP("sqrtf", bridge_sqrtf);
         MAP("div", bridge_div);
         MAP("ldiv", bridge_div); // long is int on i386
-        MAP("ldexp", bridge_ldexp);
-        MAP("roundf", bridge_roundf);
         MAP("difftime", bridge_difftime);
         MAP("finitef", bridge_finitef);
         MAP("finite", bridge_finite);
         MAP("frexp", bridge_frexp);
         MAP("frexpf", bridge_frexpf);
+        MAP("roundf", bridge_roundf);
+        MAP("round", bridge_round);
         MAP("ldexpf", bridge_ldexpf);
+        MAP("ldexp", bridge_ldexp);
+        MAP("trunc", bridge_trunc);
+        MAP("truncf", bridge_truncf);
         MAP("fabsf", bridge_fabsf);
         MAP("ceil", bridge_ceil);
         MAP("floor", bridge_floor);
@@ -75,8 +78,11 @@ namespace MathBridge
         MAP("strtold", bridge_strtold);
         MAP("strtoul", bridge_strtoul);
         MAP("frexpl", bridge_frexpl);
+        MAP("fabs", bridge_fabs);
+        MAP("nextafterf", bridge_nextafterf);
+        MAP("nextafter", bridge_nextafter);
     }
-}   
+} // namespace MathBridge
 
 extern "C" double bridge_log(double x)
 {
@@ -268,17 +274,21 @@ extern "C" float bridge_frexpf(float x, int *exp)
 {
     return ::frexpf(x, exp);
 }
-extern "C" float bridge_ldexpf(float x, int exp)
+extern "C" float bridge_roundf(float x)
 {
-    return ::ldexpf(x, exp);
+    return ::roundf(x);
+}
+extern "C" double bridge_round(double x)
+{
+    return ::round(x);
 }
 extern "C" double bridge_ldexp(double x, int exp)
 {
     return ::ldexp(x, exp);
 }
-extern "C" float bridge_roundf(float x)
+extern "C" float bridge_ldexpf(float x, int exp)
 {
-    return ::roundf(x);
+    return ::ldexpf(x, exp);
 }
 // time_t is 32 bits in the games
 extern "C" double bridge_difftime(int end, int start)
@@ -286,9 +296,29 @@ extern "C" double bridge_difftime(int end, int start)
     return (double)end - (double)start;
 }
 
+extern "C" double bridge_trunc(double x)
+{
+    return ::trunc(x);
+}
+extern "C" float bridge_truncf(float x)
+{
+    return ::truncf(x);
+}
 extern "C" float bridge_fabsf(float x)
 {
     return ::fabsf(x);
+}
+extern "C" double bridge_fabs(double x)
+{
+    return ::fabs(x);
+}
+extern "C" double bridge_nextafter(double x, double y)
+{
+    return ::nextafter(x, y);
+}
+extern "C" float bridge_nextafterf(float x, float y)
+{
+    return ::nextafterf(x, y);
 }
 
 extern "C" double bridge_ceil(double x)

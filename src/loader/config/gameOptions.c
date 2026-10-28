@@ -132,8 +132,6 @@ const GameOption gameOptionTable[] = {
      FIELD(phScreenMode), false, phModes, phModeLabels, 0, 4, true, primevalHunt},
     {"PRIMEVAL_HUNT_TEST_SCREEN_SINGLE", "Test menu on one screen", "The test menu on the main screen alone.",
      GAME_OPTION_SWITCH, FIELD(phTestScreenSingle), false, NULL, NULL, 0, 1, true, primevalHunt},
-    {"PRIMEVAL_HUNT_USE_ZINK", "Render with Zink", "A special OpenGL library that fixes the graphic glitches.",
-     GAME_OPTION_SWITCH, FIELD(phUseZink), false, NULL, NULL, 0, 1, true, primevalHunt},
     {"MJ4_ENABLED_ALL_THE_TIME", "Playable at any time", "The game also runs at the hours its servers refused.",
      GAME_OPTION_SWITCH, FIELD(mj4EnabledAtT), false, NULL, NULL, 0, 1, true, mahjong},
     {"RAMBO_GUNS_SWITCH", "Other gun display", "The cabinet's switch that changes how the guns are shown.",

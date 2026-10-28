@@ -44,14 +44,18 @@ namespace MathBridge
     extern "C" float bridge_sqrtf(float x);
 
     extern "C" void bridge_div(void); // div and ldiv, with the i386 Linux struct return: see mathBridge.cpp
-    extern "C" double bridge_ldexp(double x, int exp);
-    extern "C" float bridge_roundf(float x);
     extern "C" double bridge_difftime(int end, int start);
     extern "C" int bridge_finite(double x);
     extern "C" int bridge_finitef(float x);
     extern "C" double bridge_frexp(double x, int *exp);
     extern "C" float bridge_frexpf(float x, int *exp);
+    extern "C" float bridge_roundf(float x);
+    extern "C" double bridge_round(double x);
+    extern "C" double bridge_ldexp(double x, int exp);
     extern "C" float bridge_ldexpf(float x, int exp);
+    extern "C" double bridge_trunc(double x);
+    extern "C" float bridge_truncf(float x);
+    extern "C" double bridge_fabs(double x);
     extern "C" float bridge_fabsf(float x);
     extern "C" double bridge_ceil(double x);
     extern "C" double bridge_floor(double x);
@@ -61,6 +65,8 @@ namespace MathBridge
     extern "C" long bridge_lrint(double x);
     extern "C" void bridge_sincos(double x, double *s, double *c);
     extern "C" void bridge_sincosf(float x, float *s, float *c);
+    extern "C" double bridge_nextafter(double x, double y);
+    extern "C" float bridge_nextafterf(float x, float y);
     extern "C" float bridge_strtof(const char *text, char **end);
     extern "C" double bridge_strtold(const char *text, char **end);
     extern "C" unsigned long bridge_strtoul(const char *text, char **end, int base);

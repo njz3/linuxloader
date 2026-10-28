@@ -29,6 +29,8 @@ void initBlitting();
 void blitSetWidthandHeightSize();
 int blitInitializeFbo();
 void blitStretch();
+void blitWindowToRender(float windowX, float windowY, float *renderX, float *renderY);
+void blitRenderToWindow(float renderX, float renderY, float *windowX, float *windowY);
 // Window size for a game rendering renderW x renderH, in the windowed display mode at the configured aspect ratio
 void blitWindowedSize(int renderW, int renderH, int *w, int *h);
 
