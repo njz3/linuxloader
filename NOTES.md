@@ -95,6 +95,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 127 | 28/10 | (relayée par la session « Image borne ») Amorcer le dossier d'écriture d'un jeu depuis un dossier de modèles, pas seulement depuis le dossier du jeu : les NVRAM d'une cabine link (LINK ID, siège) ne peuvent pas vivre dans le dossier du jeu, commun au solo et au link | ✅ `--seed-dir PATH` ou `[Paths] SEED_DIR` (relatif au dossier du chargeur, ou chemin complet), avec un dossier d'écriture seulement : au lancement du jeu, `<seed>\<jeu>` est recopié dans `WRITE_DIR\<jeu>`, sans jamais remplacer un fichier déjà là, une ligne de journal par fichier ; sans l'option rien ne change ; MinGW et MSVC, OutRun 2 ; branche `dev/seed-dir`, non poussée (voir journal) |
 | 126 | 28/10 | Merge avec upstream | ✅ `lindbergh-loader/linuxloader` `4ffa095` (3.0.13 : VF5, alignement de pile, GSEvo, pbuffers en FBO, libsegaapi complète, shaders Race TV et Initial D) fusionné dans `dev/ffbedition` (`0b3f5a9`) ; 15 fichiers en conflit résolus ; plantage d'OutRun au départ de la course causé par un correctif d'upstream sur les ELF déjà patchés, corrigé ; MinGW et MSVC, OutRun jusqu'en course ; non poussé (voir journal) |
 | 125 | 28/10 | Commit, push, une release, prévenir Image borne | ✅ rien de plus à commiter, déjà poussé jusqu'à `8752305` ; `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261028-njz3-win32.zip` ; Image borne prévenue (voir journal) |
 | 124 | 27/10 | D'autres utilisateurs disent que les pédales ne marchent pas : vérifier les axes analogiques dans le menu de test | ✅ le jeu lit bien ses axes (OutRun, INPUT TEST : `00H` à `FFH`, `7FH` à mi-course, volant `00H`/`7FH`/`FFH`) ; par vJoy et `controls.ini`, une pédale qui repose en haut de son axe donne `FFH` au repos, au milieu `7FH`, et sans `controls.ini` l'accélérateur attend l'axe 5 (absent sur vJoy et bien des volants) ; la capture de Tab > Contrôles n'ajoutait jamais `_INVERTED` ni `_SIDE`. Corrigé : la capture prend le mode d'après la position de repos, les barres montrent la pédale telle qu'elle est lue, les liaisons par défaut suivent le BFF (accélérateur Y−, frein Z−) ; vérifié avec vJoy dans INPUT TEST, MinGW (voir journal) |
@@ -159,6 +160,38 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Dossier de modèles du dossier d'écriture (demande 127)
+- Demande du propriétaire relayée par la session « Image borne (Berstett) ». Avec `--write-dir`, un fichier du jeu
+  était recopié dans `WRITE_DIR\<jeu>` depuis le dossier du jeu à sa première ouverture en écriture. Mais le dossier
+  du jeu est commun au solo et au link : les NVRAM propres à une cabine link (LINK ID ou siège réglés au menu de test)
+  ne peuvent pas y vivre. Elles sont gardées en modèles à côté de l'exe, rangées comme le dossier d'écriture
+  (`saves_link_cab1\outrun2-rev-a\eeprom.bin`, `sram.bin`, `rankingdata\…`, `hummer-ext\…`, `id4-exp-rev-d\…`,
+  `id5-exp-20\…`). Jusqu'ici le lanceur link les recopiait par xcopy ; le propriétaire veut que l'émulateur le fasse,
+  comme les autres, Build-Config posant le modèle de la cabine dans un dossier en place.
+- `--seed-dir PATH` (ou `--seed-dir=PATH`), à défaut `[Paths] SEED_DIR` du même `linuxloader.ini` que `WRITE_DIR`
+  (celui à côté du chargeur, avant la copie dans le dossier d'écriture) ; relatif au dossier du chargeur, comme
+  `WRITE_DIR`, ou chemin complet. Sans dossier d'écriture : un avertissement, et rien d'autre. Dossier introuvable :
+  un avertissement, les fichiers viennent du dossier du jeu comme avant.
+- `writeDirEnterGame`, une fois `WRITE_DIR\<jeu>` fait et avant que le jeu ne lise ou ne liste quoi que ce soit :
+  `<seed>\<jeu>` (le même nom court que `WRITE_DIR\<jeu>`) est recopié récursivement dans `WRITE_DIR\<jeu>` ; un
+  fichier déjà présent n'est jamais remplacé. Une ligne par fichier, « write folder: eeprom.bin seeded from
+  <chemin> », puis « seed folder: N file(s) of <dossier> seeded », ou « no <dossier>, nothing to seed » (journal
+  `info` : `LL_LOG=info` pour les voir). Recopier tout au lancement plutôt qu'à chaque ouverture : les lectures (le jeu
+  lit son eeprom avant de l'écrire) et les listages de dossiers (`rankingdata`) voient le modèle sans autre changement.
+- Aussi : `[Paths] SEED_DIR` (vide) avec son commentaire dans le `linuxloader.ini` généré ; `--write-dir` et
+  `--seed-dir` dans `--help` (Windows). Linux : sans effet, comme `--write-dir`.
+- Essais avec OutRun 2 (`games\outrun2spdx`), mode agent caché, MinGW puis MSVC, `LL_LOG=info` ; modèle :
+  `seed\outrun2-rev-a\eeprom.bin` (celui du jeu, un octet changé) et `rankingdata\seedtest.txt` :
+  - dossier d'écriture vide, `--seed-dir` : les deux fichiers amorcés, le journal donne leur provenance ; l'eeprom du
+    dossier d'écriture est celle du modèle ;
+  - relancé, le modèle changé : 0 fichier amorcé, eeprom et témoin inchangés ;
+  - sans `--seed-dir`, dossier d'écriture vide : aucune ligne d'amorçage, l'eeprom vient du dossier du jeu, comme
+    avant ;
+  - `[Paths] WRITE_DIR` et `SEED_DIR = "saves"` dans le `linuxloader.ini` à côté du chargeur : `saves` résolu dans
+    son dossier, les deux fichiers amorcés.
+- Sur la branche `dev/seed-dir` (worktree `git_linuxloader_seeddir`, partie de `dev/ffbedition` à `baf2d51`, la
+  fusion avec upstream non poussée) ; non poussée, pas encore dans une release.
 
 ### Merge avec upstream (demande 126)
 - Upstream : `lindbergh-loader/linuxloader` (le parent du fork njz3), remote `upstream` ajouté. Un seul commit depuis
