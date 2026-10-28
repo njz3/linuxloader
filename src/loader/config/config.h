@@ -373,7 +373,7 @@ typedef struct
     int ffbInvert; // [ForceFeedback] FFB_INVERT: the drive board's torque pushes the other way
     char ffbDevice[128]; // [ForceFeedback] FFB_DEVICE: AUTO or the name of the device the effects go to
     char gamesDir[MAX_PATH_LENGTH]; // [Launcher] GAMES_DIR: the folder the game picker lists
-    char language[8];               // [Launcher] LANGUAGE: auto, en or fr
+    char language[16];              // [Launcher] LANGUAGE: auto, en or a lang/*.po's name (fr)
     int settingsMenu;               // [Launcher] SETTINGS_MENU: Tab opens the settings over a running game
     char idIpSeat1[16];
     char idIpSeat2[16];

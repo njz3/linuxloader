@@ -206,7 +206,8 @@ int createDefaultIni(const char *filePath)
     fprintf(file, "[Launcher]\n");
     fprintf(file, "# Folder the game picker lists when linuxloader starts without a game (empty: games next to the program)\n");
     fprintf(file, "GAMES_DIR = %s\n\n", defaults.gamesDir);
-    fprintf(file, "# Language of the picker and of the Tab settings: auto, en or fr\n");
+    fprintf(file, "# Language of the picker and of the Tab settings: auto (the system's), en, or a .po file's name from the lang\n");
+    fprintf(file, "# folder next to the program (fr for lang/fr.po)\n");
     fprintf(file, "LANGUAGE = %s\n\n", defaults.language);
     fprintf(file, "# Set to false on a public cabinet: Tab no longer opens the settings over a running game (which pauses it)\n");
     fprintf(file, "SETTINGS_MENU = %s\n\n", defaults.settingsMenu ? "true" : "false");

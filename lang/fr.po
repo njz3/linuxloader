@@ -1,0 +1,1228 @@
+# French translation of the Lindbergh Loader's interface.
+# This file is distributed under the same license as the Lindbergh Loader package.
+msgid ""
+msgstr ""
+"Project-Id-Version: Lindbergh Loader\n"
+"Report-Msgid-Bugs-To: https://github.com/njz3/linuxloader/issues\n"
+"POT-Creation-Date: 2026-10-28 14:53+0100\n"
+"PO-Revision-Date: 2026-10-28 15:00+0100\n"
+"Last-Translator: njz3\n"
+"Language-Team: French\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Language-Name: Français\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: src/loader/gui/guiCommon.cpp
+msgid ""
+"Games whose render size is patched:\n"
+"  OutRun 2 SP SDX: any size above 800x480 (640x480 is the Chihiro mode)\n"
+"  Sega Race TV: any size, with black bars of its own beyond 4:3\n"
+"  R-Tuned: any size\n"
+"  Initial D 4: any size (the service menu stays at 1360x768)\n"
+"  Hummer, Hummer Extreme: any size, TeknoParrot's 2560x1440 in kernel.nut "
+"too\n"
+"Patched, not tried here:\n"
+"  After Burner Climax, Harley-Davidson, Rambo, Too Spicy, Virtua Fighter 5,\n"
+"  House of the Dead 4 and EX, Let's Go Jungle: any size\n"
+"  Initial D 5: 1360x768 and above\n"
+"  House of the Dead 4 Special: above 1024x768\n"
+"  Primeval Hunt: above 1280x480\n"
+"  Virtua Tennis 3: above 1360x768\n"
+"  Let's Go Jungle Special: the width chosen, the height follows at 16:9\n"
+"Fixed size: Ghost Squad Evolution, Mahjong Fight Club 4.\n"
+"Other games, Dead Heat included: keep Native."
+msgstr ""
+"Jeux dont la taille de rendu se patche :\n"
+"  OutRun 2 SP SDX : toute taille au-delà de 800x480 (640x480 est le mode "
+"Chihiro)\n"
+"  Sega Race TV : toute taille, avec ses propres bandes noires au-delà du "
+"4:3\n"
+"  R-Tuned : toute taille\n"
+"  Initial D 4 : toute taille (le menu de service reste en 1360x768)\n"
+"  Hummer, Hummer Extreme : toute taille, même avec le 2560x1440 du kernel."
+"nut de TeknoParrot\n"
+"Patchés, pas essayés ici :\n"
+"  After Burner Climax, Harley-Davidson, Rambo, Too Spicy, Virtua Fighter 5,\n"
+"  House of the Dead 4 et EX, Let's Go Jungle : toute taille\n"
+"  Initial D 5 : 1360x768 et au-delà\n"
+"  House of the Dead 4 Special : au-delà de 1024x768\n"
+"  Primeval Hunt : au-delà de 1280x480\n"
+"  Virtua Tennis 3 : au-delà de 1360x768\n"
+"  Let's Go Jungle Special : la largeur choisie, la hauteur suit en 16:9\n"
+"Taille fixe : Ghost Squad Evolution, Mahjong Fight Club 4.\n"
+"Autres jeux, Dead Heat compris : laisser Native."
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Takes effect at the next start."
+msgstr "Prend effet au prochain démarrage."
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Settings"
+msgstr "Paramètres"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Display"
+msgstr "Affichage"
+
+#: src/loader/gui/guiCommon.cpp
+#, c-format
+msgid "%d x %d (custom)"
+msgstr "%d x %d (personnalisée)"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Native (AUTO)"
+msgstr "Native (AUTO)"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Internal resolution"
+msgstr "Résolution interne"
+
+#: src/loader/gui/guiCommon.cpp
+msgid ""
+"The size the game computes and draws its frame at, when it can be patched "
+"to; then fitted to the aspect ratio and shown by the display mode. Takes "
+"effect at the next start."
+msgstr ""
+"La taille à laquelle le jeu calcule et dessine son image, quand on peut le "
+"patcher ; elle est ensuite recadrée selon le rapport d'aspect et affichée "
+"selon le mode. Prise en compte au prochain lancement."
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Hover the list for the games it works with."
+msgstr "Survolez la liste pour voir les jeux concernés."
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Original"
+msgstr "Original"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "4:3, black bars"
+msgstr "4:3, bandes noires"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "16:9, black bars"
+msgstr "16:9, bandes noires"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "4:3, stretched"
+msgstr "4:3, étiré"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "16:9, stretched"
+msgstr "16:9, étiré"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "4:3, cropped"
+msgstr "4:3, recadré"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "16:9, cropped"
+msgstr "16:9, recadré"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Aspect ratio"
+msgstr "Rapport d'aspect"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Crop position"
+msgstr "Position du recadrage"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "-100: left or top, 0: the middle, 100: right or bottom."
+msgstr "-100 : à gauche ou en haut, 0 : au milieu, 100 : à droite ou en bas."
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Bend the cut parts onto the edges"
+msgstr "Courber les parties coupées sur les bords"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Undistorted middle"
+msgstr "Milieu non déformé"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Curvature radius"
+msgstr "Rayon de courbure"
+
+#: src/loader/gui/guiCommon.cpp
+#, no-c-format
+msgid ""
+"The whole picture stays visible: the middle (in % of the frame) as cropped, "
+"the parts the crop would cut squeezed onto the edges as on a cylinder seen "
+"from the front. A small radius bends hard at the edge, a large one squeezes "
+"evenly."
+msgstr ""
+"L'image reste entière : le milieu (en % du cadre) comme recadré, les parties "
+"que le recadrage couperait comprimées sur les bords comme sur un cylindre vu "
+"de face. Un petit rayon courbe fort au bord, un grand comprime uniformément."
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Original: the shape of the game's render resolution."
+msgstr "Original : la forme de la résolution de rendu du jeu."
+
+#: src/loader/gui/guiCommon.cpp
+msgid ""
+"Black bars: the frame's shape, with the whole picture inside at its own "
+"shape and black bars where the shapes differ. Stretched: the picture fills "
+"the frame, deformed. Cropped: the picture fills the frame at its own shape, "
+"cut on the sides (or above and below); the crop position moves the part "
+"kept. The display mode then fits the frame to the window or the screen, or "
+"stretches it."
+msgstr ""
+"Bandes noires : la forme du cadre, avec l'image entière dedans à ses propres "
+"proportions et des bandes noires là où les formes diffèrent. Étiré : l'image "
+"remplit le cadre, déformée. Recadré : l'image remplit le cadre à ses "
+"proportions, coupée sur les côtés (ou en haut et en bas) ; la position du "
+"recadrage déplace la partie gardée. Le mode d'affichage ajuste ensuite le "
+"cadre à la fenêtre ou à l'écran, ou l'étire."
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Window, square pixels"
+msgstr "Fenêtre, pixels carrés"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Window, stretched"
+msgstr "Fenêtre étirée"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Full screen"
+msgstr "Plein écran"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Full screen, stretched"
+msgstr "Plein écran étiré"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Borderless fullscreen window"
+msgstr "Plein écran fenêtré (sans bordure)"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Borderless fullscreen window, stretched"
+msgstr "Plein écran fenêtré étiré"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Display mode"
+msgstr "Mode d'affichage"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Limit the frame rate"
+msgstr "Limiter la fréquence d'images"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Target frame rate"
+msgstr "Fréquence visée"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Show the frame rate (F12)"
+msgstr "Afficher la fréquence d'images (F12)"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Hide the mouse pointer"
+msgstr "Masquer le pointeur de la souris"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Controls"
+msgstr "Contrôles"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Game options"
+msgstr "Options du jeu"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Outputs and network"
+msgstr "Sorties et réseau"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Send lamps and drive board data over the network (MAME outputs)"
+msgstr ""
+"Envoyer les lampes et la carte de commande sur le réseau (sorties MAME)"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "TCP port"
+msgstr "Port TCP"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "UDP announcement port"
+msgstr "Port UDP d'annonce"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Network patches"
+msgstr "Correctifs réseau"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Sega Race TV IP address"
+msgstr "Adresse IP de Sega Race TV"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Picker"
+msgstr "Catalogue"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Games folder"
+msgstr "Dossier des jeux"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Empty: the games folder next to the program."
+msgstr "Vide : le dossier games à côté du programme."
+
+#: src/loader/gui/guiCommon.cpp src/loader/gui/guiControls.cpp
+msgid "Automatic"
+msgstr "Automatique"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Language"
+msgstr "Langue"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "The translations: the lang folder's .po files, next to the program."
+msgstr ""
+"Les traductions : les fichiers .po du dossier lang, à côté du programme."
+
+#: src/loader/gui/guiCommon.cpp
+msgid "About"
+msgstr "À propos"
+
+#: src/loader/gui/guiCommon.cpp
+msgid ""
+"Interface based on sm2-emu's, by Daniel Martin (dmanlfc) and the sm2-emu "
+"contributors, modified for the Lindbergh loader:"
+msgstr ""
+"Interface basée sur celle de sm2-emu, de Daniel Martin (dmanlfc) et des "
+"contributeurs de sm2-emu, modifiée pour le Lindbergh loader :"
+
+#: src/loader/gui/guiCommon.cpp
+msgid ""
+"Controls page organised as Flycast's, the Dreamcast, Naomi and Atomiswave "
+"emulator:"
+msgstr ""
+"Page des contrôles organisée comme celle de Flycast, l'émulateur Dreamcast, "
+"Naomi et Atomiswave :"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Save"
+msgstr "Sauvegarder"
+
+#: src/loader/gui/guiCommon.cpp
+#, c-format
+msgid "Cannot write %s"
+msgstr "Impossible d'écrire %s"
+
+#: src/loader/gui/guiCommon.cpp
+#, c-format
+msgid "Saved to %s and controls.ini"
+msgstr "Sauvegardé dans %s et controls.ini"
+
+#: src/loader/gui/guiCommon.cpp
+#, c-format
+msgid "Saved to %s"
+msgstr "Sauvegardé dans %s"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Save for this game"
+msgstr "Sauvegarder pour ce jeu"
+
+#: src/loader/gui/guiCommon.cpp
+#, c-format
+msgid "Saved to %s (this game only)"
+msgstr "Sauvegardé dans %s (ce jeu seulement)"
+
+#: src/loader/gui/guiCommon.cpp src/loader/gui/guiControls.cpp
+msgid "Close"
+msgstr "Fermer"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Test"
+msgstr "Test"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Coin"
+msgstr "Pièce"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Start"
+msgstr "Départ"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Service"
+msgstr "Service"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Exit the game"
+msgstr "Quitter le jeu"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Steering"
+msgstr "Volant"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Accelerator"
+msgstr "Accélérateur"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Brake"
+msgstr "Frein"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Steer left"
+msgstr "Volant à gauche"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Steer right"
+msgstr "Volant à droite"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Accelerator (digital)"
+msgstr "Accélérateur (tout ou rien)"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Brake (digital)"
+msgstr "Frein (tout ou rien)"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Gear up"
+msgstr "Vitesse +"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Gear down"
+msgstr "Vitesse −"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Change view"
+msgstr "Changer de vue"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Change music"
+msgstr "Changer de musique"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Boost"
+msgstr "Boost"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Boost right"
+msgstr "Boost droit"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Up"
+msgstr "Haut"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Down"
+msgstr "Bas"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Left"
+msgstr "Gauche"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Right"
+msgstr "Droite"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Button 1"
+msgstr "Bouton 1"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Button 2"
+msgstr "Bouton 2"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Button 3"
+msgstr "Bouton 3"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Insert card"
+msgstr "Insérer la carte"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Insert card 1"
+msgstr "Insérer la carte 1"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Insert card 2"
+msgstr "Insérer la carte 2"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Trigger"
+msgstr "Gâchette"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Reload"
+msgstr "Recharger"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Gun button"
+msgstr "Bouton du pistolet"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Action button"
+msgstr "Bouton d'action"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Left pedal"
+msgstr "Pédale gauche"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Right pedal"
+msgstr "Pédale droite"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Gun X"
+msgstr "Pistolet X"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Gun Y"
+msgstr "Pistolet Y"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Stick X"
+msgstr "Manche X"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Stick Y"
+msgstr "Manche Y"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Stick left"
+msgstr "Manche à gauche"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Stick right"
+msgstr "Manche à droite"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Stick up"
+msgstr "Manche en haut"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Stick down"
+msgstr "Manche en bas"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Throttle"
+msgstr "Manette des gaz"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Throttle up"
+msgstr "Gaz +"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Throttle down"
+msgstr "Gaz −"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Gun trigger"
+msgstr "Gâchette du canon"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Missile trigger"
+msgstr "Tir de missile"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Climax switch"
+msgstr "Bouton Climax"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Gun X centring"
+msgstr "Centrage du pistolet X"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Gun Y centring"
+msgstr "Centrage du pistolet Y"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Screen shake: increase"
+msgstr "Tremblement de l'écran : montée"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Screen shake: decay"
+msgstr "Tremblement de l'écran : retombée"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Screen shake: minimum"
+msgstr "Tremblement de l'écran : minimum"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Insert card: toggle"
+msgstr "Insérer la carte : bascule"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Insert card 1: toggle"
+msgstr "Insérer la carte 1 : bascule"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Insert card 2: toggle"
+msgstr "Insérer la carte 2 : bascule"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keyboard"
+msgstr "Clavier"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Mouse"
+msgstr "Souris"
+
+#: src/loader/gui/guiControls.cpp
+msgid " (half)"
+msgstr " (moitié)"
+
+#: src/loader/gui/guiControls.cpp
+msgid " (pedal)"
+msgstr " (pédale)"
+
+#: src/loader/gui/guiControls.cpp
+msgid " (inverted)"
+msgstr " (inversé)"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Left button"
+msgstr "Bouton gauche"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Right button"
+msgstr "Bouton droit"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Middle button"
+msgstr "Bouton du milieu"
+
+#: src/loader/gui/guiControls.cpp
+msgid "X axis"
+msgstr "Axe X"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Y axis"
+msgstr "Axe Y"
+
+#: src/loader/gui/guiControls.cpp
+#, c-format
+msgid "Button %d"
+msgstr "Bouton %d"
+
+#: src/loader/gui/guiControls.cpp
+#, c-format
+msgid "Axis %d"
+msgstr "Axe %d"
+
+#: src/loader/gui/guiControls.cpp
+msgid "up"
+msgstr "haut"
+
+#: src/loader/gui/guiControls.cpp
+msgid "down"
+msgstr "bas"
+
+#: src/loader/gui/guiControls.cpp
+msgid "left"
+msgstr "gauche"
+
+#: src/loader/gui/guiControls.cpp
+msgid "right"
+msgstr "droite"
+
+#: src/loader/gui/guiControls.cpp
+#, c-format
+msgid "Hat %d"
+msgstr "Chapeau %d"
+
+#: src/loader/gui/guiControls.cpp
+msgid "All games"
+msgstr "Tous les jeux"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Driving"
+msgstr "Conduite"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Buttons"
+msgstr "Boutons"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Flying"
+msgstr "Vol"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Shooting"
+msgstr "Tir"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Mahjong"
+msgstr "Mahjong"
+
+#: src/loader/gui/guiControls.cpp
+#, c-format
+msgid "Player %d"
+msgstr "Joueur %d"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Map"
+msgstr "Lier"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Unmap"
+msgstr "Délier"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Bindings"
+msgstr "Liaisons"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Reset..."
+msgstr "Réinitialiser..."
+
+#: src/loader/gui/guiControls.cpp
+msgid "Set this device's bindings back to the defaults?"
+msgstr "Remettre les liaisons de ce périphérique par défaut ?"
+
+#: src/loader/gui/guiControls.cpp src/loader/gui/guiGameOptions.cpp
+msgid "Yes"
+msgstr "Oui"
+
+#: src/loader/gui/guiControls.cpp
+msgid "No"
+msgstr "Non"
+
+#: src/loader/gui/guiControls.cpp
+msgid "This section of controls.ini is empty."
+msgstr "Cette section de controls.ini est vide."
+
+#: src/loader/gui/guiControls.cpp
+#, c-format
+msgid "Press an input of %s for: %s"
+msgstr "Appuyez sur une commande de %s pour : %s"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Escape: cancel"
+msgstr "Échap : annuler"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Cancel"
+msgstr "Annuler"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Device"
+msgstr "Périphérique"
+
+#: src/loader/gui/guiControls.cpp
+msgid " (not connected)"
+msgstr " (non connecté)"
+
+#: src/loader/gui/guiControls.cpp
+#, c-format
+msgid "Forces sent to: %s"
+msgstr "Forces envoyées à : %s"
+
+#: src/loader/gui/guiControls.cpp
+msgid "no device"
+msgstr "aucun périphérique"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Devices"
+msgstr "Périphériques"
+
+#: src/loader/gui/guiControls.cpp src/loader/gui/guiGameOptions.cpp
+msgid "Name"
+msgstr "Nom"
+
+#: src/loader/gui/guiControls.cpp
+msgid "In controls.ini"
+msgstr "Dans controls.ini"
+
+#: src/loader/gui/guiControls.cpp
+msgid " (force feedback)"
+msgstr " (retour de force)"
+
+#: src/loader/gui/guiControls.cpp
+msgid "No controller connected."
+msgstr "Aucune manette branchée."
+
+#: src/loader/gui/guiControls.cpp src/loader/gui/guiGameOptions.cpp
+msgid "Force feedback"
+msgstr "Retour de force"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Strength"
+msgstr "Intensité"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Invert the direction"
+msgstr "Inverser le sens"
+
+#: src/loader/gui/guiControls.cpp
+msgid ""
+"Strength of the drive board's forces on the wheel, in percent of the board's "
+"full scale. The games ask for about a quarter to a half of it."
+msgstr ""
+"Intensité des forces de la carte de commande sur le volant, en pourcentage "
+"de sa pleine échelle. Les jeux en demandent environ un quart à la moitié."
+
+#: src/loader/gui/guiControls.cpp
+msgid ""
+"Check it if the wheel pulls away from the centre or turns the wrong way in a "
+"collision."
+msgstr ""
+"Cochez si le volant fuit le centre ou part du mauvais côté lors d'un choc."
+
+#: src/loader/gui/guiControls.cpp
+msgid ""
+"The force feedback starts with the game, on the chosen device or else the "
+"first controller's."
+msgstr ""
+"Le retour de force démarre avec le jeu, sur le périphérique choisi ou sinon "
+"celui de la première manette."
+
+#: src/loader/gui/guiControls.cpp
+msgid "Dead zones and options"
+msgstr "Zones mortes et options"
+
+#: src/loader/gui/guiGameOptions.cpp
+#, c-format
+msgid "Real board on %s"
+msgstr "Vraie carte sur %s"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "(not found)"
+msgstr "(absent)"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Emulated"
+msgstr "Émulée"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "(at the next start)"
+msgstr "(au prochain lancement)"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Controls on Namco N2 I/O board (n2jvio, serial)"
+msgstr "Contrôles sur carte d'E/S Namco N2 (n2jvio, série)"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Motor board: none"
+msgstr "Carte moteur : aucune"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Motor board: Namco Kickback board (serial)"
+msgstr "Carte moteur : carte Kickback de Namco (série)"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Controls on Gaelco interface board"
+msgstr "Contrôles sur carte d'interface Gaelco"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Motor board: Gaelco interface board's motor and vibrator outputs"
+msgstr ""
+"Carte moteur : sorties moteur et vibreur de la carte d'interface Gaelco"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Controls on JVS board"
+msgstr "Contrôles sur carte JVS"
+
+#: src/loader/gui/guiGameOptions.cpp src/loader/config/gameOptions.c
+msgid "base board"
+msgstr "carte de base"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Motor board: Sega-like servoboard"
+msgstr "Carte moteur : servoboard type Sega"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Motion board: Sega motion board"
+msgstr "Carte de mouvement : carte de mouvement Sega"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Ride board: Sega ride board"
+msgstr "Carte de siège mobile : ride board Sega"
+
+#: src/loader/gui/guiGameOptions.cpp src/loader/gui/picker.cpp
+#, c-format
+msgid "%s: %s"
+msgstr "%s : %s"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Link between cabinets"
+msgstr "Link entre bornes"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Unknown game"
+msgstr "Jeu inconnu"
+
+#: src/loader/gui/guiGameOptions.cpp
+#, c-format
+msgid "In [%s] of %s, for this game only."
+msgstr "Dans [%s] de %s, pour ce jeu seulement."
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "No options for this game."
+msgstr "Aucune option pour ce jeu."
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Boards"
+msgstr "Cartes"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid ""
+"A real board: the game talks to the cabinet's board on that serial port of "
+"the PC (a USB adapter, RS-232 for the drive board, RS-485 for JVS) instead "
+"of the loader's emulation."
+msgstr ""
+"Vraie carte : le jeu dialogue avec la carte de la borne sur ce port série du "
+"PC (un adaptateur USB, RS-232 pour la carte moteur, RS-485 pour le JVS) au "
+"lieu de l'émulation du loader."
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Changed options take effect at the next start, once saved."
+msgstr ""
+"Les options changées prennent effet au prochain lancement, une fois "
+"enregistrées."
+
+#: src/loader/gui/guiGameOptions.cpp
+#, c-format
+msgid "%s, bit %d"
+msgstr "%s, bit %d"
+
+#: src/loader/gui/guiGameOptions.cpp
+#, c-format
+msgid "Kickback board lamp %s"
+msgstr "Lampe %s de la carte Kickback"
+
+#: src/loader/gui/guiGameOptions.cpp
+#, c-format
+msgid "Kickback board lamp %d"
+msgstr "Lampe %d de la carte Kickback"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Cabinet lamp"
+msgstr "Lampe de la cabine"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Coin meter"
+msgstr "Compteur de pièces"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Sound mute"
+msgstr "Coupure du son"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Platform"
+msgstr "Plateforme"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Siren button lamp"
+msgstr "Lampe du bouton de sirène"
+
+#: src/loader/gui/guiGameOptions.cpp
+#, c-format
+msgid "port 0x%X"
+msgstr "port 0x%X"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Platform security"
+msgstr "Sécurité de la plateforme"
+
+#: src/loader/gui/guiGameOptions.cpp
+#, c-format
+msgid "interface board output %d"
+msgstr "sortie %d de la carte d'interface"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Start lamp"
+msgstr "Lampe Start"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Driver lamp"
+msgstr "Lampe de pilote"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "View change lamp"
+msgstr "Lampe de changement de vue"
+
+#: src/loader/gui/guiGameOptions.cpp
+#, c-format
+msgid "JVS output %d"
+msgstr "Sortie JVS %d"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "text"
+msgstr "texte"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "The game's name, the first line a client gets"
+msgstr "Le nom du jeu, la première ligne que reçoit un client"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "byte, 0 to 255"
+msgstr "octet, 0 à 255"
+
+#: src/loader/gui/guiGameOptions.cpp
+#, c-format
+msgid "Lamps %d to %d, lamp %d on bit 7"
+msgstr "Lampes %d à %d, la lampe %d sur le bit 7"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "0 or 1"
+msgstr "0 ou 1"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "byte, 0 to 255, one line each"
+msgstr "octet, 0 à 255, une ligne chacun"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid ""
+"The motor board's bytes, as the Sega servo board's frames: command, two "
+"values, checksum"
+msgstr ""
+"Les octets de la carte moteur, en trames de la carte servo Sega : commande, "
+"deux valeurs, somme de contrôle"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "When the game exits"
+msgstr "Quand le jeu s'arrête"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "What this game sends"
+msgstr "Ce que ce jeu envoie"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Type"
+msgstr "Type"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Meaning"
+msgstr "Signification"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Value"
+msgstr "Valeur"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid ""
+"Each line goes as \"name = value\" on the TCP port, at each change; a client "
+"that connects gets every known value first. Value: the last sent."
+msgstr ""
+"Chaque ligne part en « nom = valeur » sur le port TCP, à chaque changement ; "
+"un client qui se connecte reçoit d'abord toutes les valeurs connues. "
+"Valeur : la dernière envoyée."
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid ""
+"The values show while the outputs are on (from the next start once checked "
+"and saved)."
+msgstr ""
+"Les valeurs s'affichent quand les sorties sont activées (au prochain "
+"lancement, une fois cochées et enregistrées)."
+
+#: src/loader/gui/guiOverlay.cpp
+msgid "Game paused - Tab: close the settings"
+msgstr "Jeu en pause - Tab : fermer les paramètres"
+
+#: src/loader/gui/picker.cpp
+msgid "Working"
+msgstr "Fonctionne"
+
+#: src/loader/gui/picker.cpp
+msgid "Not working"
+msgstr "Ne fonctionne pas"
+
+#: src/loader/gui/picker.cpp
+msgid "Partially working"
+msgstr "Fonctionne en partie"
+
+#: src/loader/gui/picker.cpp
+msgid "Select a game"
+msgstr "Choisissez un jeu"
+
+#: src/loader/gui/picker.cpp
+msgid "Enter: launch   Tab: settings   F9: quit"
+msgstr "Entrée : lancer   Tab : paramètres   F9 : quitter"
+
+#: src/loader/gui/picker.cpp
+#, c-format
+msgid ""
+"No game was found in %s. Set the games folder in Settings (Tab) > Picker."
+msgstr ""
+"Aucun jeu trouvé dans %s. Réglez le dossier des jeux dans Paramètres (Tab) > "
+"Catalogue."
+
+#: src/loader/gui/picker.cpp
+msgid "Unknown version of the game"
+msgstr "Version du jeu inconnue"
+
+#: src/loader/gui/picker.cpp
+msgid "Status"
+msgstr "État"
+
+#: src/loader/gui/picker.cpp
+msgid "Native resolution"
+msgstr "Résolution native"
+
+#: src/loader/gui/picker.cpp
+msgid "Folder"
+msgstr "Dossier"
+
+#: src/loader/gui/picker.cpp
+msgid "Program"
+msgstr "Programme"
+
+#: src/loader/gui/picker.cpp
+msgid "Configuration"
+msgstr "Configuration"
+
+#: src/loader/config/gameOptions.c
+msgid "Default (no scaling)"
+msgstr "Par défaut (sans mise à l'échelle)"
+
+#: src/loader/config/gameOptions.c
+msgid "No touch screen"
+msgstr "Sans écran tactile"
+
+#: src/loader/config/gameOptions.c
+msgid "Side by side"
+msgstr "Côte à côte"
+
+#: src/loader/config/gameOptions.c
+msgid "Touch screen on the right"
+msgstr "Écran tactile à droite"
+
+#: src/loader/config/gameOptions.c
+msgid "Touch screen below"
+msgstr "Écran tactile en dessous"
+
+#: src/loader/config/gameOptions.c
+msgid "Play without the card reader"
+msgstr "Jouer sans le lecteur de cartes"
+
+#: src/loader/config/gameOptions.c
+msgid ""
+"As when its test menu's CARD R/W is OFF: no card check at start, games "
+"without a card. Unticked, the test menu decides; with CARD R/W ON the card "
+"reader-printer is emulated, its card in [Cards] CARDFILE_01 (the card key "
+"inserts it), and the start waits for the link check (about 5 minutes)."
+msgstr ""
+"Comme avec CARD R/W à OFF dans son menu de test : pas de contrôle des cartes "
+"au démarrage, parties sans carte. Décoché, c'est le menu de test qui "
+"décide ; avec CARD R/W à ON, le lecteur-imprimante est émulé, sa carte dans "
+"[Cards] CARDFILE_01 (la touche carte l'insère), et le démarrage attend la "
+"liaison entre bornes (environ 5 minutes)."
+
+#: src/loader/config/gameOptions.c
+msgid "Skip the cabinet checks"
+msgstr "Sauter les contrôles de la borne"
+
+#: src/loader/config/gameOptions.c
+msgid "The drive board and tower checks of the start skipped."
+msgstr ""
+"Les contrôles de la carte servo et de la tour au démarrage sont sautés."
+
+#: src/loader/config/gameOptions.c
+msgid "Fix the flickering"
+msgstr "Corriger le scintillement"
+
+#: src/loader/config/gameOptions.c
+msgid "A shader patch for the flickering some graphics cards show."
+msgstr ""
+"Une correction des shaders pour le scintillement de certaines cartes "
+"graphiques."
+
+#: src/loader/config/gameOptions.c
+msgid "Emulate the card reader"
+msgstr "Émuler le lecteur de cartes"
+
+#: src/loader/config/gameOptions.c
+msgid "The players' cards kept in files (Cards section)."
+msgstr "Les cartes des joueurs gardées dans des fichiers (section Cards)."
+
+#: src/loader/config/gameOptions.c
+msgid "Steering travel used"
+msgstr "Course du volant utilisée"
+
+#: src/loader/config/gameOptions.c
+#, no-c-format
+msgid ""
+"In % of the wheel's travel: a smaller turn of the wheel for a full turn in "
+"the game. 0: the whole travel."
+msgstr ""
+"En % de la course du volant : un plus petit tour de volant pour un tour "
+"complet dans le jeu. 0 : toute la course."
+
+#: src/loader/config/gameOptions.c
+msgid "Chinese language"
+msgstr "Langue chinoise"
+
+#: src/loader/config/gameOptions.c
+msgid "The game in Chinese (DVP-0084 and DVP-0084A)."
+msgstr "Le jeu en chinois (DVP-0084 et DVP-0084A)."
+
+#: src/loader/config/gameOptions.c
+msgid "The HW210 IC card reader, its cards kept in files."
+msgstr ""
+"Le lecteur de cartes à puce HW210, ses cartes gardées dans des fichiers."
+
+#: src/loader/config/gameOptions.c
+msgid "Render with the Mesa patches"
+msgstr "Rendu avec les corrections Mesa"
+
+#: src/loader/config/gameOptions.c
+msgid "The shaders patched as for Mesa's drivers."
+msgstr "Les shaders corrigés comme pour les pilotes Mesa."
+
+#: src/loader/config/gameOptions.c
+msgid "Screens"
+msgstr "Écrans"
+
+#: src/loader/config/gameOptions.c
+msgid "Where the touch screen goes beside the main one."
+msgstr "Où va l'écran tactile à côté de l'écran principal."
+
+#: src/loader/config/gameOptions.c
+msgid "Test menu on one screen"
+msgstr "Menu de test sur un écran"
+
+#: src/loader/config/gameOptions.c
+msgid "The test menu on the main screen alone."
+msgstr "Le menu de test sur l'écran principal seul."
+
+#: src/loader/config/gameOptions.c
+msgid "Playable at any time"
+msgstr "Jouable à toute heure"
+
+#: src/loader/config/gameOptions.c
+msgid "The game also runs at the hours its servers refused."
+msgstr "Le jeu tourne aussi aux heures que ses serveurs refusaient."
+
+#: src/loader/config/gameOptions.c
+msgid "Other gun display"
+msgstr "Autre affichage des armes"
+
+#: src/loader/config/gameOptions.c
+msgid "The cabinet's switch that changes how the guns are shown."
+msgstr "L'interrupteur de la borne qui change l'affichage des armes."
+
+#: src/loader/config/gameOptions.c
+msgid "Swap handlebar and throttle"
+msgstr "Échanger guidon et poignée"
+
+#: src/loader/config/gameOptions.c
+msgid "For JVS passthrough: the two analogue channels swapped."
+msgstr "Pour le JVS direct : les deux voies analogiques échangées."
+
+#: src/loader/config/gameOptions.c
+msgid "Crosshairs always shown"
+msgstr "Viseurs toujours affichés"
+
+#: src/loader/config/gameOptions.c
+msgid "Crosshairs always hidden"
+msgstr "Viseurs toujours cachés"
+
+#: src/loader/config/gameOptions.c
+msgid "Drive board"
+msgstr "Carte moteur du volant"
+
+#: src/loader/config/gameOptions.c
+msgid "Motion board"
+msgstr "Carte de mouvement"
+
+#: src/loader/config/gameOptions.c
+msgid "JVS I/O board"
+msgstr "Carte JVS"

@@ -458,9 +458,9 @@ struct Picker
             ImGui::TextDisabled("%s", gui::tr("Unknown version of the game"));
         else
         {
-            ImGui::Text("%s : %s", gui::tr("Status"), statusText(cur.status));
+            ImGui::Text(gui::tr("%s: %s"), gui::tr("Status"), statusText(cur.status));
             if (!cur.resolution.empty())
-                ImGui::Text("%s : %s", gui::tr("Native resolution"), cur.resolution.c_str());
+                ImGui::Text(gui::tr("%s: %s"), gui::tr("Native resolution"), cur.resolution.c_str());
             for (const std::string &line : cur.boards)
                 ImGui::TextUnformatted(line.c_str());
         }

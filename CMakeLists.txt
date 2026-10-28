@@ -180,6 +180,10 @@ elseif(WIN32 OR MINGW OR CMAKE_C_COMPILER MATCHES "mingw")
         WINVER=0x0600
     )
 
+    # The interface's translations (lang/*.po, the template, the README), next to the program
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/lang $<TARGET_FILE_DIR:${PROJECT_NAME}>/lang)
+
     if(MSVC)
         # Dependencies come from vcpkg (see vcpkg.json, triplet x86-windows-static)
         find_package(SDL3 CONFIG REQUIRED)

@@ -510,8 +510,9 @@ bool hasSpaces(const char *path)
 
 // --list-games [csv]: the games the loader knows, one a line: short name, version (the DVP number), the executable
 // the game's folder holds, the CRC32 of its clean file (several when it had several releases, none when not known),
-// the game's name. The CRC32 is for information only: the loader recognizes a game by its code, and runs an
-// executable whose CRC32 is another (patched), only saying it is not a clean one.
+// the game's name, then whether the loader gives it force feedback and a link between cabinets. The CRC32 is for
+// information only: the loader recognizes a game by its code, and runs an executable whose CRC32 is another
+// (patched), only saying it is not a clean one.
 static void listGames(bool csv)
 {
     size_t count = gameDataCount();
@@ -522,10 +523,10 @@ static void listGames(bool csv)
         if (pass == 1)
         {
             if (csv)
-                printf("short_name,version,executable,crc32,name\n");
+                printf("short_name,version,executable,crc32,ffb,link,name\n");
             else
-                printf("%-*s  %-*s  %-*s  %-*s  %s\n", shortWidth, "SHORT NAME", versionWidth, "VERSION", elfWidth,
-                       "EXECUTABLE", crcWidth, "CRC32", "NAME");
+                printf("%-*s  %-*s  %-*s  %-*s  %-3s  %-4s  %s\n", shortWidth, "SHORT NAME", versionWidth, "VERSION", elfWidth,
+                       "EXECUTABLE", crcWidth, "CRC32", "FFB", "LINK", "NAME");
         }
         for (size_t i = 0; i < count; i++)
         {
@@ -547,15 +548,18 @@ static void listGames(bool csv)
                 crcWidth = (int)strlen(crcs) > crcWidth ? (int)strlen(crcs) : crcWidth;
             }
             else if (csv)
-                printf("%s,%s,%s,%s,\"%s\"\n", game->gameShortTitle, version, elf, crcs, game->gameTitle);
+                printf("%s,%s,%s,%s,%s,%s,\"%s\"\n", game->gameShortTitle, version, elf, crcs,
+                       gameDataHasFfb(game) ? "yes" : "no", gameDataHasLink(game) ? "yes" : "no", game->gameTitle);
             else
-                printf("%-*s  %-*s  %-*s  %-*s  %s\n", shortWidth, game->gameShortTitle, versionWidth, version, elfWidth,
-                       elf[0] ? elf : "-", crcWidth, crcs[0] ? crcs : "-", game->gameTitle);
+                printf("%-*s  %-*s  %-*s  %-*s  %-3s  %-4s  %s\n", shortWidth, game->gameShortTitle, versionWidth, version,
+                       elfWidth, elf[0] ? elf : "-", crcWidth, crcs[0] ? crcs : "-", gameDataHasFfb(game) ? "yes" : "-",
+                       gameDataHasLink(game) ? "yes" : "-", game->gameTitle);
         }
     }
     if (!csv)
         printf("\n%u games. CRC32: the whole executable of a clean dump, for information only: an executable with another\n"
-               "one (patched) is not refused, the loader recognizes the game by its code.\n",
+               "one (patched) is not refused, the loader recognizes the game by its code. FFB: the loader gives a wheel\n"
+               "force feedback. LINK: it links cabinets over the network ([Network] of linuxloader.ini).\n",
                (unsigned)count);
 }
 
@@ -572,7 +576,8 @@ void printUsage(char *programName)
     printf("  --list-controllers | -l  Lists available controllers and inputs for EVDEV.\n");
 #endif
     printf("  --list-guids       | -lg Lists available SDL controllers GUIDs.\n");
-    printf("  --list-games [csv]       Lists the supported games: short name, version, executable, its CRC32, name\n");
+    printf("  --list-games [csv]       Lists the supported games: short name, version, executable, its CRC32, force\n");
+    printf("                           feedback, link between cabinets, name\n");
     printf("  --version          | -v  Displays the version of the loader and team's names\n");
     printf("  --help             | -h  Displays this usage text\n");
     printf("  --config           | -c  Specifies configuration ini file path (default: linuxloader.ini, or the\n");

@@ -6,6 +6,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+// A text the interface translates later, marked for xgettext (scripts/i18n/update-translations.sh)
+#ifndef N_
+#define N_(text) text
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif

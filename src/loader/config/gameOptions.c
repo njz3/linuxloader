@@ -101,46 +101,47 @@ static bool maximumTune3(void)
 }
 
 static const char *const phModes[] = {"0", "1", "2", "3", "4", NULL};
-static const char *const phModeLabels[] = {"Default (no scaling)", "No touch screen", "Side by side",
-                                           "Touch screen on the right", "Touch screen below", NULL};
+static const char *const phModeLabels[] = {N_("Default (no scaling)"), N_("No touch screen"), N_("Side by side"),
+                                           N_("Touch screen on the right"), N_("Touch screen below"), NULL};
 
 #define FIELD(name) offsetof(EmulatorConfig, name)
 
 const GameOption gameOptionTable[] = {
-    {"NO_CARD_READER", "Play without the card reader",
-     "As when its test menu's CARD R/W is OFF: no card check at start, games without a card. Unticked, the test menu "
-     "decides; with CARD R/W ON the card reader-printer is emulated, its card in [Cards] CARDFILE_01 (the card key "
-     "inserts it), and the start waits for the link check (about 5 minutes).",
+    {"NO_CARD_READER", N_("Play without the card reader"),
+     N_("As when its test menu's CARD R/W is OFF: no card check at start, games without a card. Unticked, the test menu "
+        "decides; with CARD R/W ON the card reader-printer is emulated, its card in [Cards] CARDFILE_01 (the card key "
+        "inserts it), and the start waits for the link check (about 5 minutes)."),
      GAME_OPTION_SWITCH, FIELD(noCardReader), false, NULL, NULL, 0, 1, true, maximumTune3},
-    {"SKIP_OUTRUN_CABINET_CHECK", "Skip the cabinet checks",
-     "The drive board and tower checks of the start skipped.", GAME_OPTION_SWITCH, FIELD(skipOutrunCabinetCheck), false,
+    {"SKIP_OUTRUN_CABINET_CHECK", N_("Skip the cabinet checks"),
+     N_("The drive board and tower checks of the start skipped."), GAME_OPTION_SWITCH, FIELD(skipOutrunCabinetCheck), false,
      NULL, NULL, 0, 1, true, outrun},
-    {"HUMMER_FLICKER_FIX", "Fix the flickering", "A shader patch for the flickering some graphics cards show.",
+    {"HUMMER_FLICKER_FIX", N_("Fix the flickering"), N_("A shader patch for the flickering some graphics cards show."),
      GAME_OPTION_SWITCH, FIELD(hummerFlickerFix), false, NULL, NULL, 0, 1, true, hummer},
-    {"EMULATE_ID_CARDREADER", "Emulate the card reader", "The players' cards kept in files (Cards section).",
+    {"EMULATE_ID_CARDREADER", N_("Emulate the card reader"), N_("The players' cards kept in files (Cards section)."),
      GAME_OPTION_SWITCH, FIELD(emulateIDCardReader), false, NULL, NULL, 0, 1, true, initialD},
-    {"ID_STEERING_REDUCTION_PERCENTAGE", "Steering travel used",
-     "In % of the wheel's travel: a smaller turn of the wheel for a full turn in the game. 0: the whole travel.",
+    {"ID_STEERING_REDUCTION_PERCENTAGE", N_("Steering travel used"),
+     // xgettext:no-c-format (shown as it is)
+     N_("In % of the wheel's travel: a smaller turn of the wheel for a full turn in the game. 0: the whole travel."),
      GAME_OPTION_RANGE, FIELD(idSteeringPercentageReduction), true, NULL, NULL, 0, 100, false, initialD},
-    {"ID5_CHINESE_LANGUAGE", "Chinese language", "The game in Chinese (DVP-0084 and DVP-0084A).", GAME_OPTION_SWITCH,
+    {"ID5_CHINESE_LANGUAGE", N_("Chinese language"), N_("The game in Chinese (DVP-0084 and DVP-0084A)."), GAME_OPTION_SWITCH,
      FIELD(id5ChineseLanguage), false, NULL, NULL, 0, 1, true, initialD5Chinese},
-    {"EMULATE_HW210_CARDREADER", "Emulate the card reader", "The HW210 IC card reader, its cards kept in files.",
+    {"EMULATE_HW210_CARDREADER", N_("Emulate the card reader"), N_("The HW210 IC card reader, its cards kept in files."),
      GAME_OPTION_SWITCH, FIELD(emulateHW210CardReader), false, NULL, NULL, 0, 1, true, hw210CardReader},
-    {"LGJ_RENDER_WITH_MESA", "Render with the Mesa patches", "The shaders patched as for Mesa's drivers.",
+    {"LGJ_RENDER_WITH_MESA", N_("Render with the Mesa patches"), N_("The shaders patched as for Mesa's drivers."),
      GAME_OPTION_SWITCH, FIELD(lgjRenderWithMesa), false, NULL, NULL, 0, 1, true, letsGoJungle},
-    {"PRIMEVAL_HUNT_SCREEN_MODE", "Screens", "Where the touch screen goes beside the main one.", GAME_OPTION_CHOICE,
+    {"PRIMEVAL_HUNT_SCREEN_MODE", N_("Screens"), N_("Where the touch screen goes beside the main one."), GAME_OPTION_CHOICE,
      FIELD(phScreenMode), false, phModes, phModeLabels, 0, 4, true, primevalHunt},
-    {"PRIMEVAL_HUNT_TEST_SCREEN_SINGLE", "Test menu on one screen", "The test menu on the main screen alone.",
+    {"PRIMEVAL_HUNT_TEST_SCREEN_SINGLE", N_("Test menu on one screen"), N_("The test menu on the main screen alone."),
      GAME_OPTION_SWITCH, FIELD(phTestScreenSingle), false, NULL, NULL, 0, 1, true, primevalHunt},
-    {"MJ4_ENABLED_ALL_THE_TIME", "Playable at any time", "The game also runs at the hours its servers refused.",
+    {"MJ4_ENABLED_ALL_THE_TIME", N_("Playable at any time"), N_("The game also runs at the hours its servers refused."),
      GAME_OPTION_SWITCH, FIELD(mj4EnabledAtT), false, NULL, NULL, 0, 1, true, mahjong},
-    {"RAMBO_GUNS_SWITCH", "Other gun display", "The cabinet's switch that changes how the guns are shown.",
+    {"RAMBO_GUNS_SWITCH", N_("Other gun display"), N_("The cabinet's switch that changes how the guns are shown."),
      GAME_OPTION_SWITCH, FIELD(ramboGunsSwitch), false, NULL, NULL, 0, 1, true, rambo},
-    {"HARLEY_ANALOG_REMAP", "Swap handlebar and throttle", "For JVS passthrough: the two analogue channels swapped.",
+    {"HARLEY_ANALOG_REMAP", N_("Swap handlebar and throttle"), N_("For JVS passthrough: the two analogue channels swapped."),
      GAME_OPTION_SWITCH, FIELD(harleyAnalogRemap), false, NULL, NULL, 0, 1, true, harley},
-    {"GSEVO_CROSSHAIR_ALWAYS_ON", "Crosshairs always shown", "", GAME_OPTION_SWITCH, FIELD(gsevoCrosshairAlwaysOn), false,
+    {"GSEVO_CROSSHAIR_ALWAYS_ON", N_("Crosshairs always shown"), "", GAME_OPTION_SWITCH, FIELD(gsevoCrosshairAlwaysOn), false,
      NULL, NULL, 0, 1, true, ghostSquad},
-    {"GSEVO_CROSSHAIR_ALWAYS_OFF", "Crosshairs always hidden", "", GAME_OPTION_SWITCH, FIELD(gsevoCrosshairAlwaysOff),
+    {"GSEVO_CROSSHAIR_ALWAYS_OFF", N_("Crosshairs always hidden"), "", GAME_OPTION_SWITCH, FIELD(gsevoCrosshairAlwaysOff),
      false, NULL, NULL, 0, 1, true, ghostSquad},
 };
 
@@ -151,11 +152,11 @@ static int launchValues[sizeof(gameOptionTable) / sizeof(gameOptionTable[0])];
 // The drive board on the game's first serial port; OutRun's deluxe cabinet (SP SDX) has its motion board on the
 // second
 const GameBoard gameBoardTable[] = {
-    {"Drive board", "/dev/ttyS0", "EMULATE_DRIVEBOARD", "SERIAL_1_PATH", FIELD(emulateDriveboard), FIELD(serial1Path),
+    {N_("Drive board"), "/dev/ttyS0", "EMULATE_DRIVEBOARD", "SERIAL_1_PATH", FIELD(emulateDriveboard), FIELD(serial1Path),
      driveBoard},
-    {"Motion board", "/dev/ttyS1", "EMULATE_MOTIONBOARD", "SERIAL_2_PATH", FIELD(emulateMotionboard), FIELD(serial2Path),
+    {N_("Motion board"), "/dev/ttyS1", "EMULATE_MOTIONBOARD", "SERIAL_2_PATH", FIELD(emulateMotionboard), FIELD(serial2Path),
      outrun},
-    {"JVS I/O board", "base board", "EMULATE_JVS", "JVS_PATH", FIELD(emulateJVS), FIELD(jvsPath), lindberghJvs},
+    {N_("JVS I/O board"), N_("base board"), "EMULATE_JVS", "JVS_PATH", FIELD(emulateJVS), FIELD(jvsPath), lindberghJvs},
 };
 
 const int gameBoardCount = (int)(sizeof(gameBoardTable) / sizeof(gameBoardTable[0]));

@@ -77,15 +77,7 @@ static void drawBoard(const GameBoard *board)
 
 // The Lindbergh games whose frames go to a Sega-like servo board: the emulated drive board, or the game's own
 // writes (patch.c)
-static bool servoBoard(const GameData *data)
-{
-    int group = data->gameGroup;
-    return data->emulateDriveboard || group == GROUP_OUTRUN || group == GROUP_OUTRUN_TEST || group == GROUP_HUMMER ||
-           group == GROUP_ID4_EXP || group == GROUP_ID4_JAP || group == GROUP_ID5 || data->crc32 == SEGA_RACE_TV_SBPF ||
-           data->crc32 == R_TUNED_SBQW;
-}
-
-std::vector<std::string> boardDescription(const GameData *data)
+static std::vector<std::string> boardLines(const GameData *data)
 {
     std::vector<std::string> lines;
     if (!data)
@@ -109,7 +101,7 @@ std::vector<std::string> boardDescription(const GameData *data)
     snprintf(text, sizeof(text), "%s, %s, JVS 3.0 (%s)", tr("Controls on JVS board"),
              data->jvsIOType == SEGA_TYPE_1 ? "Sega 837-13551" : "Sega 837-14572", tr("base board"));
     lines.push_back(text);
-    bool servo = servoBoard(data);
+    bool servo = gameDataHasServoBoard(data);
     if (servo)
         lines.push_back(std::string(tr("Motor board: Sega-like servoboard")) + " (/dev/ttyS0)");
     if (data->emulateMotionboard)
@@ -118,6 +110,22 @@ std::vector<std::string> boardDescription(const GameData *data)
         lines.push_back(std::string(tr("Ride board: Sega ride board")) + " (/dev/ttyS0)");
     if (!servo && !data->emulateMotionboard && !data->emulateRideboard)
         lines.push_back(tr("Motor board: none"));
+    return lines;
+}
+
+std::vector<std::string> boardDescription(const GameData *data)
+{
+    std::vector<std::string> lines = boardLines(data);
+    if (data)
+    {
+        auto yesNo = [](const char *label, bool yes) {
+            char line[256];
+            snprintf(line, sizeof(line), tr("%s: %s"), label, tr(yes ? "Yes" : "No"));
+            return std::string(line);
+        };
+        lines.push_back(yesNo(tr("Force feedback"), gameDataHasFfb(data)));
+        lines.push_back(yesNo(tr("Link between cabinets"), gameDataHasLink(data)));
+    }
     return lines;
 }
 
@@ -264,18 +272,18 @@ static std::vector<GameLamp> gameLamps(const GameData *data)
         return lamps;
     }
     // Gaelco's bytes of bits, RawLamps and on (hardware/gaelco/gaelcoIo.c): bit 0 first in the uses
-    static const char *const lamp = "Cabinet lamp", *const meter = "Coin meter", *const mute = "Sound mute";
+    static const char *const lamp = N_("Cabinet lamp"), *const meter = N_("Coin meter"), *const mute = N_("Sound mute");
     if (data->crc32 == TOKYO_COP) // ports 0x40 and 0x41
     {
-        static const char *const port40[8] = {NULL, NULL, NULL, NULL, "Platform", "Platform", "Platform", "Platform"};
-        static const char *const port41[8] = {NULL, NULL, lamp, lamp, NULL, meter, NULL, "Siren button lamp"};
+        static const char *const port40[8] = {NULL, NULL, NULL, NULL, N_("Platform"), N_("Platform"), N_("Platform"), N_("Platform")};
+        static const char *const port41[8] = {NULL, NULL, lamp, lamp, NULL, meter, NULL, N_("Siren button lamp")};
         gaelcoByte(lamps, 0, formatText(tr("port 0x%X"), 0x40), port40);
         gaelcoByte(lamps, 1, formatText(tr("port 0x%X"), 0x41), port41);
         return lamps;
     }
     if (data->crc32 == RING_RIDERS) // the interface board's outputs 0 to 2
     {
-        static const char *const output0[8] = {lamp, lamp, lamp, lamp, NULL, "Platform security", NULL, NULL};
+        static const char *const output0[8] = {lamp, lamp, lamp, lamp, NULL, N_("Platform security"), NULL, NULL};
         static const char *const output1[8] = {mute, NULL, lamp, lamp, NULL, meter, NULL, lamp};
         for (int output = 0; output < 3; output++)
             gaelcoByte(lamps, output, formatText(tr("interface board output %d"), output),
@@ -293,10 +301,10 @@ static std::vector<GameLamp> gameLamps(const GameData *data)
     const char *uses[20] = {NULL};
     if (data->gameGroup == GROUP_OUTRUN || data->gameGroup == GROUP_OUTRUN_TEST)
     {
-        uses[0] = "Start lamp";
-        uses[2] = "Driver lamp";
-        uses[4] = "View change lamp";
-        uses[5] = "Driver lamp";
+        uses[0] = N_("Start lamp");
+        uses[2] = N_("Driver lamp");
+        uses[4] = N_("View change lamp");
+        uses[5] = N_("Driver lamp");
     }
     int outputs = getConfig()->jvsIOType == SEGA_TYPE_1 ? 6 : 20; // jvs.c's boards
     for (int output = 0; output < outputs; output++)
@@ -339,7 +347,7 @@ void drawOutputsList()
                                  value(raw < 0 ? -1 : (raw >> (7 - lamp.index % 8)) & 1)});
     }
     bool drive = data->gameGroup == GROUP_GAELCO || (data->gameGroup == GROUP_DEAD_HEAT && data->crc32 != NIRIN) ||
-                 (data->gameGroup != GROUP_DEAD_HEAT && servoBoard(data));
+                 (data->gameGroup != GROUP_DEAD_HEAT && gameDataHasServoBoard(data));
     if (drive)
         lines.push_back({"RawDrive", tr("byte, 0 to 255, one line each"),
                          tr("The motor board's bytes, as the Sega servo board's frames: command, two values, checksum"),

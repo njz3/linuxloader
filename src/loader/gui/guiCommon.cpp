@@ -16,6 +16,7 @@
 #include <filesystem>
 #include <cstring>
 #include <fstream>
+#include <memory>
 #include <sstream>
 #include <unordered_map>
 #include <vector>
@@ -40,13 +41,12 @@ namespace gui
 namespace
 {
 bool g_initialised = false;
-bool g_french = false;
 float g_uiScale = 0.0f;
 ImGuiStyle g_baseStyle;
 std::string g_status; // result of the last save, shown under the buttons
 
 // The list's tooltip: the games patchResolution.c resizes, and their limits
-const char *internalResolutionGames =
+const char *internalResolutionGames = N_(
     "Games whose render size is patched:\n"
     "  OutRun 2 SP SDX: any size above 800x480 (640x480 is the Chihiro mode)\n"
     "  Sega Race TV: any size, with black bars of its own beyond 4:3\n"
@@ -62,319 +62,198 @@ const char *internalResolutionGames =
     "  Virtua Tennis 3: above 1360x768\n"
     "  Let's Go Jungle Special: the width chosen, the height follows at 16:9\n"
     "Fixed size: Ghost Squad Evolution, Mahjong Fight Club 4.\n"
-    "Other games, Dead Heat included: keep Native.";
+    "Other games, Dead Heat included: keep Native.");
 
-// English text -> French
-const std::unordered_map<std::string, const char *> &frenchTexts()
+// A translation of the interface: lang/<code>.po, gettext's format (msgid: the English text, msgstr: its translation),
+// read once and kept until the program ends, as tr() hands out pointers into it
+struct Catalog
 {
-    static const std::unordered_map<std::string, const char *> texts = {
-        {"Settings", "Paramètres"},
-        {"Display", "Affichage"},
-        {"Force feedback", "Retour de force"},
-        {"Outputs and network", "Sorties et réseau"},
-        {"Picker", "Catalogue"},
-        {"About", "À propos"},
-        {"Aspect ratio", "Rapport d'aspect"},
-        {"Original", "Original"},
-        {"Display mode", "Mode d'affichage"},
-        {"Window, square pixels", "Fenêtre, pixels carrés"},
-        {"Window, stretched", "Fenêtre étirée"},
-        {"Full screen", "Plein écran"},
-        {"Full screen, stretched", "Plein écran étiré"},
-        {"Borderless fullscreen window", "Plein écran fenêtré (sans bordure)"},
-        {"Borderless fullscreen window, stretched", "Plein écran fenêtré étiré"},
-        {"Original: the shape of the game's render resolution.", "Original : la forme de la résolution de rendu du jeu."},
-        {"4:3, black bars", "4:3, bandes noires"},
-        {"16:9, black bars", "16:9, bandes noires"},
-        {"4:3, stretched", "4:3, étiré"},
-        {"16:9, stretched", "16:9, étiré"},
-        {"4:3, cropped", "4:3, recadré"},
-        {"16:9, cropped", "16:9, recadré"},
-        {"Crop position", "Position du recadrage"},
-        {"Black bars: the frame's shape, with the whole picture inside at its own shape and black bars where the shapes differ. Stretched: the picture fills the frame, deformed. Cropped: the picture fills the frame at its own shape, cut on the sides (or above and below); the crop position moves the part kept. The display mode then fits the frame to the window or the screen, or stretches it.",
-         "Bandes noires : la forme du cadre, avec l'image entière dedans à ses propres proportions et des bandes noires là où les formes diffèrent. Étiré : l'image remplit le cadre, déformée. Recadré : l'image remplit le cadre à ses proportions, coupée sur les côtés (ou en haut et en bas) ; la position du recadrage déplace la partie gardée. Le mode d'affichage ajuste ensuite le cadre à la fenêtre ou à l'écran, ou l'étire."},
-        {"-100: left or top, 0: the middle, 100: right or bottom.", "-100 : à gauche ou en haut, 0 : au milieu, 100 : à droite ou en bas."},
-        {"Bend the cut parts onto the edges", "Courber les parties coupées sur les bords"},
-        {"Undistorted middle", "Milieu non déformé"},
-        {"Curvature radius", "Rayon de courbure"},
-        {"The whole picture stays visible: the middle (in % of the frame) as cropped, the parts the crop would cut squeezed onto the edges as on a cylinder seen from the front. A small radius bends hard at the edge, a large one squeezes evenly.",
-         "L'image reste entière : le milieu (en % du cadre) comme recadré, les parties que le recadrage couperait comprimées sur les bords comme sur un cylindre vu de face. Un petit rayon courbe fort au bord, un grand comprime uniformément."},
-        {"Internal resolution", "Résolution interne"},
-        {"Native (AUTO)", "Native (AUTO)"},
-        {"%d x %d (custom)", "%d x %d (personnalisée)"},
-        {"Hover the list for the games it works with.", "Survolez la liste pour voir les jeux concernés."},
-        {internalResolutionGames,
-         "Jeux dont la taille de rendu se patche :\n"
-         "  OutRun 2 SP SDX : toute taille au-delà de 800x480 (640x480 est le mode Chihiro)\n"
-         "  Sega Race TV : toute taille, avec ses propres bandes noires au-delà du 4:3\n"
-         "  R-Tuned : toute taille\n"
-         "  Initial D 4 : toute taille (le menu de service reste en 1360x768)\n"
-         "  Hummer, Hummer Extreme : toute taille, même avec le 2560x1440 du kernel.nut de TeknoParrot\n"
-         "Patchés, pas essayés ici :\n"
-         "  After Burner Climax, Harley-Davidson, Rambo, Too Spicy, Virtua Fighter 5,\n"
-         "  House of the Dead 4 et EX, Let's Go Jungle : toute taille\n"
-         "  Initial D 5 : 1360x768 et au-delà\n"
-         "  House of the Dead 4 Special : au-delà de 1024x768\n"
-         "  Primeval Hunt : au-delà de 1280x480\n"
-         "  Virtua Tennis 3 : au-delà de 1360x768\n"
-         "  Let's Go Jungle Special : la largeur choisie, la hauteur suit en 16:9\n"
-         "Taille fixe : Ghost Squad Evolution, Mahjong Fight Club 4.\n"
-         "Autres jeux, Dead Heat compris : laisser Native."},
-        {"The size the game computes and draws its frame at, when it can be patched to; then fitted to the aspect ratio and shown by the display mode. Takes effect at the next start.",
-         "La taille à laquelle le jeu calcule et dessine son image, quand on peut le patcher ; elle est ensuite recadrée selon le rapport d'aspect et affichée selon le mode. Prise en compte au prochain lancement."},
-        {"Limit the frame rate", "Limiter la fréquence d'images"},
-        {"Target frame rate", "Fréquence visée"},
-        {"Show the frame rate (F12)", "Afficher la fréquence d'images (F12)"},
-        {"Hide the mouse pointer", "Masquer le pointeur de la souris"},
-        {"Strength", "Intensité"},
-        {"Strength of the drive board's forces on the wheel, in percent of the board's full scale. The games ask for "
-         "about a quarter to a half of it.",
-         "Intensité des forces de la carte de commande sur le volant, en pourcentage de sa pleine échelle. Les jeux en "
-         "demandent environ un quart à la moitié."},
-        {"Invert the direction", "Inverser le sens"},
-        {"Check it if the wheel pulls away from the centre or turns the wrong way in a collision.",
-         "Cochez si le volant fuit le centre ou part du mauvais côté lors d'un choc."},
-        {"Send lamps and drive board data over the network (MAME outputs)",
-         "Envoyer les lampes et la carte de commande sur le réseau (sorties MAME)"},
-        {"TCP port", "Port TCP"},
-        {"UDP announcement port", "Port UDP d'annonce"},
-        {"What this game sends", "Ce que ce jeu envoie"},
-        {"Name", "Nom"},
-        {"Type", "Type"},
-        {"Meaning", "Signification"},
-        {"Value", "Valeur"},
-        {"text", "texte"},
-        {"The game's name, the first line a client gets", "Le nom du jeu, la première ligne que reçoit un client"},
-        {"byte, 0 to 255", "octet, 0 à 255"},
-        {"Lamps %d to %d, lamp %d on bit 7", "Lampes %d à %d, la lampe %d sur le bit 7"},
-        {"0 or 1", "0 ou 1"},
-        {"JVS output %d", "Sortie JVS %d"},
-        {"Start lamp", "Lampe Start"},
-        {"View change lamp", "Lampe de changement de vue"},
-        {"Driver lamp", "Lampe de pilote"},
-        {"Kickback board lamp %s", "Lampe %s de la carte Kickback"},
-        {"Kickback board lamp %d", "Lampe %d de la carte Kickback"},
-        {"%s, bit %d", "%s, bit %d"},
-        {"port 0x%X", "port 0x%X"},
-        {"interface board output %d", "sortie %d de la carte d'interface"},
-        {"Cabinet lamp", "Lampe de la cabine"},
-        {"Coin meter", "Compteur de pièces"},
-        {"Sound mute", "Coupure du son"},
-        {"Platform", "Plateforme"},
-        {"Platform security", "Sécurité de la plateforme"},
-        {"Siren button lamp", "Lampe du bouton de sirène"},
-        {"byte, 0 to 255, one line each", "octet, 0 à 255, une ligne chacun"},
-        {"The motor board's bytes, as the Sega servo board's frames: command, two values, checksum",
-         "Les octets de la carte moteur, en trames de la carte servo Sega : commande, deux valeurs, somme de contrôle"},
-        {"When the game exits", "Quand le jeu s'arrête"},
-        {"Each line goes as \"name = value\" on the TCP port, at each change; a client that connects gets every known value first. Value: the last sent.",
-         "Chaque ligne part en « nom = valeur » sur le port TCP, à chaque changement ; un client qui se connecte reçoit d'abord toutes les valeurs connues. Valeur : la dernière envoyée."},
-        {"The values show while the outputs are on (from the next start once checked and saved).",
-         "Les valeurs s'affichent quand les sorties sont activées (au prochain lancement, une fois cochées et enregistrées)."},
-        {"Network patches", "Correctifs réseau"},
-        {"Sega Race TV IP address", "Adresse IP de Sega Race TV"},
-        {"Games folder", "Dossier des jeux"},
-        {"Empty: the games folder next to the program.", "Vide : le dossier games à côté du programme."},
-        {"Language", "Langue"},
-        {"Automatic", "Automatique"},
-        {"Save", "Sauvegarder"},
-        {"Close", "Fermer"},
-        {"Saved to %s", "Sauvegardé dans %s"},
-        {"Save for this game", "Sauvegarder pour ce jeu"},
-        {"Saved to %s (this game only)", "Sauvegardé dans %s (ce jeu seulement)"},
-        {"Cannot write %s", "Impossible d'écrire %s"},
-        {"Takes effect at the next start.", "Prend effet au prochain démarrage."},
-        {"Game options", "Options du jeu"},
-        {"Unknown game", "Jeu inconnu"},
-        {"In [%s] of %s, for this game only.", "Dans [%s] de %s, pour ce jeu seulement."},
-        {"(at the next start)", "(au prochain lancement)"},
-        {"No options for this game.", "Aucune option pour ce jeu."},
-        {"Changed options take effect at the next start, once saved.", "Les options changées prennent effet au prochain lancement, une fois enregistrées."},
-        {"Play without the card reader", "Jouer sans le lecteur de cartes"},
-        {"As when its test menu's CARD R/W is OFF: no card check at start, games without a card. Unticked, the test menu decides; with CARD R/W ON the card reader-printer is emulated, its card in [Cards] CARDFILE_01 (the card key inserts it), and the start waits for the link check (about 5 minutes).", "Comme avec CARD R/W à OFF dans son menu de test : pas de contrôle des cartes au démarrage, parties sans carte. Décoché, c'est le menu de test qui décide ; avec CARD R/W à ON, le lecteur-imprimante est émulé, sa carte dans [Cards] CARDFILE_01 (la touche carte l'insère), et le démarrage attend la liaison entre bornes (environ 5 minutes)."},
-        {"Boards", "Cartes"},
-        {"Controls on JVS board", "Contrôles sur carte JVS"},
-        {"base board", "carte de base"},
-        {"Controls on Namco N2 I/O board (n2jvio, serial)", "Contrôles sur carte d'E/S Namco N2 (n2jvio, série)"},
-        {"Controls on Gaelco interface board", "Contrôles sur carte d'interface Gaelco"},
-        {"Motor board: none", "Carte moteur : aucune"},
-        {"Motor board: Sega-like servoboard", "Carte moteur : servoboard type Sega"},
-        {"Motor board: Namco Kickback board (serial)", "Carte moteur : carte Kickback de Namco (série)"},
-        {"Motor board: Gaelco interface board's motor and vibrator outputs", "Carte moteur : sorties moteur et vibreur de la carte d'interface Gaelco"},
-        {"Motion board: Sega motion board", "Carte de mouvement : carte de mouvement Sega"},
-        {"Ride board: Sega ride board", "Carte de siège mobile : ride board Sega"},
-        {"Drive board", "Carte moteur du volant"},
-        {"Motion board", "Carte de mouvement"},
-        {"JVS I/O board", "Carte JVS"},
-        {"Emulated", "Émulée"},
-        {"Real board on %s", "Vraie carte sur %s"},
-        {"(not found)", "(absent)"},
-        {"A real board: the game talks to the cabinet's board on that serial port of the PC (a USB adapter, RS-232 for the drive board, RS-485 for JVS) instead of the loader's emulation.", "Vraie carte : le jeu dialogue avec la carte de la borne sur ce port série du PC (un adaptateur USB, RS-232 pour la carte moteur, RS-485 pour le JVS) au lieu de l'émulation du loader."},
-        {"Skip the cabinet checks", "Sauter les contrôles de la borne"},
-        {"The drive board and tower checks of the start skipped.", "Les contrôles de la carte servo et de la tour au démarrage sont sautés."},
-        {"Fix the flickering", "Corriger le scintillement"},
-        {"A shader patch for the flickering some graphics cards show.", "Une correction des shaders pour le scintillement de certaines cartes graphiques."},
-        {"Emulate the card reader", "Émuler le lecteur de cartes"},
-        {"The players' cards kept in files (Cards section).", "Les cartes des joueurs gardées dans des fichiers (section Cards)."},
-        {"Steering travel used", "Course du volant utilisée"},
-        {"In % of the wheel's travel: a smaller turn of the wheel for a full turn in the game. 0: the whole travel.", "En % de la course du volant : un plus petit tour de volant pour un tour complet dans le jeu. 0 : toute la course."},
-        {"Chinese language", "Langue chinoise"},
-        {"The game in Chinese (DVP-0084 and DVP-0084A).", "Le jeu en chinois (DVP-0084 et DVP-0084A)."},
-        {"The HW210 IC card reader, its cards kept in files.", "Le lecteur de cartes à puce HW210, ses cartes gardées dans des fichiers."},
-        {"Render with the Mesa patches", "Rendu avec les corrections Mesa"},
-        {"The shaders patched as for Mesa's drivers.", "Les shaders corrigés comme pour les pilotes Mesa."},
-        {"Screens", "Écrans"},
-        {"Where the touch screen goes beside the main one.", "Où va l'écran tactile à côté de l'écran principal."},
-        {"Default (no scaling)", "Par défaut (sans mise à l'échelle)"},
-        {"No touch screen", "Sans écran tactile"},
-        {"Side by side", "Côte à côte"},
-        {"Touch screen on the right", "Écran tactile à droite"},
-        {"Touch screen below", "Écran tactile en dessous"},
-        {"Test menu on one screen", "Menu de test sur un écran"},
-        {"The test menu on the main screen alone.", "Le menu de test sur l'écran principal seul."},
-        {"Playable at any time", "Jouable à toute heure"},
-        {"The game also runs at the hours its servers refused.", "Le jeu tourne aussi aux heures que ses serveurs refusaient."},
-        {"Other gun display", "Autre affichage des armes"},
-        {"The cabinet's switch that changes how the guns are shown.", "L'interrupteur de la borne qui change l'affichage des armes."},
-        {"Swap handlebar and throttle", "Échanger guidon et poignée"},
-        {"For JVS passthrough: the two analogue channels swapped.", "Pour le JVS direct : les deux voies analogiques échangées."},
-        {"Crosshairs always shown", "Viseurs toujours affichés"},
-        {"Crosshairs always hidden", "Viseurs toujours cachés"},
-        {"Interface based on sm2-emu's, by Daniel Martin (dmanlfc) and the sm2-emu contributors, modified for the "
-         "Lindbergh loader:",
-         "Interface basée sur celle de sm2-emu, de Daniel Martin (dmanlfc) et des contributeurs de sm2-emu, modifiée "
-         "pour le Lindbergh loader :"},
-        {"Controls page organised as Flycast's, the Dreamcast, Naomi and Atomiswave emulator:",
-         "Page des contrôles organisée comme celle de Flycast, l'émulateur Dreamcast, Naomi et Atomiswave :"},
-        {"Select a game", "Choisissez un jeu"},
-        {"Enter: launch   Tab: settings   F9: quit", "Entrée : lancer   Tab : paramètres   F9 : quitter"},
-        {"No game was found in %s. Set the games folder in Settings (Tab) > Picker.",
-         "Aucun jeu trouvé dans %s. Réglez le dossier des jeux dans Paramètres (Tab) > Catalogue."},
-        {"Unknown version of the game", "Version du jeu inconnue"},
-        {"Running...", "En cours..."},
-        {"Folder", "Dossier"},
-        {"Program", "Programme"},
-        {"Configuration", "Configuration"},
-        {"Native resolution", "Résolution native"},
-        {"Status", "État"},
-        {"Working", "Fonctionne"},
-        {"Not working", "Ne fonctionne pas"},
-        {"Partially working", "Fonctionne en partie"},
-        {"Game paused - Tab: close the settings", "Jeu en pause - Tab : fermer les paramètres"},
-        {"Controls", "Contrôles"},
-        {"Saved to %s and controls.ini", "Sauvegardé dans %s et controls.ini"},
-        {"No controller connected.", "Aucune manette branchée."},
-        {"All games", "Tous les jeux"},
-        {"Driving", "Conduite"},
-        {"Buttons", "Boutons"},
-        {"Flying", "Vol"},
-        {"Shooting", "Tir"},
-        {"Mahjong", "Mahjong"},
-        {"Game type", "Type de jeu"},
-        {"This section of controls.ini is empty.", "Cette section de controls.ini est vide."},
-        {"Action", "Action"},
-        {"Inputs", "Entrées"},
-        {"(none)", "(aucune)"},
-        {"Dead zone %d", "Zone morte %d"},
-        {"Add an input", "Ajouter une entrée"},
-        {"Set", "Définir"},
-        {"Replace by an input", "Remplacer par une entrée"},
-        {"Clear", "Effacer"},
-        {"Press a key or a button, or move an axis, for: %s", "Appuyez sur une touche ou un bouton, ou bougez un axe, pour : %s"},
-        {"Escape: cancel", "Échap : annuler"},
-        {"Cancel", "Annuler"},
-        {"Devices", "Périphériques"},
-        {"Name", "Nom"},
-        {"In controls.ini", "Dans controls.ini"},
-        {"Keyboard", "Clavier"},
-        {"Mouse", "Souris"},
-        {" (force feedback)", " (retour de force)"},
-        {"Map", "Lier"},
-        {"Unmap", "Délier"},
-        {"Bindings", "Liaisons"},
-        {"Reset...", "Réinitialiser..."},
-        {"Set this device's bindings back to the defaults?", "Remettre les liaisons de ce périphérique par défaut ?"},
-        {"Yes", "Oui"},
-        {"No", "Non"},
-        {"Player %d", "Joueur %d"},
-        {"Press an input of %s for: %s", "Appuyez sur une commande de %s pour : %s"},
-        {"Button %d", "Bouton %d"},
-        {"Axis %d", "Axe %d"},
-        {"Hat %d", "Chapeau %d"},
-        {"up", "haut"},
-        {"down", "bas"},
-        {"left", "gauche"},
-        {"right", "droite"},
-        {" (half)", " (moitié)"},
-        {" (pedal)", " (pédale)"},
-        {" (inverted)", " (inversé)"},
-        {"Left button", "Bouton gauche"},
-        {"Right button", "Bouton droit"},
-        {"Middle button", "Bouton du milieu"},
-        {"X axis", "Axe X"},
-        {"Y axis", "Axe Y"},
-        {"Dead zones and options", "Zones mortes et options"},
-        {"The force feedback starts with the game, on the chosen device or else the first controller's.",
-         "Le retour de force démarre avec le jeu, sur le périphérique choisi ou sinon celui de la première manette."},
-        {"Device", "Périphérique"},
-        {" (not connected)", " (non connecté)"},
-        {"Forces sent to: %s", "Forces envoyées à : %s"},
-        {"no device", "aucun périphérique"},
-        {"Gun X centring", "Centrage du pistolet X"},
-        {"Gun Y centring", "Centrage du pistolet Y"},
-        {"Screen shake: increase", "Tremblement de l'écran : montée"},
-        {"Screen shake: decay", "Tremblement de l'écran : retombée"},
-        {"Screen shake: minimum", "Tremblement de l'écran : minimum"},
-        {"Insert card: toggle", "Insérer la carte : bascule"},
-        {"Insert card 1: toggle", "Insérer la carte 1 : bascule"},
-        {"Insert card 2: toggle", "Insérer la carte 2 : bascule"},
-        {"Coin", "Pièce"},
-        {"Start", "Départ"},
-        {"Exit the game", "Quitter le jeu"},
-        {"Steering", "Volant"},
-        {"Accelerator", "Accélérateur"},
-        {"Brake", "Frein"},
-        {"Steer left", "Volant à gauche"},
-        {"Steer right", "Volant à droite"},
-        {"Accelerator (digital)", "Accélérateur (tout ou rien)"},
-        {"Brake (digital)", "Frein (tout ou rien)"},
-        {"Gear up", "Vitesse +"},
-        {"Gear down", "Vitesse −"},
-        {"Change view", "Changer de vue"},
-        {"Change music", "Changer de musique"},
-        {"Boost right", "Boost droit"},
-        {"Up", "Haut"},
-        {"Down", "Bas"},
-        {"Left", "Gauche"},
-        {"Right", "Droite"},
-        {"Button 1", "Bouton 1"},
-        {"Button 2", "Bouton 2"},
-        {"Button 3", "Bouton 3"},
-        {"Insert card", "Insérer la carte"},
-        {"Insert card 1", "Insérer la carte 1"},
-        {"Insert card 2", "Insérer la carte 2"},
-        {"Trigger", "Gâchette"},
-        {"Reload", "Recharger"},
-        {"Gun button", "Bouton du pistolet"},
-        {"Action button", "Bouton d'action"},
-        {"Left pedal", "Pédale gauche"},
-        {"Right pedal", "Pédale droite"},
-        {"Gun X", "Pistolet X"},
-        {"Gun Y", "Pistolet Y"},
-        {"Stick X", "Manche X"},
-        {"Stick Y", "Manche Y"},
-        {"Stick left", "Manche à gauche"},
-        {"Stick right", "Manche à droite"},
-        {"Stick up", "Manche en haut"},
-        {"Stick down", "Manche en bas"},
-        {"Throttle", "Manette des gaz"},
-        {"Throttle up", "Gaz +"},
-        {"Throttle down", "Gaz −"},
-        {"Gun trigger", "Gâchette du canon"},
-        {"Missile trigger", "Tir de missile"},
-        {"Climax switch", "Bouton Climax"},
+    std::string code; // the file's name: fr, pt_BR
+    std::string name; // the list's label: the header's X-Language-Name, else the code
+    std::unordered_map<std::string, std::string> texts;
+};
+std::vector<std::unique_ptr<Catalog>> g_catalogs; // sorted by name
+const Catalog *g_catalog = nullptr;               // the language shown, nullptr for English
+
+// The text of a quoted .po string from its first quote, its escapes undone, appended to out
+void poUnquote(const std::string &line, std::string &out)
+{
+    size_t start = line.find('"');
+    size_t end = line.rfind('"');
+    if (start == std::string::npos || end <= start)
+        return;
+    for (size_t i = start + 1; i < end; i++)
+    {
+        char c = line[i];
+        if (c == '\\' && i + 1 < end)
+        {
+            c = line[++i];
+            c = c == 'n' ? '\n' : c == 't' ? '\t' : c == 'r' ? '\r' : c;
+        }
+        out += c;
+    }
+}
+
+// Reads a .po file: its translated entries, without the fuzzy ones as gettext, and its header's X-Language-Name.
+// Contexts and plurals, which the interface does not use, are skipped.
+bool loadPo(const std::filesystem::path &file, Catalog &catalog)
+{
+    std::ifstream in(file, std::ios::binary);
+    if (!in)
+        return false;
+    std::string id, str, skipped, header;
+    std::string *current = nullptr; // what a "..." line continues
+    bool fuzzy = false, other = false, complete = false; // complete: past its msgstr, the next line may start another
+    auto finish = [&]() {
+        if (complete && !other)
+        {
+            if (id.empty())
+                header = str;
+            else if (!fuzzy && !str.empty())
+                catalog.texts[id] = str;
+        }
+        id.clear();
+        str.clear();
+        current = nullptr;
+        fuzzy = other = complete = false;
     };
-    return texts;
+    std::string line;
+    bool first = true;
+    while (std::getline(in, line))
+    {
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+        if (first && line.compare(0, 3, "\xEF\xBB\xBF") == 0)
+            line.erase(0, 3);
+        first = false;
+        if (line.empty())
+            continue;
+        if (line[0] == '#') // a comment, an obsolete entry (#~) included, starts the next entry
+        {
+            if (complete)
+                finish();
+            if (line.compare(0, 2, "#,") == 0 && line.find("fuzzy") != std::string::npos)
+                fuzzy = true;
+        }
+        else if (line.compare(0, 7, "msgctxt") == 0 || line.compare(0, 12, "msgid_plural") == 0 ||
+                 line.compare(0, 7, "msgstr[") == 0)
+        {
+            if (line.compare(0, 7, "msgctxt") == 0 && complete)
+                finish();
+            other = true;
+            complete = complete || line.compare(0, 7, "msgstr[") == 0;
+            current = &skipped;
+        }
+        else if (line.compare(0, 6, "msgid ") == 0)
+        {
+            if (complete)
+                finish();
+            current = &id;
+            poUnquote(line, id);
+        }
+        else if (line.compare(0, 7, "msgstr ") == 0)
+        {
+            complete = true;
+            current = &str;
+            poUnquote(line, str);
+        }
+        else if (line[0] == '"' && current)
+            poUnquote(line, *current);
+    }
+    finish();
+
+    std::istringstream fields(header);
+    while (std::getline(fields, line))
+        if (line.compare(0, 16, "X-Language-Name:") == 0)
+        {
+            size_t start = line.find_first_not_of(' ', 16);
+            catalog.name = start == std::string::npos ? "" : line.substr(start);
+        }
+    if (catalog.name.empty())
+        catalog.name = catalog.code;
+    return true;
+}
+
+// The lang folder next to the program
+std::filesystem::path languageDir()
+{
+#ifdef _WIN32
+    wchar_t path[MAX_PATH];
+    DWORD length = GetModuleFileNameW(NULL, path, MAX_PATH);
+    return length > 0 && length < MAX_PATH ? std::filesystem::path(path).parent_path() / "lang" : std::filesystem::path();
+#else
+    const char *base = SDL_GetBasePath();
+    return base ? std::filesystem::path(base) / "lang" : std::filesystem::path();
+#endif
+}
+
+// Every lang/*.po, once
+void loadCatalogs()
+{
+    static bool loaded = false;
+    if (loaded)
+        return;
+    loaded = true;
+    std::error_code ec;
+    const std::filesystem::path dir = languageDir();
+    for (const auto &entry : std::filesystem::directory_iterator(dir, ec))
+    {
+        if (entry.path().extension() != ".po")
+            continue;
+        auto catalog = std::make_unique<Catalog>();
+        catalog->code = entry.path().stem().string();
+        if (loadPo(entry.path(), *catalog))
+            g_catalogs.push_back(std::move(catalog));
+    }
+    std::sort(g_catalogs.begin(), g_catalogs.end(),
+              [](const std::unique_ptr<Catalog> &a, const std::unique_ptr<Catalog> &b) { return a->name < b->name; });
+}
+
+// The catalog of a code: its own file (pt_BR), else its language's (pt); nullptr when there is none
+const Catalog *findCatalog(const std::string &code)
+{
+    for (const std::string &wanted : {code, code.substr(0, code.find('_'))})
+        for (const auto &catalog : g_catalogs)
+            if (catalog->code == wanted)
+                return catalog.get();
+    return nullptr;
+}
+
+// The system's language as a .po's name, fr_FR (findCatalog falls back on fr); "" when it is not known
+std::string systemLanguage()
+{
+#ifdef _WIN32
+    const LCID locale = MAKELCID(GetUserDefaultUILanguage(), SORT_DEFAULT);
+    char language[16] = "", country[16] = "";
+    if (!GetLocaleInfoA(locale, LOCALE_SISO639LANGNAME, language, sizeof(language)))
+        return "";
+    GetLocaleInfoA(locale, LOCALE_SISO3166CTRYNAME, country, sizeof(country));
+    return country[0] ? std::string(language) + "_" + country : std::string(language);
+#else
+    for (const char *variable : {"LC_ALL", "LC_MESSAGES", "LANG"})
+    {
+        const char *value = getenv(variable);
+        if (value && value[0])
+        {
+            std::string name(value);
+            return name.substr(0, name.find_first_of(".@")); // fr_FR.UTF-8 -> fr_FR
+        }
+    }
+    return "";
+#endif
+}
+
+// LANGUAGE: auto (the system's), en, or a lang/*.po's name
+void selectLanguage(const char *language)
+{
+    loadCatalogs();
+    const std::string code = language ? language : "";
+    if (code == "en")
+        g_catalog = nullptr;
+    else if (code.empty() || code == "auto")
+        g_catalog = findCatalog(systemLanguage());
+    else
+        g_catalog = findCatalog(code);
 }
 
 // Sets key = value in section of the lines of an ini file, keeping every other line.
@@ -486,16 +365,6 @@ void applyScale()
         style.FontScaleMain = scale;
     }
 }
-
-bool frenchByDefault()
-{
-#ifdef _WIN32
-    return PRIMARYLANGID(GetUserDefaultUILanguage()) == LANG_FRENCH;
-#else
-    const char *lang = getenv("LANG");
-    return lang && strncmp(lang, "fr", 2) == 0;
-#endif
-}
 } // namespace
 
 bool iniUpdate(const std::string &path, const std::vector<IniValue> &values)
@@ -523,11 +392,10 @@ bool iniUpdate(const std::string &path, const std::vector<IniValue> &values)
 
 const char *tr(const char *text)
 {
-    if (!g_french)
+    if (!g_catalog)
         return text;
-    const auto &texts = frenchTexts();
-    auto it = texts.find(text);
-    return it != texts.end() ? it->second : text;
+    auto it = g_catalog->texts.find(text);
+    return it != g_catalog->texts.end() ? it->second.c_str() : text;
 }
 
 bool initContext(SDL_Window *window, const char *language)
@@ -535,12 +403,7 @@ bool initContext(SDL_Window *window, const char *language)
     if (g_initialised)
         return true;
 
-    if (language && strcmp(language, "fr") == 0)
-        g_french = true;
-    else if (language && strcmp(language, "en") == 0)
-        g_french = false;
-    else
-        g_french = frenchByDefault();
+    selectLanguage(language);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -558,7 +421,7 @@ bool initContext(SDL_Window *window, const char *language)
     g_baseStyle = style;
     g_uiScale = 0.0f;
 
-    // A font with the accented letters of the French texts
+    // A font with the accented letters of the translations (ImGui loads the glyphs a text needs as it is shown)
 #ifdef _WIN32
     char fontPath[MAX_PATH];
     const char *windir = getenv("WINDIR");
@@ -706,6 +569,7 @@ void drawSettings(bool *open, std::string &configFile, bool inGame)
                     ImGui::SliderInt(tr("Undistorted middle"), &cfg->barrelCenter, 0, 100, "%d %%");
                     ImGui::SliderInt(tr("Curvature radius"), &cfg->barrelRadius, 10, 300, "%d %%");
                     ImGui::PushTextWrapPos(0.0f);
+                    // xgettext:no-c-format (shown as it is)
                     ImGui::TextDisabled("%s", tr("The whole picture stays visible: the middle (in % of the frame) as cropped, the parts the crop would cut squeezed onto the edges as on a cylinder seen from the front. A small radius bends hard at the edge, a large one squeezes evenly."));
                     ImGui::PopTextWrapPos();
                 }
@@ -785,17 +649,25 @@ void drawSettings(bool *open, std::string &configFile, bool inGame)
         {
             ImGui::InputText(tr("Games folder"), cfg->gamesDir, sizeof(cfg->gamesDir));
             ImGui::TextDisabled("%s", tr("Empty: the games folder next to the program."));
-            const char *languageCodes[] = {"auto", "fr", "en"};
-            const char *languageLabels[] = {tr("Automatic"), "Français", "English"};
+            // Automatic, English, then the languages of lang/*.po
+            std::vector<std::pair<std::string, std::string>> languages = {{"auto", tr("Automatic")}, {"en", "English"}};
+            for (const auto &catalog : g_catalogs)
+                languages.push_back({catalog->code, catalog->name});
             int language = 0;
-            for (int i = 0; i < 3; i++)
-                if (strcmp(cfg->language, languageCodes[i]) == 0)
+            for (int i = 0; i < (int)languages.size(); i++)
+                if (languages[i].first == cfg->language)
                     language = i;
-            if (ImGui::Combo(tr("Language"), &language, languageLabels, 3))
+            if (ImGui::BeginCombo(tr("Language"), languages[language].second.c_str()))
             {
-                snprintf(cfg->language, sizeof(cfg->language), "%s", languageCodes[language]);
-                g_french = language == 1 || (language == 0 && frenchByDefault());
+                for (int i = 0; i < (int)languages.size(); i++)
+                    if (ImGui::Selectable(languages[i].second.c_str(), i == language))
+                    {
+                        snprintf(cfg->language, sizeof(cfg->language), "%s", languages[i].first.c_str());
+                        selectLanguage(cfg->language);
+                    }
+                ImGui::EndCombo();
             }
+            ImGui::TextDisabled("%s", tr("The translations: the lang folder's .po files, next to the program."));
             ImGui::EndTabItem();
         }
 

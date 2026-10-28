@@ -116,3 +116,44 @@ const GameData *gameDataAt(size_t index)
 {
     return index < gameDataCount() ? &gameData[index] : NULL;
 }
+
+// The servo board: emulated (hardware/lindbergh/driveBoard.c) or Initial D's feedback board (patching/patch.c)
+int gameDataHasServoBoard(const GameData *game)
+{
+    int group = game->gameGroup;
+    return game->emulateDriveboard || group == GROUP_OUTRUN || group == GROUP_OUTRUN_TEST || group == GROUP_HUMMER ||
+           group == GROUP_ID4_EXP || group == GROUP_ID4_JAP || group == GROUP_ID5 || game->crc32 == SEGA_RACE_TV_SBPF ||
+           game->crc32 == R_TUNED_SBQW;
+}
+
+// Force feedback the loader gives a wheel: the servo board's, the Kickback board's of the Namco games (but Nirin's
+// motorbike, hardware/namco/deadHeatIo.c), the motor outputs of the Gaelco boards (hardware/gaelco/gaelcoIo.c)
+int gameDataHasFfb(const GameData *game)
+{
+    if (game->gameGroup == GROUP_DEAD_HEAT)
+        return game->crc32 != NIRIN;
+    if (game->gameGroup == GROUP_GAELCO)
+        return 1;
+    return gameDataHasServoBoard(game);
+}
+
+// A link between cabinets the loader sets up from [Network]: ID_IP_SEAT_1 and 2 (Initial D 4 Export, Initial D 5
+// Export 2.0), OR2_IPADDRESS (OutRun 2), IP_CAB1 to 4 (Harley, Hummer, R-Tuned), 2SPICY_IP_CAB1 and 2, SRTV_IPADDRESS
+int gameDataHasLink(const GameData *game)
+{
+    switch (game->crc32)
+    {
+        case INITIALD_4_EXP_SBNK_REVB:
+        case INITIALD_4_EXP_SBNK_REVC:
+        case INITIALD_4_EXP_SBNK_REVD:
+        case INITIALD_5_EXP20_SBTS:
+        case INITIALD_5_EXP20_SBTS_REVA:
+        case HARLEY_DAVIDSON_SBRG:
+        case R_TUNED_SBQW:
+        case SEGA_RACE_TV_SBPF:
+        case TOO_SPICY_SBMV:
+            return 1;
+        default:
+            return game->gameGroup == GROUP_OUTRUN || game->gameGroup == GROUP_HUMMER;
+    }
+}

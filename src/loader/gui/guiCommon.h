@@ -19,9 +19,13 @@ bool processEvent(const SDL_Event *event);
 void newFrame();
 void renderFrame(int width, int height);
 
-// The text in the interface's language: English by default, French when LANGUAGE is fr (or auto on a French
-// Windows).
+// The text in the interface's language: the English text itself, or its translation in lang/<language>.po (LANGUAGE
+// = auto: the system's language). The pointer stays valid until the program ends.
 const char *tr(const char *text);
+// A text tr() translates later, marked for xgettext (scripts/i18n/update-translations.sh)
+#ifndef N_
+#define N_(text) text
+#endif
 
 // The settings window. inGame: settings that need a restart are marked so, display settings apply live. configFile
 // becomes the game's own file once "Save for this game" wrote it.
