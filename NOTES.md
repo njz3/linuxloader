@@ -95,6 +95,9 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 132 | 28/10 | (signalé par la session windowsloader, confirmé par l'utilisateur sur la borne) Nirin : en course les murs sont parfois transparents | ⏸️ en pause (demande de l'utilisateur) : reproduit ici (RTX 3050) et sur les captures de Racecab1, des polygones de route et de mur noirs, quelques images par tour ; cause non trouvée (une dizaine de pistes écartées, test de champ compris) ; gardé : gluProject/gluUnProject réels (c'étaient des bouchons), variables de shader initialisées à zéro, GL_CLAMP en GL_CLAMP_TO_EDGE, affinité des threads réelle et héritée ; MinGW et MSVC (voir journal) |
+| 131 | 28/10 | Support multilingue et traduction de toute l'interface en anglais ; puis gérer les langues par des fichiers .po | ✅ l'interface était déjà en anglais (texte source) avec le français en table ; la table devient `lang/fr.po` (266 textes, gettext), modèle `lang/linuxloader.pot`, `scripts/i18n/update-translations.sh` (xgettext + msgmerge) ; la liste Langue montre Automatique, English et chaque `.po` trouvé ; `lang/` copié à côté de l'exe par CMake et mis dans la release ; MinGW et MSVC, sélecteur vu en auto (français), `en` et une langue de test (voir journal) |
+| 130 | 28/10 | Dans la liste des jeux, une colonne pour le link et/ou le FFB ; l'indiquer aussi dans le sélecteur | ✅ `--list-games` : colonnes FFB et LINK (`ffb`, `link` en CSV) ; sélecteur et onglet Options du jeu : « Retour de force » et « Link entre bornes » ; MinGW et MSVC, sélecteur vu à l'écran (voir journal) |
 | 129 | 28/10 | Commit et push, une release, prévenir Image borne | ✅ poussé jusqu'à `e961a3e` ; `emulateurs/releases/linuxloader-v3.0.13-ffbedition-20261028-njz3-win32.zip` (première en 3.0.13) ; Image borne prévenue (voir journal) |
 | 128 | 28/10 | Une option en ligne de commande qui liste les jeux supportés : nom, nom court (nom de rom), version, exécutable attendu, CRC32 de l'exécutable (le CRC32 seulement indicatif, un autre exécutable n'est pas refusé) | ✅ `--list-games` (tableau) et `--list-games csv` ; les 91 jeux de `gameData.c` ; CRC32 du fichier entier de l'exécutable propre, quand il est connu ; MinGW et MSVC (voir journal) |
 | 127 | 28/10 | (relayée par la session « Image borne ») Amorcer le dossier d'écriture d'un jeu depuis un dossier de modèles, pas seulement depuis le dossier du jeu : les NVRAM d'une cabine link (LINK ID, siège) ne peuvent pas vivre dans le dossier du jeu, commun au solo et au link | ✅ `--seed-dir PATH` ou `[Paths] SEED_DIR` (relatif au dossier du chargeur, ou chemin complet), avec un dossier d'écriture seulement : au lancement du jeu, `<seed>\<jeu>` est recopié dans `WRITE_DIR\<jeu>`, sans jamais remplacer un fichier déjà là, une ligne de journal par fichier ; sans l'option rien ne change ; MinGW et MSVC, OutRun 2 ; branche `dev/seed-dir`, non poussée (voir journal) |
@@ -162,6 +165,94 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Nirin, murs « transparents » (demande 132, en pause)
+- Copie de racecab1 dans `games/nirin` (1,65 Go). Trous reproduits en mode agent (RTX 3050, comme Racecab1 qui est
+  aussi NVIDIA) : quelques images par tour, des polygones noirs à bords nets sur la route et les murs près de la moto.
+  Les captures d'Image borne sur Racecab1 (3.0.13) en ont autant : le défaut n'est pas propre à ce PC.
+- Corrigé au passage (vrais défauts, sans effet visible sur les trous) :
+  - `gluProject` et `gluUnProject` (`glxBridge.c`) étaient des bouchons qui rendaient 0 : calculs de GLU (vérifiés contre
+    `glu32` de Windows, écart relatif 2e-12). Nirin s'en sert pour la matrice du phare (`GetHeadLightMatrix`), les
+    traînées des feux arrière et la carte (le trajet du rival en pointillés y apparaît maintenant).
+  - Shaders du groupe Dead Heat : les variables locales déclarées sans valeur valent 0, comme les laissait le
+    compilateur NVIDIA de l'époque (`map_3rd_pass.frag` additionne dans un `vec4 ret` non initialisé).
+  - `GL_CLAMP` des `glTexParameter*` traité en `GL_CLAMP_TO_EDGE`, comme le pilote Linux de NVIDIA (projections du
+    phare, des néons et des ombres de Nirin).
+  - `pthread_setaffinity_np` réel (`SetThreadAffinityMask`) : Nirin met rendu, séquence et cache de fichiers sur le
+    CPU 0. Sans effet sur les trous.
+- Mesures (mode agent, une image sur 150, part de noir dans le bas de l'image) : ce n'est ni un shader de matériau
+  (peints en rouge : les trous restent noirs), ni les autres shaders du système de matériaux (en vert : idem), ni
+  `map_2nd_pass` (en bleu : n'écrit jamais dans l'image), ni les passes et composites d'ombres et de phare, ni les
+  ombres sous les véhicules (`clShadowManager::flipScreen` coupé), ni la copie de profondeur (forcée au loin), ni un
+  mélange de FBO (journal des FBO : scène 1 ↔ profondeur 4 ↔ lumière 18, scène 2 ↔ 5 ↔ 17, appariements justes). Dans
+  les trous, la profondeur de la scène contient la route mais sa couleur est noire.
+- Écarté après deux longues courses (20 images chacune, une toutes les 300) : couper le test de champ ne supprime pas
+  les trous (images à plus de 0,4 de noir : 6 sans, 2 avec, médianes inversées ; trous visibles dans les deux).
+- Premier essai, trompeur (une seule course) : tous les tests de champ (`checkFrustum` de clDrawMeshNorm, clDrawMeshAnim,
+  clDrawNode, clDrawNodeAnim, clDrawPrimitives) forcés à « visible » : médiane de noir 0,02 au lieu de 0,07 à 0,18,
+  mais il en reste. Piste suivante : ce qui fausse ces tests ici (plans du champ de `clMMVIEW::setFrustum`, `tanf`,
+  précision x87 de Windows, ou une course entre threads sur la caméra).
+- Aussi écartés : la pile x87 (vérifiée à chaque fin d'image : 0 image avec une pile non vide sur 4 800, mot de
+  contrôle 0x037F comme sous Linux ; et chaque fonction de libm importée a son type de retour juste dans les ponts) ;
+  l'affinité des threads (les threads créés héritent maintenant de celle de leur créateur, comme sous Linux :
+  `pthreadCreate` les crée suspendus et les place) : les trous restent (médiane 0,05). Le test de champ est entièrement
+  du code du jeu (plans de `clMMVIEW::setFrustum` depuis le fov, l'aspect `setViewSize`, near et far de `setClip`).
+  La profondeur vue dans les trous peut venir de la passe de lumière (FBO 17/18), qui partage la profondeur de la
+  scène (tex 4/5) : la passe principale n'aurait pas dessiné la route là.
+- Le 28/10 vers 16:10, le pilote graphique a été réinitialisé (LiveKernelEvent 141) pendant un essai avec un relevé
+  `glGet*` à chaque tracé, en même temps que les essais de la session Hikaru : depuis, un essai GPU à la fois, quand
+  aucune autre session ne s'en sert, sans relevé par tracé.
+- Mis en pause à la demande de l'utilisateur ; les interrupteurs de débogage (`LL_NIRIN_EXP`, `LL_NIRIN_FBOLOG`,
+  `LL_NIRIN_NOCULL`, `LL_NIRIN_NOSHADOWFLIP`, la vérification x87) sont retirés, les corrections gardées. Pistes non
+  essayées : les passes d'après-traitement (`post_effect`, `glow`, traînées et dérapages), qui pourraient peindre du noir
+  sur la scène ; comparer avec TeknoParrot sur la borne. `games/nirin` gardé pour la reprise.
+
+### Les langues de l'interface en fichiers .po (demande 131)
+- La question « support multilingue, toute l'interface en anglais » : le sélecteur et Tab étaient déjà écrits en anglais
+  (les textes du code), le français venait d'une table de 273 paires dans `guiCommon.cpp`. Les fichiers .po remplacent
+  la table :
+  - `lang/<code>.po` à côté de l'exe, format gettext : msgid le texte anglais, msgstr sa traduction ; lu au démarrage
+    par un petit lecteur (`loadPo`) : suites de lignes, échappements, entrées « fuzzy » ignorées comme gettext, contextes
+    et pluriels sautés (l'interface n'en a pas), texte vide = anglais. L'en-tête `X-Language-Name` donne le nom de la
+    liste (« Français »), sinon le code. Les catalogues restent en mémoire jusqu'à la fin (tr() rend des pointeurs).
+  - `[Launcher] LANGUAGE` : `auto` (langue de l'interface Windows, `GetUserDefaultUILanguage` → `fr_FR` puis `fr`),
+    `en`, ou le nom d'un .po (`pt_BR` retombe sur `pt.po`) ; `language[16]` au lieu de 8. La liste Langue (Tab >
+    Catalogue) : Automatique, English, puis les .po trouvés ; une ligne dit où sont les traductions.
+  - Extraction : `xgettext --keyword=tr --keyword=N_` sur `src/loader/gui/*.cpp` et `config/gameOptions.c`. Les textes
+    traduits plus tard (tables des options de jeu, des actions des contrôles, des lampes, des cartes, la liste des jeux
+    de la résolution interne) sont marqués `N_("...")` (macro vide, convention gettext) pour qu'xgettext les trouve.
+    Deux textes avec « % de » portent `// xgettext:no-c-format` (« % o » ressemble à un format printf, msgmerge les
+    marquait fuzzy). `scripts/i18n/update-translations.sh` : xgettext, msgmerge, `msgattrib --no-obsolete`, statistiques.
+  - `lang/fr.po` construit depuis la table : 11 textes n'existaient plus dans le code (ancienne page des contrôles :
+    « Ajouter une entrée », « Zone morte %d »...), retirés ; « Test », « Service », « Boost » ajoutés (identiques).
+    266 textes traduits, `msgfmt --check` sans erreur.
+  - Au passage : « État », « Résolution native » et les lignes retour de force / link collaient « %s : %s » en dur,
+    donc « Status : Working » en anglais ; devenu le texte traduisible « %s: %s » (« %s : %s » en français).
+  - `lang/README.md` pour les traducteurs ; CMake copie `lang/` à côté de l'exe (POST_BUILD) ; `release.py` met `lang/`
+    dans le zip. La police (Segoe UI) couvre latin, grec, cyrillique, pas le chinois/japonais/coréen.
+- Vérifié (MinGW, sélecteur sans jeu, capture de la fenêtre) : `auto` → français (Windows français), `en` → anglais
+  (« Status: Working », « Force feedback: Yes »), et un `xx.po` de test avec `LANGUAGE = xx_YY` : repli sur `xx`,
+  guillemet échappé et texte sur deux lignes lus, entrée fuzzy, texte vide et entrée obsolète restés en anglais. Le
+  lecteur seul, compilé à part sur un .po d'essai : en-tête fuzzy lu quand même, pluriel et contexte sautés sans avaler
+  l'entrée suivante, échappements `\t \" \\`, fins de ligne CRLF ; `fr.po` : 266 textes. MSVC compile. La liste
+  Langue elle-même n'a pas été vue à l'écran : les clics simulés n'atteignent pas ImGui sans le vrai pointeur (posés
+  par PostMessage, Windows envoie aussitôt WM_MOUSELEAVE).
+
+### Retour de force et link dans la liste des jeux et le sélecteur (demande 130)
+- `gameData.c` dit ce que le loader fait pour chaque jeu, pour la liste, le sélecteur et l'onglet Options du jeu :
+  - `gameDataHasFfb` : la carte servo (émulée par `driveBoard.c` ou la carte d'Initial D 4 et 5, hors serveurs : la
+    règle que l'onglet Options du jeu avait, devenue `gameDataHasServoBoard`), la Kickback des jeux Namco (Dead Heat,
+    Maximum Heat 3D, Dead Heat Riders, Maximum Tune 3 et 3DX+ ; pas Nirin, une moto), les sorties moteur des Gaelco ;
+  - `gameDataHasLink` : les jeux que `[Network]` relie : Initial D 4 Export (Rev B, C, D) et Initial D 5 Export 2.0
+    (`ID_IP_SEAT_1/2`), OutRun 2 (`OR2_IPADDRESS`, pas le programme de test), Harley, les quatre Hummer et R-Tuned
+    (`IP_CAB1` à `4`), 2Spicy (`2SPICY_IP_CAB1/2`), Race TV (`SRTV_IPADDRESS`). VF5 (réseau d'upstream sous Linux) n'y
+    est pas.
+  - Harley a le link mais pas le retour de force : sa carte servo n'est pas émulée par défaut.
+- `--list-games` : colonnes FFB et LINK (« yes » ou « - ») avant le nom ; en CSV `ffb` et `link` (« yes » ou « no ») ; la
+  fin du tableau dit ce qu'elles veulent dire. `--help` mis à jour.
+- Sélecteur (et onglet Options du jeu, par la même description) : deux lignes « Retour de force : Oui/Non » et « Link
+  entre bornes : Oui/Non » sous les cartes. Vu à l'écran (MSVC) pour OutRun 2 : « Retour de force : Oui », « Link entre
+  bornes : Oui ».
 
 ### Release 3.0.13 du 28/10 (demande 129)
 - Poussé jusqu'à `e961a3e` (la fusion avec upstream et `--seed-dir` l'avaient été par la session `--seed-dir`, en
