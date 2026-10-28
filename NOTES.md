@@ -95,6 +95,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 129 | 28/10 | Commit et push, une release, prévenir Image borne | ✅ poussé jusqu'à `e961a3e` ; `emulateurs/releases/linuxloader-v3.0.13-ffbedition-20261028-njz3-win32.zip` (première en 3.0.13) ; Image borne prévenue (voir journal) |
 | 128 | 28/10 | Une option en ligne de commande qui liste les jeux supportés : nom, nom court (nom de rom), version, exécutable attendu, CRC32 de l'exécutable (le CRC32 seulement indicatif, un autre exécutable n'est pas refusé) | ✅ `--list-games` (tableau) et `--list-games csv` ; les 91 jeux de `gameData.c` ; CRC32 du fichier entier de l'exécutable propre, quand il est connu ; MinGW et MSVC (voir journal) |
 | 127 | 28/10 | (relayée par la session « Image borne ») Amorcer le dossier d'écriture d'un jeu depuis un dossier de modèles, pas seulement depuis le dossier du jeu : les NVRAM d'une cabine link (LINK ID, siège) ne peuvent pas vivre dans le dossier du jeu, commun au solo et au link | ✅ `--seed-dir PATH` ou `[Paths] SEED_DIR` (relatif au dossier du chargeur, ou chemin complet), avec un dossier d'écriture seulement : au lancement du jeu, `<seed>\<jeu>` est recopié dans `WRITE_DIR\<jeu>`, sans jamais remplacer un fichier déjà là, une ligne de journal par fichier ; sans l'option rien ne change ; MinGW et MSVC, OutRun 2 ; branche `dev/seed-dir`, non poussée (voir journal) |
 | 126 | 28/10 | Merge avec upstream | ✅ `lindbergh-loader/linuxloader` `4ffa095` (3.0.13 : VF5, alignement de pile, GSEvo, pbuffers en FBO, libsegaapi complète, shaders Race TV et Initial D) fusionné dans `dev/ffbedition` (`0b3f5a9`) ; 15 fichiers en conflit résolus ; plantage d'OutRun au départ de la course causé par un correctif d'upstream sur les ELF déjà patchés, corrigé ; MinGW et MSVC, OutRun jusqu'en course ; non poussé (voir journal) |
@@ -161,6 +162,22 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Release 3.0.13 du 28/10 (demande 129)
+- Poussé jusqu'à `e961a3e` (la fusion avec upstream et `--seed-dir` l'avaient été par la session `--seed-dir`, en
+  `55e3be6`).
+- Faite par `release.py`, passé en 3.0.13 (la version d'upstream depuis la fusion), MinGW recompilé de zéro depuis
+  `e961a3e` exactement : tout ce que portait la 3.0.12 du 28/10, plus la fusion avec upstream 3.0.13 (VF5, alignement
+  de pile, GSEvo, pbuffers en FBO, libsegaapi complète, shaders Race TV et Initial D) et le correctif d'OutRun qui va
+  avec, `--seed-dir` / `[Paths] SEED_DIR` (amorçage du dossier d'écriture), `--list-games`.
+- `emulateurs/releases/linuxloader-v3.0.13-ffbedition-20261028-njz3-win32.zip`, 18,3 Mo ; SHA-256 du zip
+  `4bd295b8f27b978889c914b34e600e1b5891d4aca54bbbd557565a435a5f5166`, de `linuxloader.exe`
+  `f631c9e2f863cd0bfeda69a645955d56a9fc6fd9ea351df5a75f5f5a17702906` ; `ll-deps` identique à la 3.0.12.
+- Testée depuis le zip extrait dans un dossier vierge : `--version` → « Build: linuxloader-v3.0.13-ffbedition-20261028-njz3
+  FFB Edition » ; `--help` montre `--list-games` et `--seed-dir` ; `--list-games` liste les 91 jeux ; `--create
+  controls` écrit les pédales du BFF ; OutRun 2 en mode agent caché avec cet exe jusqu'en course (retour de force en
+  virage). Les autres jeux ne sont pas relancés depuis la fusion avec upstream (pas de copie locale) : à essayer sur les
+  bornes. Pas installée (Image borne prévenue).
 
 ### Liste des jeux supportés, `--list-games` (demande 128)
 - `linuxloader --list-games` : un tableau, un jeu par ligne, colonnes NOM COURT (le nom de rom, celui du dossier
