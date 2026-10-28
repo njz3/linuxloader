@@ -23,6 +23,7 @@
 
 #include "config/configIni.h"
 #include "config/config.h"
+#include "config/gameData.h"
 #include "input/evdevInput.h"
 #include "input/controlIniGen.h"
 #include "input/sdlInput.h"
@@ -75,92 +76,197 @@ char *games[] = {"a.elf",
                  "vt3_Lindbergh",
                  "END"};
 
-/**
- * An array containin clean games elf's CRC32
- */
-uint32_t cleanElfCRC32[] = {
-    0x51C4D2F6, // DVP-0003A | hod4M.elf
-    0x1348BCA8, // DVP-0003A | hod4testM.elf
-    0x0AAE384E, // DVP-0003B | hod4M.elf
-    0x352AA797, // DVP-0003B | hod4testM.elf
-    0x42EED61A, // DVP-0003C | hod4M.elf
-    0x6DA6E511, // DVP-0003C | hod4testM.elf
-    0x0E4BF4B1, // DVP-0005  | vt3_Lindbergh
-    0x9E48AB5B, // DVP-0005  | vt3_testmode
-    0xE4C64D01, // DVP-0005A | vt3_Lindbergh
-    0x9C0E77E5, // DVP-0005A | vt3_testmode
-    0xA4BDB9E2, // DVP-0005B | vt3_Lindbergh
-    0x74E25472, // DVP-0005B | vt3_testmode
-    0x987AE3FF, // DVP-0005C | vt3_Lindbergh
-    0x1E4271A4, // DVP-0005C | vt3_testmode
-    0xD409B70C, // DVP-0008  | vf5
-    0x08EBC0DB, // DVP-0008A | vf5
-    0xA47FBA2D, // DVP-0008B | vf5
-    0x8CA46167, // DVP-0008C | vf5
-    0x75946796, // DVP-0008E | vf5
-    0x2C8F5D57, // DVP-0009  | abc
-    0x13D90755, // DVP-0009A | abc
-    0x633AD6FB, // DVP-0009B | abc
-    0xD39825A8, // DVP-0010  | hod4M.elf
-    0x0745CF0A, // DVP-0010  | hod4testM.elf
-    0x13E59583, // DVP-0010B | hod4M.elf
-    0x302FEB00, // DVP-0010B | hod4testM.elf
-    0x04E08C99, // DVP-0011  | lgj_final
-    0x0C3D3CC3, // DVP-0011A | lgj_final
-    0xD9660B2E, // DVP-0015  | JenTest
-    0x821C3404, // DVP-0015  | Jennifer
-    0x13AF8581, // DVP-0015A | JenTest
-    0xB2CE9B23, // DVP-0015A | Jennifer
-    0xCC32DEAE, // DVP-0018  | abc
-    0x17114BC1, // DVP-0018A | abc
-    0x22905D60, // DVP-0019A | id4.elf
-    0x43582D48, // DVP-0019B | id4.elf
-    0x2D2A18C1, // DVP-0019C | id4.elf
-    0x9BFD0D98, // DVP-0019D | id4.elf
-    0xB84D2D0E, // DVP-0019D | id4_serverbox.elf
-    0x9CF9BBCC, // DVP-0019G | id4.elf
-    0xDCAD8ABA, // DVP-0025H | q2satl_lind
-    0xFA0F6AB0, // DVP-0027A | apacheM.elf
-    0x5A7F315E, // DVP-0027A | apachetestM.elf
-    0x9D414D18, // DVP-0029A | vsg
-    0xC345E213, // DVP-0030B | id4.elf
-    0x98E6A516, // DVP-0030C | id4.elf
-    0xF67365C9, // DVP-0030D | id4.elf
-    0x8BDD31BA, // DVP-0031  | abc
-    0x3DF37873, // DVP-0031A | abc
-    0xDD8BB792, // DVP-0036A | lgjsp_app
-    0xB0A96E34, // DVP-0043  | vf5
-    0xF99E5635, // DVP-0044  | drive.elf
-    0x4143F6B4, // DVP-0048A | main.exe
-    0x65489691, // DVP-0049  | mj4
-    0x653BC83B, // DVP-0057  | a.elf
-    0x04D88552, // DVP-0057B | a.elf
-    0x089D6051, // DVP-0060  | dsr
-    0x317F3B90, // DVP-0063  | hodexRI.elf
-    0x3A5EEC69, // DVP-0063  | hodextestR.elf
-    0x81E02850, // DVP-0069  | RAMBO_SBQLM.elf
-    0xE4F202BB, // DVP-0070A | id5.elf
-    0x400C09CD, // DVP-0070C | id5.elf
-    0x2E6732A3, // DVP-0070F | id5.elf
-    0xAEEE6BEF, // DVP-0070  | id5_serverbox.elf
-    0xF99A3CDB, // DVP-0075  | id5.elf
-    0xDCC1f8E7, // DVP-0078  | RAMBO_SBQLM.elf
-    0x05647A8E, // DVP-0079  | hummer_Master.elf
-    0x0AD7CF0F, // DVP-0081  | mj4
-    0x4442EA15, // DVP-0083  | hummer_Master.elf
-    0x8DF6BBF9, // DVP-0084  | id5.elf
-    0x2AF8004E, // DVP-0084A | id5.elf
-    0xCB663DD0, // DVP-0087D | q2satl_lind
-    0xB95528F4, // DVP-5004  | vf5
-    0x012E4898, // DVP-5004D | vf5
-    0x74465F9F, // DVP-5004G | vf5
-    0x75B48E22, // DVP-5007  | chopperM.elf
-    0xFCB9D941, // DVP-5019A | vf5
-    0xAB70901C, // DVP-5020  | vf5
-    0x6BAA510D, // DVP-5020  | vf5 | Ver 6.000
+// The clean game ELFs: the CRC32 of the whole file, the game's DVP number, the file's name, a note
+typedef struct
+{
+    uint32_t crc;
+    const char *dvp;
+    const char *elf;
+    const char *note;
+} CleanElf;
+
+static const CleanElf cleanElfs[] = {
+    {0x51C4D2F6, "DVP-0003A", "hod4M.elf", NULL},
+    {0x1348BCA8, "DVP-0003A", "hod4testM.elf", NULL},
+    {0x0AAE384E, "DVP-0003B", "hod4M.elf", NULL},
+    {0x352AA797, "DVP-0003B", "hod4testM.elf", NULL},
+    {0x42EED61A, "DVP-0003C", "hod4M.elf", NULL},
+    {0x6DA6E511, "DVP-0003C", "hod4testM.elf", NULL},
+    {0x0E4BF4B1, "DVP-0005", "vt3_Lindbergh", NULL},
+    {0x9E48AB5B, "DVP-0005", "vt3_testmode", NULL},
+    {0xE4C64D01, "DVP-0005A", "vt3_Lindbergh", NULL},
+    {0x9C0E77E5, "DVP-0005A", "vt3_testmode", NULL},
+    {0xA4BDB9E2, "DVP-0005B", "vt3_Lindbergh", NULL},
+    {0x74E25472, "DVP-0005B", "vt3_testmode", NULL},
+    {0x987AE3FF, "DVP-0005C", "vt3_Lindbergh", NULL},
+    {0x1E4271A4, "DVP-0005C", "vt3_testmode", NULL},
+    {0xD409B70C, "DVP-0008", "vf5", NULL},
+    {0x08EBC0DB, "DVP-0008A", "vf5", NULL},
+    {0xA47FBA2D, "DVP-0008B", "vf5", NULL},
+    {0x8CA46167, "DVP-0008C", "vf5", NULL},
+    {0x75946796, "DVP-0008E", "vf5", NULL},
+    {0x2C8F5D57, "DVP-0009", "abc", NULL},
+    {0x13D90755, "DVP-0009A", "abc", NULL},
+    {0x633AD6FB, "DVP-0009B", "abc", NULL},
+    {0xD39825A8, "DVP-0010", "hod4M.elf", NULL},
+    {0x0745CF0A, "DVP-0010", "hod4testM.elf", NULL},
+    {0x13E59583, "DVP-0010B", "hod4M.elf", NULL},
+    {0x302FEB00, "DVP-0010B", "hod4testM.elf", NULL},
+    {0x04E08C99, "DVP-0011", "lgj_final", NULL},
+    {0x0C3D3CC3, "DVP-0011A", "lgj_final", NULL},
+    {0xD9660B2E, "DVP-0015", "JenTest", NULL},
+    {0x821C3404, "DVP-0015", "Jennifer", NULL},
+    {0x13AF8581, "DVP-0015A", "JenTest", NULL},
+    {0xB2CE9B23, "DVP-0015A", "Jennifer", NULL},
+    {0xCC32DEAE, "DVP-0018", "abc", NULL},
+    {0x17114BC1, "DVP-0018A", "abc", NULL},
+    {0x22905D60, "DVP-0019A", "id4.elf", NULL},
+    {0x43582D48, "DVP-0019B", "id4.elf", NULL},
+    {0x2D2A18C1, "DVP-0019C", "id4.elf", NULL},
+    {0x9BFD0D98, "DVP-0019D", "id4.elf", NULL},
+    {0xB84D2D0E, "DVP-0019D", "id4_serverbox.elf", NULL},
+    {0x9CF9BBCC, "DVP-0019G", "id4.elf", NULL},
+    {0xDCAD8ABA, "DVP-0025H", "q2satl_lind", NULL},
+    {0xFA0F6AB0, "DVP-0027A", "apacheM.elf", NULL},
+    {0x5A7F315E, "DVP-0027A", "apachetestM.elf", NULL},
+    {0x9D414D18, "DVP-0029A", "vsg", NULL},
+    {0xC345E213, "DVP-0030B", "id4.elf", NULL},
+    {0x98E6A516, "DVP-0030C", "id4.elf", NULL},
+    {0xF67365C9, "DVP-0030D", "id4.elf", NULL},
+    {0x8BDD31BA, "DVP-0031", "abc", NULL},
+    {0x3DF37873, "DVP-0031A", "abc", NULL},
+    {0xDD8BB792, "DVP-0036A", "lgjsp_app", NULL},
+    {0xB0A96E34, "DVP-0043", "vf5", NULL},
+    {0xF99E5635, "DVP-0044", "drive.elf", NULL},
+    {0x4143F6B4, "DVP-0048A", "main.exe", NULL},
+    {0x65489691, "DVP-0049", "mj4", NULL},
+    {0x653BC83B, "DVP-0057", "a.elf", NULL},
+    {0x04D88552, "DVP-0057B", "a.elf", NULL},
+    {0x089D6051, "DVP-0060", "dsr", NULL},
+    {0x317F3B90, "DVP-0063", "hodexRI.elf", NULL},
+    {0x3A5EEC69, "DVP-0063", "hodextestR.elf", NULL},
+    {0x81E02850, "DVP-0069", "RAMBO_SBQLM.elf", NULL},
+    {0xE4F202BB, "DVP-0070A", "id5.elf", NULL},
+    {0x400C09CD, "DVP-0070C", "id5.elf", NULL},
+    {0x2E6732A3, "DVP-0070F", "id5.elf", NULL},
+    {0xAEEE6BEF, "DVP-0070", "id5_serverbox.elf", NULL},
+    {0xF99A3CDB, "DVP-0075", "id5.elf", NULL},
+    {0xDCC1F8E7, "DVP-0078", "RAMBO_SBQLM.elf", NULL},
+    {0x05647A8E, "DVP-0079", "hummer_Master.elf", NULL},
+    {0x0AD7CF0F, "DVP-0081", "mj4", NULL},
+    {0x4442EA15, "DVP-0083", "hummer_Master.elf", NULL},
+    {0x8DF6BBF9, "DVP-0084", "id5.elf", NULL},
+    {0x2AF8004E, "DVP-0084A", "id5.elf", NULL},
+    {0xCB663DD0, "DVP-0087D", "q2satl_lind", NULL},
+    {0xB95528F4, "DVP-5004", "vf5", NULL},
+    {0x012E4898, "DVP-5004D", "vf5", NULL},
+    {0x74465F9F, "DVP-5004G", "vf5", NULL},
+    {0x75B48E22, "DVP-5007", "chopperM.elf", NULL},
+    {0xFCB9D941, "DVP-5019A", "vf5", NULL},
+    {0xAB70901C, "DVP-5020", "vf5", NULL},
+    {0x6BAA510D, "DVP-5020", "vf5", "Ver 6.000"},
 };
 
-int cleanElfCRC32Count = sizeof(cleanElfCRC32) / sizeof(uint32_t);
+static const int cleanElfCount = sizeof(cleanElfs) / sizeof(cleanElfs[0]);
+
+// The executable each game known runs, as its folder holds it: the test mode's own for a test entry
+static const struct
+{
+    uint32_t game; // its entry in gameData.c
+    const char *elf;
+} gameElfs[] = {
+    {AFTER_BURNER_CLIMAX_SBLR,                       "abc"},
+    {AFTER_BURNER_CLIMAX_SBLR_REVA,                  "abc"},
+    {AFTER_BURNER_CLIMAX_SBLR_REVB,                  "abc"},
+    {AFTER_BURNER_CLIMAX_SDX_SBMN,                   "abc"},
+    {AFTER_BURNER_CLIMAX_SDX_SBMN_REVA,              "abc"},
+    {AFTER_BURNER_CLIMAX_SE_SBLR,                    "abc"},
+    {AFTER_BURNER_CLIMAX_SE_SBLR_REVA,               "abc"},
+    {GHOST_SQUAD_EVOLUTION_SBNJ,                     "vsg"},
+    {HARLEY_DAVIDSON_SBRG,                           "chopperM.elf"},
+    {HUMMER_SBQN,                                    "a.elf"},
+    {HUMMER_SBQN_REVB,                               "a.elf"},
+    {HUMMER_EXTREME_SBST,                            "hummer_Master.elf"},
+    {HUMMER_EXTREME_MDX_SBTL,                        "hummer_Master.elf"},
+    {INITIALD_4_EXP_SBNK_REVB,                       "id4.elf"},
+    {INITIALD_4_EXP_SBNK_REVC,                       "id4.elf"},
+    {INITIALD_4_EXP_SBNK_REVD,                       "id4.elf"},
+    {INITIALD_4_SBML_REVA,                           "id4.elf"},
+    {INITIALD_4_SBML_REVB,                           "id4.elf"},
+    {INITIALD_4_SBML_REVC,                           "id4.elf"},
+    {INITIALD_4_SBML_REVD,                           "id4.elf"},
+    {INITIALD_4_SBML_SERVERBOX,                      "id4_serverbox.elf"},
+    {INITIALD_4_SBML_REVG,                           "id4.elf"},
+    {INITIALD_4_SBML_REVZ,                           "id4.elf"},
+    {INITIALD_5_EXP_SBRY,                            "id5.elf"},
+    {INITIALD_5_EXP20_SBTS,                          "id5.elf"},
+    {INITIALD_5_EXP20_SBTS_REVA,                     "id5.elf"},
+    {INITIALD_5_JAP_SBQZ_REVA,                       "id5.elf"},
+    {INITIALD_5_JAP_SBQZ_REVC,                       "id5.elf"},
+    {INITIALD_5_JAP_SBQZ_REVF,                       "id5.elf"},
+    {INITIALD_5_JAP_SBQZ_SERVERBOX,                  "id5_serverbox.elf"},
+    {LETS_GO_JUNGLE_SBLU,                            "lgj_final"},
+    {LETS_GO_JUNGLE_SBLU_REVA,                       "lgj_final"},
+    {LETS_GO_JUNGLE_SBNR_SPECIAL,                    "lgjsp_app"},
+    {MJ4_EVO_SBTA,                                   "mj4"},
+    {MJ4_SBPN_REVG,                                  "mj4"},
+    {OUTRUN_2_SP_SDX_SBMB,                           "Jennifer"},
+    {OUTRUN_2_SP_SDX_SBMB_TEST,                      "JenTest"},
+    {OUTRUN_2_SP_SDX_SBMB_REVA,                      "Jennifer"},
+    {OUTRUN_2_SP_SDX_SBMB_REVA_TEST,                 "JenTest"},
+    {OUTRUN_2_SP_SDX_SBMB_REVA_TEST2,                "JenTest"},
+    {PRIMEVAL_HUNT_SBPP,                             "main.exe"},
+    {QUIZ_AXA_SBMS,                                  "q2satl_lind"},
+    {QUIZ_AXA_SBUR_LIVE,                             "q2satl_lind"},
+    {RAMBO_SBQL,                                     "RAMBO_SBQLM.elf"},
+    {RAMBO_SBSS_CHINA,                               "RAMBO_SBQLM.elf"},
+    {DEAD_HEAT_US,                                   "a.elf"},
+    {GAELCO_TUNING_RACE,                             "car"},
+    {RING_RIDERS,                                    "gameport"},
+    {TOKYO_COP,                                      "gameport"},
+    {DEAD_HEAT_RIDERS,                               "a.elf"},
+    {MAXIMUM_HEAT_3D,                                "a.elf"},
+    {NIRIN,                                          "exec/a.elf"},
+    {WANGAN_MIDNIGHT_MT3,                            "main"},
+    {WANGAN_MIDNIGHT_MT3DX,                          "main"},
+    {R_TUNED_SBQW,                                   "dsr"},
+    {SEGABOOT_2_4,                                   "segaboot"},
+    {SEGABOOT_2_4_SYM,                               "segaboot"},
+    {SEGA_RACE_TV_SBPF,                              "drive.elf"},
+    {THE_HOUSE_OF_THE_DEAD_4_SBLC_REVA,              "hod4M.elf"},
+    {THE_HOUSE_OF_THE_DEAD_4_SBLC_REVA_TEST,         "hod4testM.elf"},
+    {THE_HOUSE_OF_THE_DEAD_4_SBLC_REVB,              "hod4M.elf"},
+    {THE_HOUSE_OF_THE_DEAD_4_SBLC_REVB_TEST,         "hod4testM.elf"},
+    {THE_HOUSE_OF_THE_DEAD_4_SBLC_REVC,              "hod4M.elf"},
+    {THE_HOUSE_OF_THE_DEAD_4_SBLC_REVC_TEST,         "hod4testM.elf"},
+    {THE_HOUSE_OF_THE_DEAD_4_SPECIAL_SBLS,           "hod4M.elf"},
+    {THE_HOUSE_OF_THE_DEAD_4_SPECIAL_SBLS_TEST,      "hod4testM.elf"},
+    {THE_HOUSE_OF_THE_DEAD_4_SPECIAL_SBLS_REVB,      "hod4M.elf"},
+    {THE_HOUSE_OF_THE_DEAD_4_SPECIAL_SBLS_REVB_TEST, "hod4testM.elf"},
+    {THE_HOUSE_OF_THE_DEAD_EX_SBRC,                  "hodexRI.elf"},
+    {THE_HOUSE_OF_THE_DEAD_EX_SBRC_TEST,             "hodextestR.elf"},
+    {TOO_SPICY_SBMV,                                 "apacheM.elf"},
+    {TOO_SPICY_SBMV_TEST,                            "apachetestM.elf"},
+    {VIRTUA_FIGHTER_5_SBLM,                          "vf5"},
+    {VIRTUA_FIGHTER_5_SBLM_EXPORT,                   "vf5"},
+    {VIRTUA_FIGHTER_5_FINAL_SHOWDOWN_SBUV_REVA,      "vf5"},
+    {VIRTUA_FIGHTER_5_FINAL_SHOWDOWN_SBXX_REVB,      "vf5"},
+    {VIRTUA_FIGHTER_5_FINAL_SHOWDOWN_SBXX_REVB_6000, "vf5"},
+    {VIRTUA_FIGHTER_5_SBQU_R,                        "vf5"},
+    {VIRTUA_FIGHTER_5_SBQU_R_REVD,                   "vf5"},
+    {VIRTUA_FIGHTER_5_SBQU_R_REVG,                   "vf5"},
+    {VIRTUA_FIGHTER_5_SBQU_REVA,                     "vf5"},
+    {VIRTUA_FIGHTER_5_SBQU_REVB,                     "vf5"},
+    {VIRTUA_FIGHTER_5_SBQU_REVE,                     "vf5"},
+    {VIRTUA_TENNIS_3_SBKX,                           "vt3_Lindbergh"},
+    {VIRTUA_TENNIS_3_SBKX_TEST,                      "vt3_testmode"},
+    {VIRTUA_TENNIS_3_SBKX_REVA,                      "vt3_Lindbergh"},
+    {VIRTUA_TENNIS_3_SBKX_REVA_TEST,                 "vt3_testmode"},
+    {VIRTUA_TENNIS_3_SBKX_REVB,                      "vt3_Lindbergh"},
+    {VIRTUA_TENNIS_3_SBKX_REVB_TEST,                 "vt3_testmode"},
+    {VIRTUA_TENNIS_3_SBKX_REVC,                      "vt3_Lindbergh"},
+    {VIRTUA_TENNIS_3_SBKX_REVC_TEST,                 "vt3_testmode"},
+};
 
 bool isIDGame()
 {
@@ -243,9 +349,9 @@ int calculateCRC32inChunks(const char *filename, uint32_t *crc)
 
 int lookupCrcTable(uint32_t crc)
 {
-    for (int x = 0; x < cleanElfCRC32Count; x++)
+    for (int x = 0; x < cleanElfCount; x++)
     {
-        if (cleanElfCRC32[x] == crc)
+        if (cleanElfs[x].crc == crc)
             return 1;
     }
     return 0;
@@ -402,6 +508,57 @@ bool hasSpaces(const char *path)
     return false;
 }
 
+// --list-games [csv]: the games the loader knows, one a line: short name, version (the DVP number), the executable
+// the game's folder holds, the CRC32 of its clean file (several when it had several releases, none when not known),
+// the game's name. The CRC32 is for information only: the loader recognizes a game by its code, and runs an
+// executable whose CRC32 is another (patched), only saying it is not a clean one.
+static void listGames(bool csv)
+{
+    size_t count = gameDataCount();
+    int shortWidth = 10, versionWidth = 7, elfWidth = 10, crcWidth = 5;
+    char crcs[128];
+    for (int pass = 0; pass < 2; pass++)
+    {
+        if (pass == 1)
+        {
+            if (csv)
+                printf("short_name,version,executable,crc32,name\n");
+            else
+                printf("%-*s  %-*s  %-*s  %-*s  %s\n", shortWidth, "SHORT NAME", versionWidth, "VERSION", elfWidth,
+                       "EXECUTABLE", crcWidth, "CRC32", "NAME");
+        }
+        for (size_t i = 0; i < count; i++)
+        {
+            const GameData *game = gameDataAt(i);
+            const char *elf = "";
+            for (size_t e = 0; e < sizeof(gameElfs) / sizeof(gameElfs[0]); e++)
+                if (gameElfs[e].game == game->crc32)
+                    elf = gameElfs[e].elf;
+            crcs[0] = '\0';
+            for (int x = 0; x < cleanElfCount && elf[0]; x++)
+                if (strcmp(cleanElfs[x].dvp, game->gameDVP) == 0 && strcmp(cleanElfs[x].elf, elf) == 0)
+                    snprintf(crcs + strlen(crcs), sizeof(crcs) - strlen(crcs), "%s%08X", crcs[0] ? " " : "", cleanElfs[x].crc);
+            const char *version = game->gameDVP[0] ? game->gameDVP : "-";
+            if (pass == 0)
+            {
+                shortWidth = (int)strlen(game->gameShortTitle) > shortWidth ? (int)strlen(game->gameShortTitle) : shortWidth;
+                versionWidth = (int)strlen(version) > versionWidth ? (int)strlen(version) : versionWidth;
+                elfWidth = (int)strlen(elf) > elfWidth ? (int)strlen(elf) : elfWidth;
+                crcWidth = (int)strlen(crcs) > crcWidth ? (int)strlen(crcs) : crcWidth;
+            }
+            else if (csv)
+                printf("%s,%s,%s,%s,\"%s\"\n", game->gameShortTitle, version, elf, crcs, game->gameTitle);
+            else
+                printf("%-*s  %-*s  %-*s  %-*s  %s\n", shortWidth, game->gameShortTitle, versionWidth, version, elfWidth,
+                       elf[0] ? elf : "-", crcWidth, crcs[0] ? crcs : "-", game->gameTitle);
+        }
+    }
+    if (!csv)
+        printf("\n%u games. CRC32: the whole executable of a clean dump, for information only: an executable with another\n"
+               "one (patched) is not refused, the loader recognizes the game by its code.\n",
+               (unsigned)count);
+}
+
 void printUsage(char *programName)
 {
     printf("%s [GAME_PATH] [OPTIONS]\n", myBasename(programName));
@@ -415,6 +572,7 @@ void printUsage(char *programName)
     printf("  --list-controllers | -l  Lists available controllers and inputs for EVDEV.\n");
 #endif
     printf("  --list-guids       | -lg Lists available SDL controllers GUIDs.\n");
+    printf("  --list-games [csv]       Lists the supported games: short name, version, executable, its CRC32, name\n");
     printf("  --version          | -v  Displays the version of the loader and team's names\n");
     printf("  --help             | -h  Displays this usage text\n");
     printf("  --config           | -c  Specifies configuration ini file path (default: linuxloader.ini, or the\n");
@@ -722,6 +880,12 @@ int parseArgs(int argc, char *argv[], char *command, char *originalDir, char *ga
         return listEvDevControllers();
     }
 #endif
+
+    if (argc > 1 && strcmp(argv[1], "--list-games") == 0)
+    {
+        listGames(argc > 2 && strcmp(argv[2], "csv") == 0);
+        return PARSE_ARGS_HELP;
+    }
 
     if (argc > 1 && (strcmp(argv[1], "--list-guids") == 0 || strcmp(argv[1], "-lg") == 0))
     {

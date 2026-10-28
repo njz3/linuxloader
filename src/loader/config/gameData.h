@@ -27,5 +27,8 @@ typedef struct GameData {
 } GameData;
 
 const GameData *getGameData(uint32_t elf_crc);
+// The table, entry by entry (--list-games)
+size_t gameDataCount(void);
+const GameData *gameDataAt(size_t index);
 
 #endif // GAME_DATA_H

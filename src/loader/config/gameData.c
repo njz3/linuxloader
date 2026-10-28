@@ -106,3 +106,13 @@ const GameData *getGameData(uint32_t elf_crc)
     }
     return NULL;
 }
+
+size_t gameDataCount(void)
+{
+    return sizeof(gameData) / sizeof(gameData[0]);
+}
+
+const GameData *gameDataAt(size_t index)
+{
+    return index < gameDataCount() ? &gameData[index] : NULL;
+}
