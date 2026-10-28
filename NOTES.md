@@ -95,6 +95,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 125 | 28/10 | Commit, push, une release, prévenir Image borne | ✅ rien de plus à commiter, déjà poussé jusqu'à `8752305` ; `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261028-njz3-win32.zip` ; Image borne prévenue (voir journal) |
 | 124 | 27/10 | D'autres utilisateurs disent que les pédales ne marchent pas : vérifier les axes analogiques dans le menu de test | ✅ le jeu lit bien ses axes (OutRun, INPUT TEST : `00H` à `FFH`, `7FH` à mi-course, volant `00H`/`7FH`/`FFH`) ; par vJoy et `controls.ini`, une pédale qui repose en haut de son axe donne `FFH` au repos, au milieu `7FH`, et sans `controls.ini` l'accélérateur attend l'axe 5 (absent sur vJoy et bien des volants) ; la capture de Tab > Contrôles n'ajoutait jamais `_INVERTED` ni `_SIDE`. Corrigé : la capture prend le mode d'après la position de repos, les barres montrent la pédale telle qu'elle est lue, les liaisons par défaut suivent le BFF (accélérateur Y−, frein Z−) ; vérifié avec vJoy dans INPUT TEST, MinGW (voir journal) |
 | 123 | 27/10 | Copier OutRun 2 et essayer en jeu les nouvelles réponses de la servoboard | ✅ démarrage (« Initializing the drive board », pas de faute), démo, course atteinte, DRIVE BOARD TEST MENU (il attend les 4 s de la recherche d'index par `FD`, comme sur la borne) ; mode agent caché, MinGW (voir journal) |
 | 122 | 27/10 | Initial D 5 : essayer son test du retour de force (menu de test) | ✅ passe tel quel : « CHECKING.... » environ 21 s, puis le menu ; CENTER, RIGHT et LEFT envoient leurs couples, sens justes ; MinGW et MSVC, mode agent caché ; aucune réponse de la carte n'est attendue, rien à brancher ; Initial D 4 pas essayé (voir journal) |
@@ -157,6 +158,20 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Release du 28/10 (demande 125)
+- Rien de plus à commiter : `origin/dev/ffbedition` était déjà à `8752305` (réponses de la servoboard, pédales).
+- Faite par `release.py`, la première du jour (sans suffixe), MinGW recompilé de zéro depuis `8752305` exactement :
+  tout ce que portait la 20261027, plus les réponses de la servoboard d'après DRIVEBOARD.md, la capture des pédales
+  d'après leur position de repos et les pédales du BFF par défaut (demandes 121 à 124).
+- `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261028-njz3-win32.zip`, 18,3 Mo ; SHA-256 du zip
+  `fde4d0e228850b011cbbf98d6547978d60d745d9afedc54f36271eeb3e6908f8`, de `linuxloader.exe`
+  `f8e79576d526260eaaa5455c73aa309ace49e07a856770a76aabefc0d3c80646` ; `ll-deps` identique à la 20261027.
+- Testée depuis le zip extrait dans un dossier vierge : `--version` → « Build: linuxloader-v3.0.12-ffbedition-20261028-njz3
+  FFB Edition » ; `--create controls` écrit `P1_Gas = GC0_AXIS_RIGHTTRIGGER, JOY0_AXIS_1_NEGATIVE_SIDE` et
+  `P1_Brake = GC0_AXIS_LEFTTRIGGER, JOY0_AXIS_2_NEGATIVE_SIDE` ; OutRun 2 en mode agent caché avec cet exe : la démo,
+  `FF`, `81`, `FC` puis le centrage, 601 forces constantes, comme le build de développement. Pas installée sur les
+  bornes (Image borne prévenue).
 
 ### Pédales : les axes analogiques dans le menu de test (demande 124)
 - D'autres utilisateurs disent que leurs pédales ne marchent pas. Vérifié dans INPUT TEST d'OutRun 2 (programme de
