@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lindbergh Loader\n"
 "Report-Msgid-Bugs-To: https://github.com/njz3/linuxloader/issues\n"
-"POT-Creation-Date: 2026-10-28 14:53+0100\n"
+"POT-Creation-Date: 2026-10-29 21:28+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -206,7 +206,7 @@ msgid "Outputs and network"
 msgstr ""
 
 #: src/loader/gui/guiCommon.cpp
-msgid "Send lamps and drive board data over the network (MAME outputs)"
+msgid "Send the network outputs (OUTPUTS_NETWORK)"
 msgstr ""
 
 #: src/loader/gui/guiCommon.cpp
@@ -295,6 +295,32 @@ msgstr ""
 
 #: src/loader/gui/guiCommon.cpp src/loader/gui/guiControls.cpp
 msgid "Close"
+msgstr ""
+
+#: src/loader/gui/guiCommon.cpp
+#, c-format
+msgid "[Outputs] OUTPUTS_NETWORK = %s, saved to %s"
+msgstr ""
+
+#: src/loader/gui/guiCommon.cpp
+#, c-format
+msgid ""
+"Network outputs on: TCP port %d, %d client(s) connected, start announced to "
+"127.0.0.1:%d (UDP)."
+msgstr ""
+
+#: src/loader/gui/guiCommon.cpp
+#, c-format
+msgid "Network outputs off: TCP port %d is already taken by another program."
+msgstr ""
+
+#: src/loader/gui/guiCommon.cpp
+#, c-format
+msgid "Network outputs off: TCP port %d could not be opened (error %d)."
+msgstr ""
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Network outputs off. The values below are the ones the game gives."
 msgstr ""
 
 #: src/loader/gui/guiControls.cpp
@@ -626,7 +652,20 @@ msgid "Map"
 msgstr ""
 
 #: src/loader/gui/guiControls.cpp
+msgid "Add"
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
 msgid "Unmap"
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
+msgid "Default"
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
+#, c-format
+msgid "Default: %s"
 msgstr ""
 
 #: src/loader/gui/guiControls.cpp
@@ -684,6 +723,10 @@ msgid "no device"
 msgstr ""
 
 #: src/loader/gui/guiControls.cpp
+msgid "pressed"
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
 msgid "Devices"
 msgstr ""
 
@@ -701,6 +744,10 @@ msgstr ""
 
 #: src/loader/gui/guiControls.cpp
 msgid "No controller connected."
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
+msgid "What the game gets"
 msgstr ""
 
 #: src/loader/gui/guiControls.cpp src/loader/gui/guiGameOptions.cpp
@@ -952,12 +999,6 @@ msgstr ""
 msgid ""
 "Each line goes as \"name = value\" on the TCP port, at each change; a client "
 "that connects gets every known value first. Value: the last sent."
-msgstr ""
-
-#: src/loader/gui/guiGameOptions.cpp
-msgid ""
-"The values show while the outputs are on (from the next start once checked "
-"and saved)."
 msgstr ""
 
 #: src/loader/gui/guiOverlay.cpp

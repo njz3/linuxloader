@@ -50,8 +50,14 @@ void gameOptionsIniValues(std::vector<IniValue> &values);
 // windowsloader's)
 std::vector<std::string> boardDescription(const GameData *data);
 // The "Outputs and network" page's list of what the game being run can send on the network outputs, with the values
-// last sent
+// the game gave last
 void drawOutputsList();
+// [Outputs] OUTPUTS_NETWORK while the game runs: the server started or stopped at once, the choice written at once to
+// configFile, *saved telling where. The settings' box and the agent's "menu outputs" (guiOutputsSwitch). False when
+// the server did not start
+bool switchOutputs(bool on, const std::string &configFile, std::string *saved);
+// The network outputs' state, in a sentence
+std::string outputsState();
 
 // The controls page: the bindings of controls.ini, captured from the devices.
 void setControlsFile(const std::string &path);

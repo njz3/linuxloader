@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lindbergh Loader\n"
 "Report-Msgid-Bugs-To: https://github.com/njz3/linuxloader/issues\n"
-"POT-Creation-Date: 2026-10-28 14:53+0100\n"
+"POT-Creation-Date: 2026-10-29 21:28+0100\n"
 "PO-Revision-Date: 2026-10-28 15:00+0100\n"
 "Last-Translator: njz3\n"
 "Language-Team: French\n"
@@ -235,9 +235,8 @@ msgid "Outputs and network"
 msgstr "Sorties et réseau"
 
 #: src/loader/gui/guiCommon.cpp
-msgid "Send lamps and drive board data over the network (MAME outputs)"
-msgstr ""
-"Envoyer les lampes et la carte de commande sur le réseau (sorties MAME)"
+msgid "Send the network outputs (OUTPUTS_NETWORK)"
+msgstr "Envoyer les sorties réseau (OUTPUTS_NETWORK)"
 
 #: src/loader/gui/guiCommon.cpp
 msgid "TCP port"
@@ -331,6 +330,32 @@ msgstr "Sauvegardé dans %s (ce jeu seulement)"
 #: src/loader/gui/guiCommon.cpp src/loader/gui/guiControls.cpp
 msgid "Close"
 msgstr "Fermer"
+
+#: src/loader/gui/guiCommon.cpp
+#, c-format
+msgid "[Outputs] OUTPUTS_NETWORK = %s, saved to %s"
+msgstr "[Outputs] OUTPUTS_NETWORK = %s, enregistré dans %s"
+
+#: src/loader/gui/guiCommon.cpp
+#, c-format
+msgid ""
+"Network outputs on: TCP port %d, %d client(s) connected, start announced to "
+"127.0.0.1:%d (UDP)."
+msgstr "Sorties réseau actives : port TCP %d, %d client(s) connecté(s), début annoncé à 127.0.0.1:%d (UDP)."
+
+#: src/loader/gui/guiCommon.cpp
+#, c-format
+msgid "Network outputs off: TCP port %d is already taken by another program."
+msgstr "Sorties réseau coupées : le port TCP %d est déjà pris par un autre programme."
+
+#: src/loader/gui/guiCommon.cpp
+#, c-format
+msgid "Network outputs off: TCP port %d could not be opened (error %d)."
+msgstr "Sorties réseau coupées : le port TCP %d n'a pas pu être ouvert (erreur %d)."
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Network outputs off. The values below are the ones the game gives."
+msgstr "Sorties réseau coupées. Les valeurs ci-dessous sont celles que le jeu donne."
 
 #: src/loader/gui/guiControls.cpp
 msgid "Test"
@@ -661,8 +686,21 @@ msgid "Map"
 msgstr "Lier"
 
 #: src/loader/gui/guiControls.cpp
+msgid "Add"
+msgstr "Ajouter"
+
+#: src/loader/gui/guiControls.cpp
 msgid "Unmap"
 msgstr "Délier"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Default"
+msgstr "Défaut"
+
+#: src/loader/gui/guiControls.cpp
+#, c-format
+msgid "Default: %s"
+msgstr "Par défaut : %s"
 
 #: src/loader/gui/guiControls.cpp
 msgid "Bindings"
@@ -719,6 +757,10 @@ msgid "no device"
 msgstr "aucun périphérique"
 
 #: src/loader/gui/guiControls.cpp
+msgid "pressed"
+msgstr "appuyé"
+
+#: src/loader/gui/guiControls.cpp
 msgid "Devices"
 msgstr "Périphériques"
 
@@ -737,6 +779,10 @@ msgstr " (retour de force)"
 #: src/loader/gui/guiControls.cpp
 msgid "No controller connected."
 msgstr "Aucune manette branchée."
+
+#: src/loader/gui/guiControls.cpp
+msgid "What the game gets"
+msgstr "Ce que reçoit le jeu"
 
 #: src/loader/gui/guiControls.cpp src/loader/gui/guiGameOptions.cpp
 msgid "Force feedback"
@@ -1004,14 +1050,6 @@ msgstr ""
 "Chaque ligne part en « nom = valeur » sur le port TCP, à chaque changement ; "
 "un client qui se connecte reçoit d'abord toutes les valeurs connues. "
 "Valeur : la dernière envoyée."
-
-#: src/loader/gui/guiGameOptions.cpp
-msgid ""
-"The values show while the outputs are on (from the next start once checked "
-"and saved)."
-msgstr ""
-"Les valeurs s'affichent quand les sorties sont activées (au prochain "
-"lancement, une fois cochées et enregistrées)."
 
 #: src/loader/gui/guiOverlay.cpp
 msgid "Game paused - Tab: close the settings"

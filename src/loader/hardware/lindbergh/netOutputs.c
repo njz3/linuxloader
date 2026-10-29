@@ -5,7 +5,9 @@
 //  - TCP server (default port 8000), every client receives the same "name = value\r" lines.
 //  - On connect a client gets "mame_start = <game>\r" and every known value.
 //  - One UDP datagram "mame_start = <game>\rtcp = <port>\r" to 127.0.0.1:<udp port> (default 8001) at start.
-//  - "mame_stop = 1\r" when the loader exits.
+//  - "mame_stop = 1\r" when the loader exits, or when the server is turned off.
+// The server starts with the game when [Outputs] OUTPUTS_NETWORK is on, and is turned on and off while it runs (the
+// settings' box, the agent's "menu outputs"). The values are kept either way, for the settings' list and the next start.
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -34,18 +36,28 @@ typedef SOCKET NetSocket;
 #define NET_INVALID_SOCKET INVALID_SOCKET
 #define netCloseSocket closesocket
 #define NET_SEND_FLAGS 0
+#define NET_ADDRESS_IN_USE WSAEADDRINUSE
 static bool netWouldBlock(void)
 {
     return WSAGetLastError() == WSAEWOULDBLOCK;
+}
+static int netLastError(void)
+{
+    return WSAGetLastError();
 }
 #else
 typedef int NetSocket;
 #define NET_INVALID_SOCKET (-1)
 #define netCloseSocket close
 #define NET_SEND_FLAGS MSG_NOSIGNAL
+#define NET_ADDRESS_IN_USE EADDRINUSE
 static bool netWouldBlock(void)
 {
     return errno == EAGAIN || errno == EWOULDBLOCK;
+}
+static int netLastError(void)
+{
+    return errno;
 }
 #endif
 
@@ -61,15 +73,21 @@ typedef struct
     size_t outLen;
 } NetClient;
 
-static bool running = false;
+static bool running = false; // the server listens; lines are queued only then. Changed with stateMutex held
 static bool stopping = false;
 static SDL_Thread *serverThread = NULL;
 static SDL_Mutex *stateMutex = NULL;
 static NetSocket listenSocket = NET_INVALID_SOCKET;
 static NetClient clients[NET_MAX_CLIENTS];
+static int clientCount = 0; // counted by the server thread, read with stateMutex held
+#ifdef _WIN32
+static bool winsockStarted = false;
+#endif
 
-static char gameName[64];
+static char gameName[64] = "lindbergh";
 static int tcpPort;
+static int udpPort;
+static int lastError = 0; // why the last start failed, 0 when it did not
 
 // Known output values, sent to clients that connect later. Protected by stateMutex.
 static uint8_t gpo[NET_GPO_BYTES];
@@ -294,13 +312,18 @@ static int SDLCALL serverThreadMain(void *data)
         pendingLen = 0;
         SDL_UnlockMutex(stateMutex);
 
+        int connected = 0;
         for (int i = 0; i < NET_MAX_CLIENTS; i++)
         {
             if (batchLen)
                 clientQueue(&clients[i], batch, batchLen);
             clientFlush(&clients[i]);
             clientDrain(&clients[i]);
+            connected += clients[i].socket != NET_INVALID_SOCKET;
         }
+        SDL_LockMutex(stateMutex);
+        clientCount = connected;
+        SDL_UnlockMutex(stateMutex);
 
         if (stop)
             break;
@@ -311,7 +334,7 @@ static int SDLCALL serverThreadMain(void *data)
     return 0;
 }
 
-static void announceStart(int udpPort)
+static void announceStart(void)
 {
     if (udpPort <= 0)
         return;
@@ -330,29 +353,35 @@ static void announceStart(int udpPort)
     netCloseSocket(s);
 }
 
-void netOutputsInit(void)
+// The server's start: the ports read again from the settings, which the settings window may have changed
+static bool startServer(void)
 {
     EmulatorConfig *config = getConfig();
-    if (running || !config->outputsNetwork)
-        return;
+    tcpPort = config->outputsNetworkPort;
+    udpPort = config->outputsNetworkUdpPort;
+    lastError = 0;
 
 #ifdef _WIN32
-    WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
+    if (!winsockStarted)
     {
-        log_error("Network outputs: WSAStartup failed");
-        return;
+        WSADATA wsaData;
+        int error = WSAStartup(MAKEWORD(2, 2), &wsaData);
+        if (error != 0)
+        {
+            log_error("Network outputs: WSAStartup failed");
+            lastError = error;
+            return false;
+        }
+        winsockStarted = true;
     }
 #endif
-
-    tcpPort = config->outputsNetworkPort;
-    SDL_snprintf(gameName, sizeof(gameName), "%s", config->gameShortTitle ? config->gameShortTitle : "lindbergh");
 
     listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (listenSocket == NET_INVALID_SOCKET)
     {
+        lastError = netLastError();
         log_error("Network outputs: cannot create the TCP socket");
-        return;
+        return false;
     }
 #ifndef _WIN32
     int reuse = 1;
@@ -365,58 +394,113 @@ void netOutputsInit(void)
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
     if (bind(listenSocket, (const struct sockaddr *)&addr, sizeof(addr)) != 0 || listen(listenSocket, NET_MAX_CLIENTS) != 0)
     {
-        log_error("Network outputs: cannot listen on TCP port %d", tcpPort);
+        lastError = netLastError();
+        log_error("Network outputs: cannot listen on TCP port %d (error %d)", tcpPort, lastError);
         netCloseSocket(listenSocket);
         listenSocket = NET_INVALID_SOCKET;
-        return;
+        return false;
     }
     setNonBlocking(listenSocket);
 
     for (int i = 0; i < NET_MAX_CLIENTS; i++)
         clients[i].socket = NET_INVALID_SOCKET;
 
-    stateMutex = SDL_CreateMutex();
-    running = true;
+    SDL_LockMutex(stateMutex);
+    pendingLen = 0; // the clients get the known values when they connect
+    clientCount = 0;
     stopping = false;
+    running = true;
+    SDL_UnlockMutex(stateMutex);
     serverThread = SDL_CreateThread(serverThreadMain, "NetOutputs", NULL);
     if (!serverThread)
     {
         log_error("Network outputs: cannot start the server thread");
+        SDL_LockMutex(stateMutex);
         running = false;
+        SDL_UnlockMutex(stateMutex);
+        lastError = -1;
         netCloseSocket(listenSocket);
         listenSocket = NET_INVALID_SOCKET;
-        return;
+        return false;
     }
 
-    announceStart(config->outputsNetworkUdpPort);
+    announceStart();
     log_warn("Network outputs: listening on TCP port %d (game \"%s\")", tcpPort, gameName);
+    return true;
 }
 
-void netOutputsShutdown(void)
+// mame_stop last, then the clients and the port closed. Nothing is queued after it: running is false from then on
+static void stopServer(void)
 {
-    if (!running)
+    if (!serverThread)
         return;
 
     SDL_LockMutex(stateMutex);
     pendingAppend("mame_stop = 1\r", strlen("mame_stop = 1\r"));
     stopping = true;
+    running = false;
     SDL_UnlockMutex(stateMutex);
     SDL_WaitThread(serverThread, NULL); // the thread flushes mame_stop before it ends
     serverThread = NULL;
-    running = false;
 
     for (int i = 0; i < NET_MAX_CLIENTS; i++)
         closeClient(&clients[i]);
     netCloseSocket(listenSocket);
     listenSocket = NET_INVALID_SOCKET;
-    SDL_DestroyMutex(stateMutex);
-    stateMutex = NULL;
+    SDL_LockMutex(stateMutex);
+    pendingLen = 0;
+    clientCount = 0;
+    SDL_UnlockMutex(stateMutex);
+    log_warn("Network outputs: stopped");
+}
+
+void netOutputsInit(void)
+{
+    EmulatorConfig *config = getConfig();
+    if (!stateMutex)
+        stateMutex = SDL_CreateMutex();
+    SDL_snprintf(gameName, sizeof(gameName), "%s", config->gameShortTitle ? config->gameShortTitle : "lindbergh");
+    if (config->outputsNetwork)
+        netOutputsEnable(true);
+}
+
+bool netOutputsEnable(bool on)
+{
+    if (!stateMutex)
+        return false;
+    if (!on)
+    {
+        stopServer();
+        lastError = 0;
+        return true;
+    }
+    return serverThread || startServer();
+}
+
+// The mutex stays: a game's thread may still write an output while the program exits
+void netOutputsShutdown(void)
+{
+    stopServer();
 #ifdef _WIN32
-    WSACleanup();
+    if (winsockStarted)
+        WSACleanup();
+    winsockStarted = false;
 #endif
 }
 
-// With stateMutex held
+void netOutputsGetStatus(NetOutputsStatus *status)
+{
+    SDL_LockMutex(stateMutex);
+    status->running = running;
+    status->clients = clientCount;
+    SDL_UnlockMutex(stateMutex);
+    status->tcpPort = running || lastError ? tcpPort : getConfig()->outputsNetworkPort;
+    status->udpPort = running ? udpPort : getConfig()->outputsNetworkUdpPort;
+    status->error = lastError;
+    status->portInUse = lastError == NET_ADDRESS_IN_USE;
+}
+
+// With stateMutex held: the value kept, and its lines queued when the server runs
 static void gpoWrite(int byteIndex, uint8_t value)
 {
     if (!gpoKnown[byteIndex] || gpo[byteIndex] != value)
@@ -424,6 +508,8 @@ static void gpoWrite(int byteIndex, uint8_t value)
         uint8_t changed = gpoKnown[byteIndex] ? (uint8_t)(gpo[byteIndex] ^ value) : 0xFF;
         gpo[byteIndex] = value;
         gpoKnown[byteIndex] = true;
+        if (!running)
+            return;
 
         char name[32];
         gpoNames(byteIndex, name, sizeof(name));
@@ -441,7 +527,7 @@ static void gpoWrite(int byteIndex, uint8_t value)
 
 void netOutputsSetGpo(int byteIndex, uint8_t value)
 {
-    if (!running || byteIndex < 0 || byteIndex >= NET_GPO_BYTES)
+    if (!stateMutex || byteIndex < 0 || byteIndex >= NET_GPO_BYTES)
         return;
 
     SDL_LockMutex(stateMutex);
@@ -451,7 +537,7 @@ void netOutputsSetGpo(int byteIndex, uint8_t value)
 
 void netOutputsSetGpoBit(int output, int action)
 {
-    if (!running || output < 0 || output >= NET_GPO_BYTES * 8 || action < NET_GPO_CLEAR || action > NET_GPO_INVERT)
+    if (!stateMutex || output < 0 || output >= NET_GPO_BYTES * 8 || action < NET_GPO_CLEAR || action > NET_GPO_INVERT)
         return;
 
     int byteIndex = output / 8;
@@ -470,7 +556,7 @@ void netOutputsSetGpoBit(int output, int action)
 
 int netOutputsGpo(int byteIndex)
 {
-    if (!running || byteIndex < 0 || byteIndex >= NET_GPO_BYTES)
+    if (!stateMutex || byteIndex < 0 || byteIndex >= NET_GPO_BYTES)
         return -1;
     SDL_LockMutex(stateMutex);
     int value = gpoKnown[byteIndex] ? gpo[byteIndex] : -1;
@@ -480,7 +566,7 @@ int netOutputsGpo(int byteIndex)
 
 int netOutputsLastDrive(void)
 {
-    if (!running)
+    if (!stateMutex)
         return -1;
     SDL_LockMutex(stateMutex);
     int value = lastDrive;
@@ -495,13 +581,14 @@ bool netOutputsRunning(void)
 
 void netOutputsDrive(const uint8_t *bytes, size_t count)
 {
-    if (!running || !bytes)
+    if (!stateMutex || !bytes)
         return;
 
     SDL_LockMutex(stateMutex);
     for (size_t i = 0; i < count; i++)
     {
-        pendingLine("RawDrive", bytes[i]);
+        if (running)
+            pendingLine("RawDrive", bytes[i]);
         lastDrive = bytes[i];
     }
     SDL_UnlockMutex(stateMutex);

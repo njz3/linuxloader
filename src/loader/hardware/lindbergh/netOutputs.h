@@ -12,6 +12,20 @@ extern "C" {
 // a TCP server broadcasting "name = value\r" lines and a UDP start announcement (BackForceFeeder).
 void netOutputsInit(void);
 void netOutputsShutdown(void);
+// The server started (the ports read again from the settings) or stopped while the game runs; false when it could not
+// start (netOutputsGetStatus says why)
+bool netOutputsEnable(bool on);
+
+typedef struct
+{
+    bool running;   // the server listens
+    int tcpPort;    // the port it listens on, or failed to open
+    int udpPort;    // where its start was announced
+    int clients;    // connected now
+    int error;      // why the last start failed (WSAGetLastError, errno), 0 when it did not
+    bool portInUse; // the error is that another program has the port
+} NetOutputsStatus;
+void netOutputsGetStatus(NetOutputsStatus *status);
 
 // JVS general purpose output byte (lamps), byteIndex 0 holds outputs 1-8 in bits 7..0
 void netOutputsSetGpo(int byteIndex, uint8_t value);
@@ -24,7 +38,7 @@ void netOutputsSetGpoBit(int output, int action);
 void netOutputsDrive(const uint8_t *bytes, size_t count);
 
 // For the settings' list: whether the server runs, an output byte's last value and the last drive board byte, -1 if
-// none was sent yet (or the server does not run)
+// the game gave none yet (kept while the server does not run)
 bool netOutputsRunning(void);
 int netOutputsGpo(int byteIndex);
 int netOutputsLastDrive(void);

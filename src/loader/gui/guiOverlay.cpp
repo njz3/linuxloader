@@ -3,6 +3,7 @@
 #include <glad/gl.h>
 #include <SDL3/SDL.h>
 
+#include <cstdio>
 #include <string>
 
 #include "../../imgui/imgui.h"
@@ -27,14 +28,30 @@ void setOpen(bool open)
     else if (getConfig()->hideCursor)
         SDL_HideCursor();
 }
+
+// The settings file the game read, where the settings window writes
+void findConfigFile()
+{
+    const char *used = getConfigFilePath();
+    g_configFile = used[0] ? used : (configPath && configPath[0]) ? configPath : "linuxloader.ini";
+}
 } // namespace
 
 extern "C" void guiOverlayInit(SDL_Window *window)
 {
     g_ready = gui::initContext(window, getConfig()->language);
-    const char *used = getConfigFilePath();
-    g_configFile = used[0] ? used : (configPath && configPath[0]) ? configPath : "linuxloader.ini";
+    findConfigFile();
     gui::setControlsFile((controlsPath && controlsPath[0]) ? controlsPath : "controls.ini");
+}
+
+extern "C" int guiOutputsSwitch(int on, char *status, size_t size)
+{
+    if (g_configFile.empty())
+        findConfigFile();
+    std::string saved;
+    bool started = gui::switchOutputs(on != 0, g_configFile, &saved);
+    snprintf(status, size, "%s %s", gui::outputsState().c_str(), saved.c_str());
+    return started;
 }
 
 extern "C" int guiOverlayProcessEvent(const SDL_Event *event)

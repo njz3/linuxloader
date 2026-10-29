@@ -27,6 +27,7 @@
 
 #include "gui.h"
 #include "../config/config.h"
+#include "../hardware/lindbergh/netOutputs.h"
 extern "C"
 {
 #include "../graphics/fpsLimiter.h"
@@ -44,6 +45,7 @@ bool g_initialised = false;
 float g_uiScale = 0.0f;
 ImGuiStyle g_baseStyle;
 std::string g_status; // result of the last save, shown under the buttons
+std::string g_outputsSaved; // where the network outputs' box wrote its choice
 
 // The list's tooltip: the games patchResolution.c resizes, and their limits
 const char *internalResolutionGames = N_(
@@ -626,9 +628,24 @@ void drawSettings(bool *open, std::string &configFile, bool inGame)
 
         if (ImGui::BeginTabItem(tr("Outputs and network")))
         {
-            bool outputs = cfg->outputsNetwork != 0;
-            if (ImGui::Checkbox(tr("Send lamps and drive board data over the network (MAME outputs)"), &outputs))
-                cfg->outputsNetwork = outputs;
+            if (inGame)
+            {
+                // The server as it is: unchecked when its port could not be opened
+                bool outputs = netOutputsRunning();
+                if (ImGui::Checkbox(tr("Send the network outputs (OUTPUTS_NETWORK)"), &outputs))
+                    switchOutputs(outputs, configFile, &g_outputsSaved);
+                ImGui::PushTextWrapPos(0.0f);
+                ImGui::TextDisabled("%s", outputsState().c_str());
+                if (!g_outputsSaved.empty())
+                    ImGui::TextDisabled("%s", g_outputsSaved.c_str());
+                ImGui::PopTextWrapPos();
+            }
+            else
+            {
+                bool outputs = cfg->outputsNetwork != 0;
+                if (ImGui::Checkbox(tr("Send the network outputs (OUTPUTS_NETWORK)"), &outputs))
+                    cfg->outputsNetwork = outputs;
+            }
             ImGui::InputInt(tr("TCP port"), &cfg->outputsNetworkPort);
             ImGui::InputInt(tr("UDP announcement port"), &cfg->outputsNetworkUdpPort);
             if (inGame)
@@ -778,5 +795,36 @@ bool saveSettings(const std::string &configFile)
                                  };
     gameOptionsIniValues(values); // [Game.<short name>] of the game being run, none in the picker
     return iniUpdate(configFile, values);
+}
+
+bool switchOutputs(bool on, const std::string &configFile, std::string *saved)
+{
+    bool started = netOutputsEnable(on);
+    getConfig()->outputsNetwork = on; // the choice, kept even when the port could not be opened
+    const char *value = on ? "true" : "false";
+    char message[1200];
+    if (iniUpdate(configFile, {{"Outputs", "OUTPUTS_NETWORK", value}}))
+        snprintf(message, sizeof(message), tr("[Outputs] OUTPUTS_NETWORK = %s, saved to %s"), value, configFile.c_str());
+    else
+        snprintf(message, sizeof(message), tr("Cannot write %s"), configFile.c_str());
+    *saved = message;
+    return started;
+}
+
+std::string outputsState()
+{
+    NetOutputsStatus status;
+    netOutputsGetStatus(&status);
+    char text[512];
+    if (status.running)
+        snprintf(text, sizeof(text), tr("Network outputs on: TCP port %d, %d client(s) connected, start announced to 127.0.0.1:%d (UDP)."),
+                 status.tcpPort, status.clients, status.udpPort);
+    else if (status.portInUse)
+        snprintf(text, sizeof(text), tr("Network outputs off: TCP port %d is already taken by another program."), status.tcpPort);
+    else if (status.error)
+        snprintf(text, sizeof(text), tr("Network outputs off: TCP port %d could not be opened (error %d)."), status.tcpPort, status.error);
+    else
+        snprintf(text, sizeof(text), "%s", tr("Network outputs off. The values below are the ones the game gives."));
+    return text;
 }
 } // namespace gui

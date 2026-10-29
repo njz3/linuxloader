@@ -326,8 +326,8 @@ void drawOutputsList()
     const GameData *data = getGameData(cfg->crc32);
     if (!data)
         return;
-    bool running = netOutputsRunning();
-    auto value = [running](int v) { return running && v >= 0 ? std::to_string(v) : std::string("-"); };
+    // The values the game gave, kept while the server does not run
+    auto value = [](int v) { return v >= 0 ? std::to_string(v) : std::string("-"); };
 
     std::vector<OutputLine> lines;
     const char *name = cfg->gameShortTitle && cfg->gameShortTitle[0] ? cfg->gameShortTitle : "lindbergh";
@@ -384,8 +384,6 @@ void drawOutputsList()
     ImGui::PushTextWrapPos(0.0f);
     ImGui::TextDisabled("%s", tr("Each line goes as \"name = value\" on the TCP port, at each change; a client that "
                                  "connects gets every known value first. Value: the last sent."));
-    if (!running)
-        ImGui::TextDisabled("%s", tr("The values show while the outputs are on (from the next start once checked and saved)."));
     ImGui::PopTextWrapPos();
 }
 

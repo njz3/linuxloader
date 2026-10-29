@@ -19,6 +19,9 @@ extern "C"
     // to the window's back buffer, before the swap.
     void guiOverlayRender(int width, int height);
     int guiOverlayVisible(void);
+    // The agent's "menu outputs on|off", as the settings' box: the network outputs started or stopped at once and the
+    // choice saved. status: their state and where it was saved, on one line. Non-zero when the server is as asked
+    int guiOutputsSwitch(int on, char *status, size_t size);
 
     // The game picker, run instead of a game when linuxloader starts without one. Returns the exit code.
     int guiRunPicker(const char *programPath);

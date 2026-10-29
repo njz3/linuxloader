@@ -43,6 +43,9 @@
 //       force feedback; with KEYs, only those keys.
 //   perf [N]
 //       Run N frames (600): "perf frames N wall MS ms/frame".
+//   menu outputs on|off
+//       The settings' network outputs box (Windows): the server started or stopped at once, [Outputs] OUTPUTS_NETWORK
+//       written to the settings file. Answer: "ok MESSAGE" or "err MESSAGE", MESSAGE the state and where it was saved.
 //   settle [MS] / bands N
 //       Accepted for the other agent modes' clients: "settle 0", "ok".
 //   save PATH / load PATH
@@ -74,6 +77,9 @@
 #include "../hardware/lindbergh/forceFeedback.h"
 #include "../hardware/lindbergh/jvs.h"
 #include "../input/sdlInput.h"
+#ifdef _WIN32
+#include "../gui/gui.h"
+#endif
 
 static int active = 0;
 static int shown = 0;
@@ -641,6 +647,25 @@ static void printJournal(const char *name, Journal *journal)
     fflush(answers);
 }
 
+// "menu outputs on|off": what the settings' box does
+static void commandMenu(const char *arguments)
+{
+    char page[32] = "", value[16] = "";
+    if (sscanf(arguments, "%31s %15s", page, value) != 2 || strcmp(page, "outputs") != 0 ||
+        (strcmp(value, "on") != 0 && strcmp(value, "off") != 0))
+    {
+        answer("err usage: menu outputs on|off");
+        return;
+    }
+#ifdef _WIN32
+    char status[1600];
+    int done = guiOutputsSwitch(strcmp(value, "on") == 0, status, sizeof(status));
+    answer("%s %s", done ? "ok" : "err", status);
+#else
+    answer("err the settings window is Windows only");
+#endif
+}
+
 // One command; true when it lets the game run (a step)
 static bool serve(char *line, unsigned int fbo, int width, int height)
 {
@@ -773,6 +798,8 @@ static bool serve(char *line, unsigned int fbo, int width, int height)
         commandMem(arguments);
     else if (strcmp(command, "tel") == 0)
         commandTel(arguments);
+    else if (strcmp(command, "menu") == 0)
+        commandMenu(arguments);
     else if (strcmp(command, "settle") == 0)
         answer("settle 0");
     else if (strcmp(command, "bands") == 0)
