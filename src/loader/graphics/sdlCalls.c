@@ -29,6 +29,7 @@
 #include "../hardware/lindbergh/jvs.h"
 #include "../hardware/lindbergh/forceFeedback.h"
 #ifdef _WIN32
+#include <windows.h>
 #include "../gui/gui.h"
 #endif
 #include "../resources/LiberationMono-Regular.h"
@@ -110,6 +111,37 @@ int initSDL()
     }
     return 0;
 }
+
+#ifdef _WIN32
+// Windows gives the foreground only to the program the user last used, the front end or the picker: the game, started
+// by the process that runs the game and its test menu in turn, would open without the keyboard, and Escape (ExitGame)
+// would not reach it. The window takes it, attached to the foreground window's input, as the picker does when the game
+// ends
+static HWND windowHandle(SDL_Window *window)
+{
+    return (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+}
+
+static bool hasForeground(SDL_Window *window)
+{
+    HWND hwnd = windowHandle(window);
+    return hwnd && GetForegroundWindow() == hwnd;
+}
+
+static void takeForeground(SDL_Window *window)
+{
+    HWND hwnd = windowHandle(window);
+    if (!hwnd)
+        return;
+    DWORD foregroundThread = GetWindowThreadProcessId(GetForegroundWindow(), NULL);
+    DWORD thisThread = GetCurrentThreadId();
+    AttachThreadInput(foregroundThread, thisThread, TRUE);
+    BringWindowToTop(hwnd);
+    SetForegroundWindow(hwnd);
+    SetFocus(hwnd);
+    AttachThreadInput(foregroundThread, thisThread, FALSE);
+}
+#endif
 
 void startSDL()
 {
@@ -255,16 +287,37 @@ void startSDL()
 
     Uint64 startTime = SDL_GetTicks();
     int running = 1;
+#ifdef _WIN32
+    // Taken again during this second if another window gets it back (the console the game was started from)
+    int foregroundTries = 0;
+#endif
 
     while (running)
     {
         if (SDL_GetTicks() - startTime >= 1000)
             running = 0;
+#ifdef _WIN32
+        if (!agentHidden() && !hasForeground(g_SdlWindow))
+        {
+            foregroundTries++;
+            takeForeground(g_SdlWindow);
+        }
+#endif
         glad_glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glad_glClear(GL_COLOR_BUFFER_BIT);
         SDL_GL_SwapWindow(g_SdlWindow);
         SDL_PumpEvents();
     }
+#ifdef _WIN32
+    if (!agentHidden() && foregroundTries)
+    {
+        if (hasForeground(g_SdlWindow))
+            log_info("Game window: in the foreground, taken %d time(s)", foregroundTries);
+        else
+            log_warn("Game window: Windows refused it the foreground (%d tries); click it to give it the keyboard",
+                     foregroundTries);
+    }
+#endif
 
     creatingWindow = false;
 

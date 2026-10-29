@@ -237,6 +237,8 @@ void launchGame(const GameEntry &entry, const std::string &programPath, const fs
     PROCESS_INFORMATION process = {};
     std::vector<char> commandLine(command.begin(), command.end());
     commandLine.push_back('\0');
+    // The picker has the foreground and hides: the game's window, two processes further, may take it
+    AllowSetForegroundWindow(ASFW_ANY);
     if (!CreateProcessA(programPath.c_str(), commandLine.data(), NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, programDir.string().c_str(),
                         &startup, &process))
         return;

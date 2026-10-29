@@ -154,6 +154,8 @@ static int segabootSupervise(int argc, char **argv)
         PROCESS_INFORMATION process = {};
         std::vector<char> commandLine(command.begin(), command.end());
         commandLine.push_back('\0');
+        // Started by the front end in the foreground, this process may give the foreground: to the game's window
+        AllowSetForegroundWindow(ASFW_ANY);
         if (!CreateProcessA(exe, commandLine.data(), NULL, NULL, TRUE, CREATE_SUSPENDED, NULL, s_startDir, &startup,
                             &process))
         {
