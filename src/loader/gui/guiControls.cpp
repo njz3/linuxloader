@@ -51,6 +51,8 @@ bool g_loaded = false;
 std::map<std::string, std::vector<Row>> g_rows; // section -> its bindings, in the file's order
 std::vector<Row> g_configRows;                  // [Config], in the file's order
 int g_section = -1;                             // the game type a device's page shows, 1..5
+std::map<std::string, std::map<std::string, std::string>> g_defaults; // section -> action -> as a new controls.ini has it
+bool g_defaultsRead = false;
 
 enum DeviceKind
 {
@@ -70,6 +72,7 @@ struct Device
 struct Capture
 {
     bool active = false;
+    bool append = false; // "Add": the input joins the device's ones; "Map": it replaces them
     std::string section;
     size_t row = 0;
     float mouseX = 0.0f, mouseY = 0.0f; // mouse motion since the capture started
@@ -287,6 +290,16 @@ std::vector<std::string> otherTokens(const Device &device, const std::string &va
     return out;
 }
 
+bool sameToken(const std::string &a, const std::string &b)
+{
+    return SDL_strcasecmp(a.c_str(), b.c_str()) == 0;
+}
+
+bool sameTokens(const std::vector<std::string> &a, const std::vector<std::string> &b)
+{
+    return std::equal(a.begin(), a.end(), b.begin(), b.end(), sameToken);
+}
+
 std::vector<Device> devices()
 {
     std::vector<Device> out;
@@ -396,6 +409,15 @@ std::string describe(const std::string &token)
     if (sscanf(s, "GC%d_AXIS_%31[^_]%n", &device, name, &length) == 2)
         return std::string(name) + axisSuffix(s + length);
     return token;
+}
+
+// Inputs as the page shows them: "Up, Button 3"; empty for none
+std::string describeAll(const std::vector<std::string> &tokens)
+{
+    std::string out;
+    for (const std::string &token : tokens)
+        out += (out.empty() ? "" : ", ") + describe(token);
+    return out;
 }
 
 // Whether an input is pressed now; a combination when all its parts are
@@ -550,9 +572,18 @@ void setRow(Row &row, const std::string &value)
     }
 }
 
-void startCapture(const std::string &section, size_t row)
+// The row with the device's inputs replaced by those given, the other devices' kept
+void setDeviceTokens(const Device &device, Row &row, const std::vector<std::string> &mine)
+{
+    std::vector<std::string> tokens = otherTokens(device, row.value);
+    tokens.insert(tokens.end(), mine.begin(), mine.end());
+    setRow(row, join(tokens));
+}
+
+void startCapture(const std::string &section, size_t row, bool append)
 {
     g_capture.active = true;
+    g_capture.append = append;
     g_capture.section = section;
     g_capture.row = row;
     g_capture.mouseX = g_capture.mouseY = 0.0f;
@@ -566,45 +597,68 @@ void startCapture(const std::string &section, size_t row)
     }
 }
 
-// The input pressed replaces the device's ones; the other devices' stay
+// "Map": the input pressed replaces the device's ones; "Add": it joins them, once. The other devices' stay
 void finishCapture(const std::string &token)
 {
     std::vector<Row> &rows = g_rows[g_capture.section];
     if (g_capture.row < rows.size())
     {
         Row &row = rows[g_capture.row];
-        std::vector<std::string> tokens = otherTokens(g_mapping.device, row.value);
-        tokens.push_back(token);
-        setRow(row, join(tokens));
+        std::vector<std::string> mine;
+        if (g_capture.append)
+            mine = deviceTokens(g_mapping.device, row.value);
+        if (std::none_of(mine.begin(), mine.end(), [&token](const std::string &t) { return sameToken(t, token); }))
+            mine.push_back(token);
+        setDeviceTokens(g_mapping.device, row, mine);
     }
     g_capture.active = false;
+}
+
+// The bindings of a new controls.ini, written aside and read once; false when it could not be
+bool readDefaults()
+{
+    if (!g_defaultsRead)
+    {
+        g_defaultsRead = true;
+        std::error_code error;
+        std::filesystem::path temp = std::filesystem::temp_directory_path(error) / "linuxloader-default-controls.ini";
+        // iniSave, under it, returns 1 on success and -1 on failure
+        if (error || createDefaultControlsIni(temp.string().c_str()) < 0)
+            return false;
+        IniConfig *defaults = iniLoad(temp.string().c_str());
+        if (defaults)
+        {
+            for (int s = 0; s < defaults->numSections; s++)
+                for (int i = 0; i < defaults->sections[s].numPairs; i++)
+                    if (defaults->sections[s].pairs[i].value)
+                        g_defaults[defaults->sections[s].name][defaults->sections[s].pairs[i].key] = defaults->sections[s].pairs[i].value;
+            iniFree(defaults);
+        }
+        std::filesystem::remove(temp, error);
+    }
+    return !g_defaults.empty();
+}
+
+// The device's inputs of an action as a new controls.ini has them
+std::vector<std::string> defaultTokens(const Device &device, const std::string &section, const std::string &key)
+{
+    if (!readDefaults())
+        return {};
+    auto inSection = g_defaults.find(section);
+    if (inSection == g_defaults.end())
+        return {};
+    auto value = inSection->second.find(key);
+    return value == inSection->second.end() ? std::vector<std::string>() : deviceTokens(device, value->second);
 }
 
 // The device's bindings back to the defaults of a new controls.ini, in the sections given
 void resetDevice(const Device &device, const std::vector<std::string> &sections)
 {
-    std::error_code error;
-    std::filesystem::path temp = std::filesystem::temp_directory_path(error) / "linuxloader-default-controls.ini";
-    // iniSave, under it, returns 1 on success and -1 on failure
-    if (error || createDefaultControlsIni(temp.string().c_str()) < 0)
+    if (!readDefaults())
         return;
-    IniConfig *defaults = iniLoad(temp.string().c_str());
-    if (defaults)
-    {
-        for (const std::string &section : sections)
-        {
-            for (Row &row : g_rows[section])
-            {
-                const char *value = iniGetValue(defaults, section.c_str(), row.key.c_str());
-                std::vector<std::string> tokens = otherTokens(device, row.value);
-                for (const std::string &token : deviceTokens(device, value ? value : ""))
-                    tokens.push_back(token);
-                setRow(row, join(tokens));
-            }
-        }
-        iniFree(defaults);
-    }
-    std::filesystem::remove(temp, error);
+    for (const std::string &section : sections)
+        for (Row &row : g_rows[section])
+            setDeviceTokens(device, row, defaultTokens(device, section, row.key));
 }
 
 // sm2-emu's centre bar: the axis around its middle, the dead zone shaded
@@ -743,9 +797,7 @@ void drawBindings(const std::string &section, int sectionIndex)
         const std::vector<std::string> tokens = deviceTokens(device, row.value);
         ImGui::TableSetColumnIndex(1);
         ImGui::AlignTextToFramePadding();
-        std::string text;
-        for (const std::string &token : tokens)
-            text += (text.empty() ? "" : ", ") + describe(token);
+        const std::string text = describeAll(tokens);
         if (text.empty())
             ImGui::TextDisabled("-");
         else
@@ -775,12 +827,30 @@ void drawBindings(const std::string &section, int sectionIndex)
             pressDot(on);
         }
 
+        // "Map" replaces the device's inputs of the action, "Add" adds one (nothing to add to without one: "Map"),
+        // "Unmap" removes them, "Default" puts back those of a new controls.ini (greyed when they are)
         ImGui::TableSetColumnIndex(3);
         if (ImGui::Button(tr("Map")))
-            startCapture(section, i);
+            startCapture(section, i, false);
+        ImGui::SameLine();
+        ImGui::BeginDisabled(tokens.empty());
+        if (ImGui::Button(tr("Add")))
+            startCapture(section, i, true);
+        ImGui::EndDisabled();
         ImGui::SameLine();
         if (ImGui::Button(tr("Unmap")))
-            setRow(row, join(otherTokens(device, row.value)));
+            setDeviceTokens(device, row, {});
+        ImGui::SameLine();
+        const std::vector<std::string> defaults = defaultTokens(device, section, row.key);
+        ImGui::BeginDisabled(!readDefaults() || sameTokens(tokens, defaults));
+        if (ImGui::Button(tr("Default")))
+            setDeviceTokens(device, row, defaults);
+        ImGui::EndDisabled();
+        if (readDefaults() && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        {
+            const std::string shown = describeAll(defaults);
+            ImGui::SetTooltip(tr("Default: %s"), shown.empty() ? "-" : shown.c_str());
+        }
         ImGui::PopID();
     }
     if (tableOpen)
@@ -953,6 +1023,60 @@ void drawFfbDevice(bool inGame)
         ImGui::TextDisabled(tr("Forces sent to: %s"), current ? current : tr("no device"));
     }
 }
+
+// What the game gets: each input the game reads, as its board gives it now (a switch pressed or not, a channel's
+// count, a player's coins), to check a binding from the device to the game. The players are named when there are two
+void drawGameInputs()
+{
+    struct Input
+    {
+        int player;
+        std::string name;
+        GameInputKind kind;
+        int value;
+    };
+    std::vector<Input> inputs;
+    sdlInputGameInputs(
+        [](int player, const char *name, GameInputKind kind, int value, void *context) {
+            static_cast<std::vector<Input> *>(context)->push_back({player, name, kind, value});
+        },
+        &inputs);
+    if (inputs.empty())
+        ImGui::TextDisabled("-");
+    if (inputs.empty() || !ImGui::BeginTable("##gameinputs", 2, ImGuiTableFlags_SizingStretchProp))
+        return;
+    const bool twoPlayers = std::any_of(inputs.begin(), inputs.end(), [](const Input &input) { return input.player == PLAYER_2; });
+    const int analogueMax = getJVSIO()->analogueMax > 0 ? getJVSIO()->analogueMax : 1;
+    ImGui::TableSetupColumn("##action", ImGuiTableColumnFlags_WidthStretch, 0.4f);
+    ImGui::TableSetupColumn("##value", ImGuiTableColumnFlags_WidthStretch, 0.6f);
+    for (const Input &input : inputs)
+    {
+        ImGui::PushID((std::to_string(input.player) + input.name).c_str());
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::AlignTextToFramePadding();
+        if (twoPlayers && input.player != SYSTEM)
+            ImGui::Text("%s (%s)", actionLabel(input.name), format(tr("Player %d"), input.player).c_str());
+        else
+            ImGui::TextUnformatted(actionLabel(input.name));
+        ImGui::TableSetColumnIndex(1);
+        ImGui::AlignTextToFramePadding();
+        if (input.kind == GAME_INPUT_ANALOGUE)
+        {
+            char count[16];
+            snprintf(count, sizeof(count), "%d", input.value);
+            ImGui::ProgressBar(std::clamp((float)input.value / (float)analogueMax, 0.0f, 1.0f), ImVec2(-FLT_MIN, 0.0f), count);
+        }
+        else if (input.kind == GAME_INPUT_COIN)
+            ImGui::Text("%d", input.value);
+        else if (input.value)
+            ImGui::TextUnformatted(tr("pressed"));
+        else
+            ImGui::TextDisabled("-");
+        ImGui::PopID();
+    }
+    ImGui::EndTable();
+}
 } // namespace
 
 void setControlsFile(const std::string &path)
@@ -1002,6 +1126,12 @@ void drawControlsTab(bool inGame)
     }
     if (!sdlJoysticks.controllers[0] && !sdlJoysticks.joysticks[0])
         ImGui::TextDisabled("%s", tr("No controller connected."));
+
+    if (inGame)
+    {
+        header(tr("What the game gets"));
+        drawGameInputs();
+    }
 
     EmulatorConfig *cfg = getConfig();
     header(tr("Force feedback"));

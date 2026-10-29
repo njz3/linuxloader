@@ -266,6 +266,15 @@ void sdlInputAgentSetRaw(int player, int action, int raw);
 int sdlInputAgentGet(int player, int action);
 void sdlInputAgentList(void (*emit)(const char *name, AgentInputKind kind, void *context), void *context);
 
+// What the game gets, as the settings show it (gui/guiControls.cpp)
+typedef enum
+{
+    GAME_INPUT_SWITCH,
+    GAME_INPUT_ANALOGUE, // a JVS channel, 0..analogueMax
+    GAME_INPUT_COIN      // the player's coin counter
+} GameInputKind;
+void sdlInputGameInputs(void (*emit)(int player, const char *name, GameInputKind kind, int value, void *context), void *context);
+
 #ifdef __cplusplus
 }
 #endif

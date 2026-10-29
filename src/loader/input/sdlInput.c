@@ -2771,3 +2771,23 @@ void sdlInputAgentList(void (*emit)(const char *name, AgentInputKind kind, void 
         }
     }
 }
+
+// Every input the game reads, in its table's order, with the value it reads now: after the bindings, dead zones and
+// inversions, or as the agent holds it. The name is controls.ini's without the player
+void sdlInputGameInputs(void (*emit)(int player, const char *name, GameInputKind kind, int value, void *context), void *context)
+{
+    for (int player = SYSTEM; player <= PLAYER_2; player++)
+    {
+        for (int i = 0; i < NUM_ACTION_NAMES; i++)
+        {
+            LogicalAction action = gActionNameMap[i].action;
+            const JVSActionMapping *map = &gJvsMap[player][action];
+            if (map->call_type == JVS_CALL_NONE || action == LA_ExitGame)
+                continue;
+            GameInputKind kind = map->call_type == JVS_CALL_ANALOGUE ? GAME_INPUT_ANALOGUE
+                                 : map->call_type == JVS_CALL_COIN   ? GAME_INPUT_COIN
+                                                                     : GAME_INPUT_SWITCH;
+            emit(player, gActionNameMap[i].name, kind, sdlInputAgentGet(player, action), context);
+        }
+    }
+}
