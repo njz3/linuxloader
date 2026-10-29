@@ -95,6 +95,10 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 136 | 29/10 | Au lancement d'un jeu, que sa fenêtre ait le focus pour recevoir le clavier, en particulier Échap pour quitter | ⚠️ la fenêtre du jeu prend le premier plan pendant la seconde qui suit son affichage (attachée à l'entrée de la fenêtre au premier plan, comme le picker), et le picker et le superviseur lui en donnent le droit (`AllowSetForegroundWindow`) ; lancé comme par un frontend, le jeu a le premier plan ; le cas d'un premier plan verrouillé (touche récente dans le frontend) reste à voir sur la borne (voir journal) |
+| 135 | 29/10 | (relayée par la session « Windowsloader sur Orion ») Une case pour activer ou couper OUTPUTS_NETWORK à chaud dans « Sorties et réseau », comme windowsloader | ✅ en jeu, « Envoyer les sorties réseau (OUTPUTS_NETWORK) » démarre ou arrête le serveur aussitôt (cochée : l'état réel), écrit le choix tout de suite dans le fichier de réglages lu et dit où ; états sous la case (actif avec ses clients, port pris, erreur, coupé) ; valeurs gardées serveur coupé ; `menu outputs on|off` en mode agent ; 14 vérifications sur Hummer (voir journal) |
+| 134 | 29/10 | (relayée par la session « Windowsloader sur Orion ») En bas de la page Contrôles, « Ce que reçoit le jeu » : les entrées du jeu lancé et leur valeur en direct | ⚠️ section après « Périphériques », en jeu seulement : une ligne par entrée que lit le jeu (sa table JVS), interrupteur « appuyé » ou « - », voie analogique en barre avec sa valeur (0 au maximum de la carte), monnayeur en nombre de pièces ; MSVC compile, pas vue à l'écran (voir journal) |
+| 133 | 29/10 | (relayée par les sessions « Refactor BFF (Orion) » et « Windowsloader sur Orion ») Boutons « Ajouter » et « Défaut » sur chaque ligne de la page de liaison des contrôles, comme windowsloader | ⚠️ « Ajouter » : l'entrée capturée rejoint celles du périphérique (grisé quand il n'en a pas) ; « Défaut » : ses entrées d'un `controls.ini` neuf, celles des autres gardées (grisé quand ce sont déjà elles, infobulle « Par défaut : … ») ; MSVC compile, pas vu à l'écran (voir journal) |
 | 132 | 28/10 | (signalé par la session windowsloader, confirmé par l'utilisateur sur la borne) Nirin : en course les murs sont parfois transparents | ⏸️ en pause (demande de l'utilisateur) : reproduit ici (RTX 3050) et sur les captures de Racecab1, des polygones de route et de mur noirs, quelques images par tour ; cause non trouvée (une dizaine de pistes écartées, test de champ compris) ; gardé : gluProject/gluUnProject réels (c'étaient des bouchons), variables de shader initialisées à zéro, GL_CLAMP en GL_CLAMP_TO_EDGE, affinité des threads réelle et héritée ; MinGW et MSVC (voir journal) |
 | 131 | 28/10 | Support multilingue et traduction de toute l'interface en anglais ; puis gérer les langues par des fichiers .po | ✅ l'interface était déjà en anglais (texte source) avec le français en table ; la table devient `lang/fr.po` (266 textes, gettext), modèle `lang/linuxloader.pot`, `scripts/i18n/update-translations.sh` (xgettext + msgmerge) ; la liste Langue montre Automatique, English et chaque `.po` trouvé ; `lang/` copié à côté de l'exe par CMake et mis dans la release ; MinGW et MSVC, sélecteur vu en auto (français), `en` et une langue de test (voir journal) |
 | 130 | 28/10 | Dans la liste des jeux, une colonne pour le link et/ou le FFB ; l'indiquer aussi dans le sélecteur | ✅ `--list-games` : colonnes FFB et LINK (`ffb`, `link` en CSV) ; sélecteur et onglet Options du jeu : « Retour de force » et « Link entre bornes » ; MinGW et MSVC, sélecteur vu à l'écran (voir journal) |
@@ -165,6 +169,80 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Sorties réseau à chaud (demande 135)
+- Demande du propriétaire relayée par la session « Windowsloader sur Orion » : comme windowsloader (`a1d80fd`,
+  `outputs.cpp` et `page_outputs`).
+- `netOutputs.c` : le serveur n'était lancé qu'au démarrage du jeu (`netOutputsInit`) et ne gardait les valeurs que
+  pendant qu'il tournait. Maintenant : le verrou est créé une fois à l'initialisation, `netOutputsEnable(on)` démarre
+  le serveur (ports relus dans les réglages, que la fenêtre a pu changer ; erreur de `bind` gardée, port pris reconnu
+  par WSAEADDRINUSE / EADDRINUSE) ou l'arrête de façon synchrone (`mame_stop = 1` en dernier : `running` passe à faux
+  sous le verrou avec `stopping`, plus rien n'est mis en file après ; le thread l'envoie puis finit ; clients et port
+  fermés). Les lampes et le dernier octet de la carte moteur sont gardés serveur coupé : la liste des sorties les
+  montre, et un client qui se connecte après une activation les reçoit après `mame_start`. Le thread compte les
+  clients ; `netOutputsGetStatus` donne l'état. WSAStartup une fois, WSACleanup à la sortie ; le verrou n'est pas
+  détruit (un fil du jeu peut encore écrire une sortie pendant la sortie du programme).
+- Onglet « Sorties et réseau », en jeu : « Envoyer les sorties réseau (OUTPUTS_NETWORK) » en haut, cochée tant que
+  le serveur écoute (décochée si le port n'a pas pu s'ouvrir) ; au clic, `switchOutputs` : serveur démarré ou arrêté,
+  `[Outputs] OUTPUTS_NETWORK` écrit aussitôt dans le fichier de réglages lu (avec `--write-dir`, sa copie dans le
+  dossier d'écriture, comme « Enregistrer ») et le message « [Outputs] OUTPUTS_NETWORK = …, enregistré dans … ».
+  Sous la case, l'état : actif (port TCP, clients connectés, annonce UDP), port déjà pris par un autre programme, port
+  pas ouvert (erreur N), ou coupé (« Les valeurs ci-dessous sont celles que le jeu donne. », qui remplace la note
+  renvoyant au prochain lancement). Dans le picker, la case ne fait que changer le réglage, enregistré par
+  « Enregistrer ». Pas de trames d'ouverture de la carte servo à renvoyer comme windowsloader : linuxloader envoie
+  les octets tels que le jeu les écrit, et le dernier à la connexion.
+- Mode agent : `menu outputs on|off` fait ce que fait la case (`guiOutputsSwitch`, Windows) et répond `ok MESSAGE`
+  ou `err MESSAGE` (l'état et où le choix est enregistré) ; sous Linux, `err`.
+- Vérifié (MSVC, Hummer Extreme en mode agent, `-c` vers un `linuxloader.ini` d'essai et `--write-dir`, récepteur
+  UDP sur 8001 et client TCP sur 8000), 14 points : activation → `ok`, annonce « mame_start = hummer-exttcp =
+  8000 », `mame_start` puis les lampes à la connexion, « 1 client(s) » dans l'état ; arrêt → `ok`, `RawDrive`
+  puis `mame_stop = 1` en dernier et connexion fermée, port fermé ; réactivation → port rouvert, `mame_start` ;
+  port tenu par un autre programme → `err … déjà pris…`, puis `ok` une fois libéré ; argument faux → `err`. Le
+  fichier lu (la copie du dossier d'écriture) suit chaque choix, l'original n'est pas touché. La case elle-même
+  n'est pas vue à l'écran ; MinGW non compilé. Non commité.
+
+### Le focus de la fenêtre du jeu au lancement (demande 136)
+- Windows ne donne le premier plan qu'au programme dont vient la dernière entrée, ou à celui qu'il a lancé : le jeu est
+  lancé par le superviseur (`segabootSupervise`, qui enchaîne jeu et menu de test), lui-même lancé par le frontend ou par
+  le picker, qui cache sa fenêtre aussitôt. Sa fenêtre pouvait donc s'ouvrir sans le clavier, et Échap (ExitGame) ne
+  lui arrivait pas. Le picker reprenait déjà le premier plan pour lui-même à la fin du jeu (demande 31) ; le jeu, rien.
+- `startSDL` (`sdlCalls.c`, Windows, hors mode agent caché) : pendant la seconde de fond noir qui suit `SDL_ShowWindow`,
+  à chaque image où la fenêtre n'est pas au premier plan, elle le prend (`AttachThreadInput` sur le fil de la fenêtre
+  au premier plan, `BringWindowToTop`, `SetForegroundWindow`, `SetFocus`, comme le picker). Une ligne de journal quand
+  il a fallu le prendre : « Game window: in the foreground, taken N time(s) », ou l'avertissement « Windows refused it
+  the foreground » s'il n'a pas pu. Chaque programme (jeu, menu de test) passe par là.
+- Le picker (`launchGame`) et le superviseur appellent `AllowSetForegroundWindow(ASFW_ANY)` avant de lancer le
+  programme suivant : ayant le premier plan (le picker au clic, le superviseur lancé par le frontend), ils en passent
+  le droit au jeu, la voie prévue par Windows ; la prise forcée reste pour le cas où il est perdu en route.
+- Vérifié (MSVC, Hummer Extreme lancé depuis un processus qui n'est pas au premier plan, avec une console) : la
+  fenêtre du jeu a le premier plan dès qu'elle paraît et le garde, avant comme après la correction (bureau inactif :
+  Windows ne verrouille pas le premier plan). Le verrou qu'une touche récente pose dans un frontend ne se reproduit
+  pas ici sans simuler d'entrée : à vérifier sur la borne, la ligne de journal dira si la prise a servi. Non commité.
+
+### Boutons « Ajouter » et « Défaut », « Ce que reçoit le jeu » (demandes 133 et 134)
+- Demandes du propriétaire relayées par les sessions « Refactor BFF (Orion) » et « Windowsloader sur Orion » : faire
+  comme windowsloader (`src/hook/menu.cpp`, `binding_row` et `page_controls`).
+- Page de liaison d'un périphérique (`guiControls.cpp`), quatre boutons par ligne : « Lier » et « Délier » inchangés ;
+  « Ajouter », même capture que « Lier », mais l'entrée rejoint celles du périphérique pour l'action (une seule fois,
+  sans tenir compte de la casse), grisé quand le périphérique n'a rien sur la ligne ; « Défaut » remet les entrées du
+  périphérique pour cette action telles qu'un `controls.ini` neuf les a, celles des autres périphériques gardées,
+  grisé quand ce sont déjà elles (la liste des entrées du périphérique est comparée, pas la ligne), avec l'infobulle
+  « Par défaut : … ». « Réinitialiser... » fait de même pour toutes les actions du périphérique. Les valeurs par défaut
+  sont lues une fois (fichier temporaire écrit par `createDefaultControlsIni`, comme avant) au lieu de l'être à chaque
+  réinitialisation. Comme « Lier », les changements sont écrits dans `controls.ini` à « Fermer » (windowsloader écrit
+  à chaque changement).
+- « Ce que reçoit le jeu » (page Contrôles, après « Périphériques », en jeu seulement) : `sdlInputGameInputs`
+  (`sdlInput.c`) énumère les entrées que lit le jeu (`gJvsMap`, dans l'ordre de la table des actions, système puis
+  joueurs 1 et 2, sans ExitGame) avec la valeur qu'il lit (`sdlInputAgentGet`, celle de `get` en mode agent) : après
+  liaisons, zones mortes et inversions, ou telle que l'agent la tient. Interrupteur : « appuyé » ou « - » ; voie
+  analogique : barre remplie de valeur / `analogueMax` (8 ou 10 bits selon la carte), la valeur écrite dessus ;
+  monnayeur : nombre de pièces. Les joueurs sont nommés quand le jeu lit le joueur 2. Rien à modifier : c'est un
+  contrôle de bout en bout, du périphérique à ce que lit le jeu.
+- Textes : « Add », « Default », « Default: %s », « What the game gets », « pressed » ; `update-translations.sh`
+  relancé (xgettext de Git for Windows) et `fr.po` complété : 271 textes, `msgfmt --check` sans erreur (msgmerge
+  proposait en approximatif « Quand le jeu s'arrête » pour « What the game gets », remplacé).
+- Vérifié : MSVC compile, sans avertissement sur ces fichiers ; `lang/` copié à côté de l'exe. Pas d'essai à l'écran
+  (le mode agent n'ouvre pas les réglages), MinGW non compilé (pas de chaîne MinGW sur ce PC). Non commité.
 
 ### Nirin, murs « transparents » (demande 132, en pause)
 - Copie de racecab1 dans `games/nirin` (1,65 Go). Trous reproduits en mode agent (RTX 3050, comme Racecab1 qui est
