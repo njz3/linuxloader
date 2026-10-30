@@ -92,7 +92,8 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
-| 145 | 30/10 | Pull et merge avec upstream | ✅ pull : rien de nouveau ; `lindbergh-loader/linuxloader` `87ffd44` (3.0.14 : passthrough JVS réécrit, `DISPLAY_INDEX`, `SCALING_FILTER`, rechargement de Rambo, shaders Intel/Mesa, NFS, touches du pavé numérique) fusionné dans `dev/ffbedition` (`23e0636`) ; 11 fichiers en conflit résolus ; compile en MSVC, Hummer démarre ; passthrough JVS non essayé (pas de paire COM ni de faux boîtier ce soir), MinGW non recompilé ; non poussé |
+| 146 | 30/10 | Pousser la fusion ; `DISPLAY_INDEX` et `SCALING_FILTER` dans Affichage | ✅ fusion poussée (`921bbe8..3c1cdb4`) ; Affichage : « Écran » (les écrans de SDL, nom et résolution, au prochain lancement) et « Agrandissement » (Lisse / Pixels nets, tout de suite), enregistrés avec les autres réglages ; essayé dans le lanceur (un seul écran ici : le choix d'un autre écran n'est pas essayé) |
+| 145 | 30/10 | Pull et merge avec upstream | ✅ pull : rien de nouveau ; `lindbergh-loader/linuxloader` `87ffd44` (3.0.14 : passthrough JVS réécrit, `DISPLAY_INDEX`, `SCALING_FILTER`, rechargement de Rambo, shaders Intel/Mesa, NFS, touches du pavé numérique) fusionné dans `dev/ffbedition` (`23e0636`) ; 11 fichiers en conflit résolus ; compile en MSVC, Hummer démarre ; passthrough JVS non essayé (pas de paire COM ni de faux boîtier ce soir), MinGW non recompilé ; poussé (demande 146) |
 | 144 | 30/10 | La molette de la souris pour faire défiler les fenêtres ImGui, par exemple les contrôles | ✅ déjà là, rien à changer : essayé avec de vrais crans de molette Windows dans le lanceur (onglet Contrôles) et en jeu (Hummer : onglet Contrôles, page « Lier » du clavier) ; en attente de savoir où elle ne défile pas chez le propriétaire |
 | 143 | 30/10 | (retour d'un testeur d'OutRun 2, transmis par le propriétaire) Pédales et chocs bons, mais volant mou (aucun rappel) ; lampes : l'OUTPUT TEST du menu de test donne la lampe « View 3 » pour Driver lamp L et celle de Start pour Driver lamp R ; « Sauter les contrôles » coupe le retour de force et remet à zéro les réglages du menu de test | 🔄 « Sauter les contrôles » ignoré avec la carte servo émulée (voir journal) ; rappel et lampes : en attente du journal FFB du testeur et de la correspondance de son OUTPUT TEST |
 | 142 | 30/10 | Une release, prévenir Image borne pour qu'elle mette à jour les bornes | ✅ `emulateurs/releases/linuxloader-v3.0.13-ffbedition-20261030-2-njz3-win32.zip` (deuxième du jour), depuis `8292427` ; Image borne prévenue (voir journal) |
@@ -175,8 +176,19 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 
 ## Journal de développement
 
+### Écran et filtre d'agrandissement dans Affichage (demande 146)
+- « Écran » (`DISPLAY_INDEX`) : les écrans dans l'ordre de SDL, « 1: PHL 325E1 (2560 x 1440) » ; la fenêtre du jeu
+  s'ouvre sur celui choisi au prochain lancement (`getTargetDisplayID` d'upstream) ; « Écran 3 (non branché) » pour
+  un numéro au-delà. « Agrandissement » (`SCALING_FILTER`) : Lisse (LINEAR) ou Pixels nets (NEAREST), relu à chaque
+  image, l'image suit en jeu. Les deux écrits par « Sauvegarder » dans `[Display]`.
+- La zone des onglets a maintenant une largeur fixée : la largeur visible moins une barre verticale, 480 au moins.
+  Laissée à ImGui, elle gardait pour les textes coupés la largeur d'avant l'arrivée d'une barre verticale : textes
+  coupés au bord et barre horizontale (l'onglet Affichage, plus long de deux lignes, dépasse dans le lanceur).
+- Essayé dans le lanceur : la liste des écrans (un seul ici), « Pixels nets » choisi puis enregistré
+  (`SCALING_FILTER = NEAREST`, `DISPLAY_INDEX = 0`, avec leur « # Default: »).
+
 ### Merge avec upstream 3.0.14 (demande 145)
-- `lindbergh-loader/linuxloader` `87ffd44` fusionné (`23e0636`, non poussé) : passthrough JVS réécrit (PR #41),
+- `lindbergh-loader/linuxloader` `87ffd44` fusionné (`23e0636`, poussé) : passthrough JVS réécrit (PR #41),
   `DISPLAY_INDEX` (écran du jeu), `SCALING_FILTER` (LINEAR/NEAREST), bouton de rechargement de Rambo en JVS émulé,
   shaders GSEvo et OutRun pour Intel/Mesa, viewport d'After Burner Climax sous Windows, `stat64` pour les partages
   NFS, touches du pavé numérique (`KEY_KP_7`, `KEY_KP_PLUS`...) et gâchettes de manette sur des boutons.
@@ -190,7 +202,7 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   VTIME 1). À essayer sur une vraie carte ou la paire COM avec le faux boîtier.
 - Page Contrôles : une touche du pavé numérique capturée s'écrit `KEY_KP_PLUS`, plus `KEY_Keypad +` (le `+`
   sépare les entrées), et s'affiche sous le nom de SDL ; le `controls.ini` généré prend les mêmes noms.
-- Pas encore dans la page Affichage : `DISPLAY_INDEX` et `SCALING_FILTER` se règlent dans le fichier.
+- `DISPLAY_INDEX` et `SCALING_FILTER` dans la page Affichage : demande 146.
 
 ### Molette de la souris dans ImGui (demande 144)
 - Déjà prise en charge : le backend SDL3 d'ImGui reçoit `SDL_EVENT_MOUSE_WHEEL` dans le lanceur et en jeu
