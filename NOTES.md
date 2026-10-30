@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 143 | 30/10 | (retour d'un testeur d'OutRun 2, transmis par le propriétaire) Pédales et chocs bons, mais volant mou (aucun rappel) ; lampes : l'OUTPUT TEST du menu de test donne la lampe « View 3 » pour Driver lamp L et celle de Start pour Driver lamp R ; « Sauter les contrôles » coupe le retour de force et remet à zéro les réglages du menu de test | 🔄 « Sauter les contrôles » ignoré avec la carte servo émulée (voir journal) ; rappel et lampes : en attente du journal FFB du testeur et de la correspondance de son OUTPUT TEST |
 | 142 | 30/10 | Une release, prévenir Image borne pour qu'elle mette à jour les bornes | ✅ `emulateurs/releases/linuxloader-v3.0.13-ffbedition-20261030-2-njz3-win32.zip` (deuxième du jour), depuis `8292427` ; Image borne prévenue (voir journal) |
 | 141 | 30/10 | Dans le `linuxloader.ini`, un commentaire et la valeur par défaut de chaque réglage, ajoutés automatiquement, seulement quand le fichier n'existe pas | ✅ chaque `CLE = valeur` du fichier neuf est précédée de « # Default: valeur » (la valeur du fichier neuf, « (empty) » si vide), produite par le générateur ; les 8 réglages groupés ont leur propre commentaire ; « Sauvegarder » et les cases qui écrivent tout de suite partent du fichier commenté quand il n'existe pas ; les fichiers existants ne sont pas touchés ; corrigé au passage : sans aucun `linuxloader.ini` sous Windows, le nom du fichier lu était fait d'octets au hasard, et la fenêtre de réglages écrivait un fichier à ce nom dans le dossier du jeu ; MSVC, OutRun 2 en mode agent (voir journal) |
 | 140 | 30/10 | (relayée par la session « Windows loader Berstett ») Numéroter les boutons de joystick à partir de 1 dans la page Contrôles, comme Windows et vJoy, avec le même réglage que windowsloader | ⚠️ `[Input] BUTTONS_FROM_ONE = true` par défaut (`false` : les numéros de SDL), `--set` compris ; seul l'affichage change (« Bouton %d » reçoit le numéro + 1), `controls.ini`, la capture et la lecture gardent `JOY0_BUTTON_0` ; case sous les périphériques, écrite tout de suite dans le fichier de réglages lu ; MSVC compile, fichier par défaut vérifié, page pas vue à l'écran (voir journal) |
@@ -171,6 +172,27 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Retour d'un testeur d'OutRun 2 (demande 143)
+- Pédales réglées, retour de force émulé identique à TeknoParrot pour l'herbe, le gravier, les chocs et les frôlements,
+  mais aucun rappel : le volant est mou. Lampes : en jeu, en vue 4, le carré rouge et le carré jaune allumés, Start
+  éteint en attract ; l'OUTPUT TEST du menu de test allume avec « Driver lamp L » la lampe qu'il a prise pour View 3,
+  et avec « Driver lamp R » celle de Start. Cocher « Sauter les contrôles au prochain lancement » : plus de retour de
+  force, et les réglages du menu de test (difficulté, type de borne, 15 stages) remis à zéro.
+- « Sauter les contrôles » (`SKIP_OUTRUN_CABINET_CHECK`, code d'upstream) : avec la carte servo émulée, le contrôle de
+  l'actionneur (`0x08105d88`) est déjà remplacé par `return 1` ; la case n'ajoutait que celui du volant
+  (`0x08103eaa`), fonction que le mode émulé corrige d'un octet (`0x0810401b`) : elle fait partie du démarrage de la
+  carte, et la sauter laisse le volant sans retour de force. L'option est maintenant ignorée avec la carte émulée
+  (ligne de journal), son aide et le commentaire du `linuxloader.ini` neuf disent qu'elle sert à une borne sans
+  carte servo. La remise à zéro des réglages n'est pas expliquée sans le jeu (pas de copie d'OutRun 2 sur ce PC) :
+  à confirmer chez le testeur qu'elle disparaît avec l'option.
+- Rappel : le modèle de la carte suit 8B (force), 87 (centre) et 88 (marche/arrêt), vus en course en mode agent ;
+  l'effet `SDL_HAPTIC_SPRING` n'est créé que si le périphérique le déclare, sans repli. Demandé au testeur : les
+  lignes « FFB: » de son journal (« Wheel mode (constant=… spring=…) », « Cannot create/update effect ») et le
+  périphérique qui reçoit les effets.
+- Lampes : les noms de la liste des sorties viennent de la lecture du jeu (demande 118) ; l'OUTPUT TEST fait foi.
+  Demandé au testeur : pour chaque lampe de l'OUTPUT TEST, le `lampN` qui passe à 1 dans Tab > Sorties et réseau.
+- MSVC compile ; pas d'essai en jeu.
 
 ### Release 3.0.13 du 30/10, -2 (demande 142)
 - `release.py` n'existe plus (le dossier de travail de sa session a été vidé) : procédure refaite à la main, telle que
