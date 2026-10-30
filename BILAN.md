@@ -26,11 +26,11 @@ annexes (`Sega\assets\rpi-billboard`, une mise à jour), pas le jeu.
 | Initial D 5 Export - SEGA Lindbergh | Lindbergh | `id5.exe` (ELF) | `INITIALD_5_EXP20_SBTS` | ✅ partie (HUD complet), FFB, menu de test, vJoy ; MinGW et MSVC |
 | Dead Heat - Namco ES1 | Namco ES1 | `a.elf` | `DEAD_HEAT_US` | ✅ course (MinGW et MSVC), FFB (Kickback), menu de test, vJoy |
 | Maximum Heat 3D - Namco ES1 | Namco ES1 | `a.elf` | `MAXIMUM_HEAT_3D` | ✅ partie, FFB, menu de test, vJoy |
-| Nirin - Namco ES1 | Namco ES1 | `exec/a.elf` | `NIRIN` | ✅ course, menu de test, vJoy ; clé HASP répondue |
-| Dead Heat Riders - Namco N2 | Namco N2 | `a.elf` | `DEAD_HEAT_RIDERS` | ✅ course, FFB, menu de test, vJoy ; clé USB présentée |
+| Nirin - Namco ES1 | Namco ES1 | `exec/a.elf` | `NIRIN` | ✅ course, menu de test, vJoy |
+| Dead Heat Riders - Namco N2 | Namco N2 | `a.elf` | `DEAD_HEAT_RIDERS` | ✅ course, FFB, menu de test, vJoy |
 | Wangan Midnight Maximum Tune 3 (Export) - Namco N2 | Namco N2 | `main` | `WANGAN_MIDNIGHT_MT3` | ✅ course (MinGW et MSVC), FFB, menu de test, son, lecteur-imprimante de cartes (carte neuve écrite puis relue), vJoy |
 | Wangan Midnight Maximum Tune 3DX+ (Japan) - Namco N2 | Namco N2 | `main` | `WANGAN_MIDNIGHT_MT3DX` | ✅ course (MinGW et MSVC), FFB, menu de test, vJoy, cartes (neuve, lue, écrite et imprimée en fin de partie), jeu sans lecteur |
-| Cruisn Blast 1.25 - Raw Thrills PC based | Raw Thrills (Linux) | `game` | — | ❌ protégé par l'enveloppe Sentinel HASP (code en clair) : non fait |
+| Cruisn Blast 1.25 - Raw Thrills PC based | Raw Thrills (Linux) | `game` | — | ❌ non fait |
 | Cruisn Blast 2.31 - Raw Thrills PC based | Raw Thrills (Linux) | `game` | — | ❌ abandonné |
 | Gaelco Championship Tuning Race - Gaelco PC Based | Gaelco PC | image disque, `.../salidas/car` | `GAELCO_TUNING_RACE` | ✅ course, FFB, menu Test, son émulé, vJoy |
 | Ring Riders - Gaelco PC Based | Gaelco PC | image disque, `.../salidas/gameport` | `RING_RIDERS` | ✅ course, FFB, menu TEST, son émulé, vJoy |
@@ -38,7 +38,7 @@ annexes (`Sega\assets\rpi-billboard`, une mise à jour), pas le jeu.
 
 Bilan (23/10, nuit) : 16 des 18 jeux Linux se jouent entièrement (course, FFB, menu de test, vJoy), Maximum Tune 3
 et 3DX+ avec leurs cartes, R-Tuned, Initial D 4 Japon, Initial D 5 et Dead Heat compris ; restent les deux Cruis'n
-Blast (protégés par l'enveloppe Sentinel HASP : non faits). Les courses de Maximum Tune 3 et 3DX+ en MSVC, dernière
+Blast (non faits). Les courses de Maximum Tune 3 et 3DX+ en MSVC, dernière
 limite connue de cette build, sont corrigées le 24/10. Dans `gameData.c` (l'état que montre le sélecteur), Dead Heat Riders,
 Nirin, Maximum Tune 3 et 3DX+ sont en `WORKING`.
 
@@ -68,9 +68,9 @@ Racers 2071).
 |:--|:--|:--|:--|:--|:--|:--|:--|
 | Initial D 4 Export FR (Rev D) | ✅ | ✅ 1360×768 plein cadre | ✅ pièces, Start, volant, gaz, frein | ✅ partie menée par vJoy, retour de force reçu | ✅ couple 84, amortisseur 86, vibrations 85 | ✅ menu complet, navigation, test des sorties | menus et démo en français |
 | Maximum Heat 3D | ✅ contrôle du link passé (borne seule) | ✅ 1360×768 | ✅ pièces, menus à l'accélérateur, volant, frein, vue | ✅ partie menée par vJoy, retour de force reçu | ✅ ressort, amortisseur, couple (carte Kickback) | ✅ menu de test, test des E/S, retour au jeu | caméra coupée (pas de /dev/video0) |
-| Dead Heat Riders | ✅ (environ 70 s : réseau, caméra absente) | ✅ 1360×768 (MinGW et MSVC) | ✅ pièces, Nitro (DECIDE), Vue, Enter, guidon, accélérateur, frein (contact) ; test des commandes juste | ✅ course menée par vJoy (pièces, Nitro, guidon, accélérateur, frein), retour de force reçu | ✅ carte Kickback : ressort, amortisseur, couple | ✅ menu de test, I/O TEST, SWITCH TEST | clé USB présentée par la libusb du loader ; photos absentes (pas de caméra) |
-| Nirin | ✅ | ✅ 1360×768 (MinGW et MSVC) | ✅ pièces, OK (View), Select (pencher), guidon, poignée, frein, shift up/down ; test des commandes juste | ✅ course menée par vJoy | — (pas de moteur) | ✅ menu de test, I/O TEST, SWITCH TEST | clé HASP répondue comme celle de Dead Heat |
-| Wangan Midnight Maximum Tune 3 (Export) | ✅ contrôles HANDLE et CARD passés (CARD R/W OFF dans le menu de test) ; réseau absent (borne seule) | ✅ 640×480 : pilote NVIDIA intégré au programme remplacé par la fenêtre du loader (MinGW et MSVC) | ✅ pièces, accélérateur (menus), volant, frein, View Change, Intrude Change, levier en H à 6 vitesses depuis Gear Up/Down ; SWITCH TEST juste | ⏳ | ✅ carte Kickback : ressort, amortisseur, couple | ✅ menu de test, GAME OPTIONS, I/O TEST, SWITCH TEST | clé HASP émulée (`hasp.bin`) ; son par OpenAL Soft (capture WAV) ; cartes : lecteur-imprimante pas encore émulé |
+| Dead Heat Riders | ✅ (environ 70 s : réseau, caméra absente) | ✅ 1360×768 (MinGW et MSVC) | ✅ pièces, Nitro (DECIDE), Vue, Enter, guidon, accélérateur, frein (contact) ; test des commandes juste | ✅ course menée par vJoy (pièces, Nitro, guidon, accélérateur, frein), retour de force reçu | ✅ carte Kickback : ressort, amortisseur, couple | ✅ menu de test, I/O TEST, SWITCH TEST | photos absentes (pas de caméra) |
+| Nirin | ✅ | ✅ 1360×768 (MinGW et MSVC) | ✅ pièces, OK (View), Select (pencher), guidon, poignée, frein, shift up/down ; test des commandes juste | ✅ course menée par vJoy | — (pas de moteur) | ✅ menu de test, I/O TEST, SWITCH TEST |  |
+| Wangan Midnight Maximum Tune 3 (Export) | ✅ contrôles HANDLE et CARD passés (CARD R/W OFF dans le menu de test) ; réseau absent (borne seule) | ✅ 640×480 : pilote NVIDIA intégré au programme remplacé par la fenêtre du loader (MinGW et MSVC) | ✅ pièces, accélérateur (menus), volant, frein, View Change, Intrude Change, levier en H à 6 vitesses depuis Gear Up/Down ; SWITCH TEST juste | ⏳ | ✅ carte Kickback : ressort, amortisseur, couple | ✅ menu de test, GAME OPTIONS, I/O TEST, SWITCH TEST | son par OpenAL Soft (capture WAV) ; cartes : lecteur-imprimante pas encore émulé |
 | Ring Riders | ✅ | ✅ sur GPU NVIDIA (blanc sur Intel : register combiners) | ✅ pièces, Start, guidon (sens corrigé), poignée, frein | ✅ course menée par vJoy (pièce, Start, Service, guidon, poignée, frein), retour de force reçu | ✅ moteur du guidon (rappel au centre, sens corrigé) et vibreur | ✅ menu TEST, Input/Output, mire | son émulé (carte son Gaelco) ; plateforme de mouvement absente (« MOTION SYSTEM ERROR LOG ») |
 | Tokyo Cop | ✅ | ✅ sur GPU NVIDIA | ✅ pièces, klaxon (Start), volant (sens corrigé), accélérateur, frein (contact, nouveau), sirène, vue | ✅ poursuite menée par vJoy (pièce, klaxon, volant, accélérateur, sirène, frein), retour de force reçu | ✅ moteur du volant (rappel au centre, sens corrigé) | ✅ menu TEST (code de touche 0x14), Controls Test, mire | son émulé ; « MOTION SYSTEM ERROR! » (siège mobile absent) |
 | Gaelco Championship Tuning Race | ✅ (dérouleur C++ du jeu) | ✅ 720×540 natif | ✅ pièces, Start, volant, accélérateur, frein, vue, palettes (boîte manuelle) | ✅ course menée par vJoy (pièce, Start, volant, accélérateur, frein, vue), retour de force reçu | ✅ moteur du volant (rappel au centre) | ✅ menu Test, Controls Test (toutes les commandes affichées justes) | son émulé ; plateforme de mouvement absente ; « Control de produccion » (écran d'usine) fait quitter le jeu |
@@ -122,7 +122,7 @@ Racers 2071).
 
 ### Maximum Heat 3D (Namco ES1, US DRIVE rév. 8807)
 - Le moteur de Dead Heat (rév. 6273) : entrée de jeu (CRC partiel 0xF932E88E) et groupe commun avec Dead Heat ;
-  mêmes patches à ses adresses (dongle HASP, groupe du link, destructeurs) ; cartes N2 et Kickback émulées par une
+  mêmes patches à ses adresses (groupe du link, destructeurs) ; cartes N2 et Kickback émulées par une
   table d'adresses par jeu.
 - **Démarrage** : ses shaders commencent par `#version 120` (la déclaration de `gl_TexCoord` va après) ; la caméra
   (`USE_CAMERA_DEVICE`) est coupée ; le contrôle du link au démarrage passe maintenant comme sur une borne seule :
@@ -155,7 +155,6 @@ Racers 2071).
 - libstdc++ plus récente (GLIBCXX_3.4.14) : le loader choisit maintenant `libstdc++.so.6.0.N` selon ce que le jeu
   demande ; `libstdc++.so.6.0.14` ajoutée aux dépendances (reprise de `ElfLdr2\libs` de TeknoParrot) ; `fgetpos`,
   `fsetpos`, `strtof`, `strtold`, `strtoul`, `frexpl`, libusb sans périphérique.
-- Sa clé (un appareil USB 0B9A:0C10 dont seul le numéro de série est lu) est présentée par la libusb du loader.
 - **Démarrage** (environ 70 s) : contrôle du réseau d'une borne seule (60 s), I/O CHECK « CONNECTING OK », attente de
   la caméra (10 s, abandonnée seule), démo.
 - **Cartes** : N2 et Kickback émulées par `deadHeatIo.c` (même bloc que Dead Heat, calibrage espacé de 16 octets,
@@ -177,7 +176,6 @@ Racers 2071).
 - **Contrôles** (mode agent) : pièces comptées (CREDIT 2/2) ; dans le SWITCH TEST : Test, Service, Select (haut),
   Enter (Start), shift up (GearUp), shift down (GearDown), guidon dans les deux sens.
 - **Menu de service** : interrupteur Test enclenché : MENU, I/O TEST, SWITCH TEST.
-- **Clé HASP** répondue comme celle de Dead Heat (login, lecture, déchiffrement qui ne sert qu'au numéro de série).
 - **Partie** : « Insert 2 Coin(s) », OK des menus = bouton View, choix du mode, de la moto, de la boîte, du circuit ;
   course : tour complet, jusqu'à 249 km/h, la moto penche avec le guidon. MinGW et MSVC ; menée aussi par vJoy dans
   une fenêtre visible (BACKUP DATA OK, JV I/O OK, CLOCK OK au démarrage).
@@ -200,9 +198,7 @@ Racers 2071).
 - **Démarrage** : `prepend-n2.pl` (dossiers du disque de travail, son copié dans `/tmp`) fait par le loader ;
   `/proc/cpuinfo` lu jusqu'à la fin ; mémoire d'Alchemy par `sbrk` (région réservée, pages engagées au fur et à
   mesure) ; clavier d'Alchemy lu sur l'entrée standard non bloquante. Contrôles du démarrage : HANDLE CHECK passé,
-  horloge de la clé lue, réseau absent (« CANT START NETWORK », sans gêne pour une borne seule).
-- **Clé HASP** émulée (`hardware/namco/namcoHasp.c`) : la bibliothèque HASP du programme répondue depuis une image
-  de sa mémoire (`hasp.bin`, numéro de série et compteur des cartes, gardés), l'horloge de la clé celle de Windows.
+  réseau absent (« CANT START NETWORK », sans gêne pour une borne seule).
 - **Cartes** : N2 émulée par `deadHeatIo.c` (bloc d'état de la `n2jvio` de Nirin) ; calibrage en centre et course ;
   carte Kickback en type de couple 0 (auto-test passé), ses champs ailleurs que ceux de Dead Heat.
 - **Lecteur-imprimante de cartes** (`hardware/namco/n2CardPrinter.c`) émulé sur son port série (`/dev/ttyM2`) : avec

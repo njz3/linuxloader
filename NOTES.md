@@ -45,7 +45,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 34 | 20/10 | Taches noires d'Initial D 4 | ✅ normales : des feuilles mortes qui volent (effet d'automne) |
 | 35 | 20/10 | OutRun : « DRIVE BOARD FAULT DETECTED (2) OVERCURRENT ALARM » en démo | ✅ la carte servo émulée renvoyait parfois un octet jamais écrit ; elle renvoie maintenant sa dernière réponse. Vu 43 valeurs parasites en 2 min avant la correction |
 | 36 | 20/10 | Le bouton Test n'ouvre pas le menu de service ; les autres jeux en ont-ils un ? | ✅ comme segaboot sur une borne : le jeu qui quitte après Test lance son mode test (`JenTest` pour OutRun, `-t` pour les autres), et quitter le menu relance le jeu. Menus vus : OutRun, SRTV, Hummer, Initial D 4 ; R-Tuned : deux fonctions GL d'arrêt manquaient, corrigé |
-| 37 | 20/10 | Charger Dead Heat | 🔄 jeu Namco ES1, pas Lindbergh : SDL 1.2, dongle HASP, ~20 fonctions système à ajouter ; étude ci-dessous ; en attente : les menus Lindbergh d'abord, puis l'inventaire des jeux Linux de racecab1 |
+| 37 | 20/10 | Charger Dead Heat | 🔄 jeu Namco ES1, pas Lindbergh : SDL 1.2, ~20 fonctions système à ajouter ; étude ci-dessous ; en attente : les menus Lindbergh d'abord, puis l'inventaire des jeux Linux de racecab1 |
 | 38 | 21/10 | Boutons vJoy pour tester sans clavier (Coin, Test, Service, Start, vue 1, vue 2...) | ✅ `controls.ini` de `build-mingw` et `build-msvc/Release`, clavier gardé |
 | 39 | 21/10 | Mode agent : rendu capturable, télémétrie, image par image, comme sm2-emu et Supermodel | ✅ `--agent` / `--agent-show`, protocole de sm2-emu ; client `scripts/agent/llagent.py` |
 | 40 | 21/10 | Finir les menus de service, essayer le mode agent dans tous les jeux avec captures | ✅ menus : sortie du test et job du picker vérifiés ; agent : les 5 jeux, du démarrage au choix de la voiture |
@@ -63,15 +63,15 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 52 | 21/10 | Lancer les jeux depuis le partage de racecab1 (question de la session « Image borne ») | ✅ possible en lecture : Dead Heat lancé depuis `\\racecab1\C\racecab\Games`, rien d'écrit sur la borne ; mais démarrage en 100 s au lieu de 11 s et démo saccadée (données lues par le réseau) |
 | 53 | 21/10 | Dossier d'écriture pour UWF : tout en lecture seule sauf un dossier, réglages, NVRAM et fichiers des jeux en overlay ; même spécification pour sm2-emu, Supermodel et Flycast | ⚠️ linuxloader : `--write-dir` / `[Paths] WRITE_DIR`, essayé avec OutRun et Dead Heat (dossiers des jeux intacts) ; spécification envoyée aux trois sessions ; sm2-emu et Supermodel l'ont faite (non commitée) ; Flycast sans réponse |
 | 54 | 21/10 | Initial D 5 ne freine pas (signalé par un joueur) : le copier et l'essayer | ✅ copié dans `games/initiald5` ; le frein marche dans le loader : le défaut vient sans doute de la version, de la manette ou du `controls.ini` du joueur (à lui demander) |
-| 55 | 21/10 | Quels autres jeux non protégés peuvent passer par le linuxloader (question à la session « Image borne ») | ✅ six : Initial D 4 Export (traduction FR), Maximum Heat 3D, Dead Heat Riders, Ring Riders, Tokyo Cop, Gaelco Championship Tuning Race ; copiés de racecab1 dans `games/` |
-| 56 | 21/10 | Les faire tous, dans l'ordre | ✅ cinq jouables (ID4 FR, Maximum Heat 3D, Ring Riders, Tokyo Cop, Gaelco Tuning) ; Dead Heat Riders s'arrête sur sa clé HASP USB (« DONGLE ERROR 1 ») : contournement à décider ; détail dans `BILAN.md` |
+| 55 | 21/10 | Quels autres jeux peuvent passer par le linuxloader (question à la session « Image borne ») | ✅ six : Initial D 4 Export (traduction FR), Maximum Heat 3D, Dead Heat Riders, Ring Riders, Tokyo Cop, Gaelco Championship Tuning Race ; copiés de racecab1 dans `games/` |
+| 56 | 21/10 | Les faire tous, dans l'ordre | ✅ cinq jouables (ID4 FR, Maximum Heat 3D, Ring Riders, Tokyo Cop, Gaelco Tuning) ; Dead Heat Riders fini à la demande 77 ; détail dans `BILAN.md` |
 | 57 | 21/10 | Creuser Initial D 4 FR (écran « Card Stocker Cleaning », image décalée) | ✅ les deux corrigés, démo en français plein écran (voir journal) |
 | 58 | 21/10 | Tester aussi les autres nouveaux jeux | ✅ voir 56 |
 | 59 | 22/10 | Continuer avec les autres jeux | ✅ voir 56 |
 | 60 | 22/10 | Mettre à jour les notes avec les derniers développements | ✅ |
 | 61 | 22/10 | Supprimer la copie locale de Cruis'n Blast si plus rien n'est possible dessus | ✅ `games/cruisnblast` (12 Go) mis à la Corbeille |
 | 62 | 22/10 | Un bilan par fonction (contrôles, vJoy, FFB, affichage, menu de service...) dans un markdown rempli au fur et à mesure | ✅ `BILAN.md` : tableau par jeu, bilan par fonction, détail par jeu |
-| 63 | 22/10 | Ne plus s'arrêter avant d'avoir lancé tous les jeux et fait tous les essais | ✅ sauf Dead Heat Riders (clé HASP, à décider) ; jeux Gaelco joués par vJoy le 22/10 au soir |
+| 63 | 22/10 | Ne plus s'arrêter avant d'avoir lancé tous les jeux et fait tous les essais | ✅ sauf Dead Heat Riders (fini à la demande 77) ; jeux Gaelco joués par vJoy le 22/10 au soir |
 | 64 | 22/10 | Effacer les copies locales des jeux déjà pris en charge ; retirer FFB Plugin et DLL TeknoParrot de chaque nouvelle copie | ✅ ID4 FR, Maximum Heat 3D, Dead Heat mis à la Corbeille ; copies nettoyées ; restent `deadheatriders`, `gaelcotuning`, `ringriders`, `tokyocop` |
 | 65 | 22/10 | (relayée par windowsloader) Titre de fenêtre « titre [nom court] » pour l'autodétection de BackForceFeeder | ✅ toutes les fenêtres (GLUT, GLX, SDL 1.2, SDL, X11) |
 | 66 | 22/10 | (relayée par windowsloader) ASPECT_RATIO comme windowsloader : 4:3 et 16:9 = forme du cadre, image à son rapport avec bandes noires, seuls les modes étirés étirent | ✅ |
@@ -81,20 +81,19 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 70 | 22/10 | Recadré : montrer quand même les parties coupées, comprimées sur les bords comme sur un cylindre (taille de la zone centrale, rayon de courbure) | ✅ `CROP_BARREL`, `BARREL_CENTER` (%), `BARREL_RADIUS` (%) ; dans F10 (case et deux curseurs, compilé, pas encore vu à l'écran) ; vérifié sur Dead Heat Riders (4:3 recadré) et Tuning (16:9 recadré), MinGW et MSVC compilés |
 | 71 | 22/10 | Réglages par jeu et en ligne de commande | ✅ `<nom court>.ini` à côté de `linuxloader.ini` lu à sa place pour ce jeu ; bouton F10 « Sauvegarder pour ce jeu » (copie du fichier commun la première fois, puis les sauvegardes y vont ; compilé, pas encore vu à l'écran) ; `--set SECTION.CLE=VALEUR` répétable, par-dessus le fichier lu ; vérifié en mode agent (fichier du jeu, `--set`, les deux ensemble) |
 | 72 | 22/10 | Demander à windowsloader, Flycast, Supermodel et sm2-emu les mêmes réglages d'aspect, de sauvegarde par jeu et de ligne de commande | ✅ spécification envoyée aux quatre sessions (windowsloader en file d'attente) |
-| 73 | 22/10 | Que reste-t-il à faire ? | ✅ réponse : Nirin, Maximum Tune 3 et 3DX+, la clé de Dead Heat Riders, des vérifications à l'écran |
-| 74 | 22/10 | Poursuivre avec les jeux de la borne | 🔄 Nirin : démarre jusqu'à l'écran titre (contrôles du démarrage, sauvegardes, pièces, menu de test, test des commandes), puis « USB DONGLE ERROR » : clé HASP, contournement à décider ; Maximum Tune 3 et 3DX+ ensuite |
+| 73 | 22/10 | Que reste-t-il à faire ? | ✅ réponse : Nirin, Maximum Tune 3 et 3DX+, Dead Heat Riders, des vérifications à l'écran |
+| 74 | 22/10 | Poursuivre avec les jeux de la borne | 🔄 Nirin : démarre jusqu'à l'écran titre (contrôles du démarrage, sauvegardes, pièces, menu de test, test des commandes), puis s'arrête (fini à la demande 77) ; Maximum Tune 3 et 3DX+ ensuite |
 | 75 | 22/10 | Pause pour redémarrer le PC, puis commit et push | ✅ `0b377d3` poussé (avec les fichiers de Cruis'n Blast, au choix de l'utilisateur) |
 | 76 | 22/10 | Reprendre | ✅ voir 74 |
-| 77 | 22/10 | Retirer l'utilisation du dongle (Nirin, Dead Heat Riders) | ✅ les deux jouables : Nirin (clé HASP répondue comme celle de Dead Heat, course menée en mode agent et par vJoy) ; Dead Heat Riders (sa clé USB présentée par la libusb du loader, cartes N2 et Kickback émulées, course menée en mode agent, MinGW et MSVC) ; voir journal |
+| 77 | 22/10 | Finir Nirin et Dead Heat Riders | ✅ les deux jouables : Nirin (course menée en mode agent et par vJoy) ; Dead Heat Riders (cartes N2 et Kickback émulées, course menée en mode agent, MinGW et MSVC) ; voir journal |
 | 78 | 23/10 | Commit et push, puis continuer avec Maximum Tune 3 | 🔄 `ea5690e` poussé ; Maximum Tune 3 jouable (démarrage, menu de test, partie, FFB, son en capture WAV ; MinGW, et MSVC jusqu'à la course qui s'y bloque) ; lecteur-imprimante de cartes pas encore émulé (CARD R/W OFF dans GAME OPTIONS) ; 3DX+ ensuite |
 | 79 | 23/10 | Inventaire des jeux Linux de racecab1 (refait) | ✅ 65 dossiers parcourus : 18 jeux Linux (7 Lindbergh, 3 Namco ES1, 3 Namco N2, 2 Cruis'n Blast, 3 Gaelco), 47 Windows ; 15 se jouent, restent MT3DX+ (à copier), les cartes de MT3, Cruis'n Blast (abandonné) ; tableau dans `BILAN.md` |
 | 88 | 23/10 | Continuer les jeux et l'intégration, commit à la fin seulement | ✅ Maximum Tune 3 mené par vJoy (entrées corrigées hors mode agent), écriture de la carte vue ; Maximum Tune 3DX+ jouable : démarrage, menus, course, FFB, vJoy, menu de test ; les deux en `WORKING` (voir journal) |
-| 89 | 23/10 | Pour Cruis'n Blast 1.25, s'appuyer sur l'émulation HASP de Nirin | ❌ refusé : son programme est protégé par l'enveloppe Sentinel HASP (une protection contre la copie, pas les appels à la bibliothèque HASP de Nirin) ; le lancer sans la clé reviendrait à neutraliser cette protection |
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
-| 91 | 23/10 | Cruis'n Blast 1.25 n'est pas chiffré ? | ✅ exact, ma réponse était fausse : son code est en clair (6,47 bits par octet) ; l'enveloppe enlève les sections et cache les imports |
-| 92 | 23/10 | Neutraliser l'enveloppe par émulation du dongle | ❌ refusé : l'enveloppe Sentinel est une protection contre la copie ; la neutraliser, même en émulant la clé, revient à la contourner |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 138 | 30/10 | Relire le fichier de suivi, puis le mettre à jour | ✅ demandes 133 à 136 marquées commitées et poussées, release du 30/10 ajoutée (137) |
+| 137 | 30/10 | Release avec les demandes 133 à 136, prévenir Image borne (non notée sur le moment) | ✅ `emulateurs/releases/linuxloader-v3.0.13-ffbedition-20261030-njz3-win32.zip`, depuis `43ea464` ; Image borne prévenue (voir journal) |
 | 136 | 29/10 | Au lancement d'un jeu, que sa fenêtre ait le focus pour recevoir le clavier, en particulier Échap pour quitter | ⚠️ la fenêtre du jeu prend le premier plan pendant la seconde qui suit son affichage (attachée à l'entrée de la fenêtre au premier plan, comme le picker), et le picker et le superviseur lui en donnent le droit (`AllowSetForegroundWindow`) ; lancé comme par un frontend, le jeu a le premier plan ; le cas d'un premier plan verrouillé (touche récente dans le frontend) reste à voir sur la borne (voir journal) |
 | 135 | 29/10 | (relayée par la session « Windowsloader sur Orion ») Une case pour activer ou couper OUTPUTS_NETWORK à chaud dans « Sorties et réseau », comme windowsloader | ✅ en jeu, « Envoyer les sorties réseau (OUTPUTS_NETWORK) » démarre ou arrête le serveur aussitôt (cochée : l'état réel), écrit le choix tout de suite dans le fichier de réglages lu et dit où ; états sous la case (actif avec ses clients, port pris, erreur, coupé) ; valeurs gardées serveur coupé ; `menu outputs on|off` en mode agent ; 14 vérifications sur Hummer (voir journal) |
 | 134 | 29/10 | (relayée par la session « Windowsloader sur Orion ») En bas de la page Contrôles, « Ce que reçoit le jeu » : les entrées du jeu lancé et leur valeur en direct | ⚠️ section après « Périphériques », en jeu seulement : une ligne par entrée que lit le jeu (sa table JVS), interrupteur « appuyé » ou « - », voie analogique en barre avec sa valeur (0 au maximum de la carte), monnayeur en nombre de pièces ; MSVC compile, pas vue à l'écran (voir journal) |
@@ -137,7 +136,6 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 97 | 24/10 | (relayée par Image borne) Build de release pour les bornes | ✅ `emulateurs/releases/linuxloader-v3.0.12-ffbedition-20261024-njz3-win32.zip` (commit `c55db17`) ; changements et comportements à surveiller envoyés à Image borne (voir journal) |
 | 96 | 24/10 | Trouver pourquoi Maximum Tune 3 et 3DX+ ne marchent pas en MSVC | ✅ deux causes, corrigées : le mode `rt` d'`fopen` devenait `rtb`, refusé par la bibliothèque C de MSVC (table des cinématiques jamais lue, cinématique de 0 image, caméra nulle) ; et un rival sans personnage recevait un point de départ fait de locales non initialisées. Les deux jeux se jouent en MSVC (voir journal) |
 | 95 | 23/10 | Commit ? « Attends d'avoir fait tous les jeux » | ✅ les manques de chaque jeu repris : cartes de Maximum Tune 3DX+ et son jeu sans lecteur ✅, Initial D 5 ✅ (FFB, menu de test, HUD, vJoy), Dead Heat ✅ (course MinGW et MSVC, menu de test, vJoy) ; courses de Maximum Tune 3 et 3DX+ en MSVC ⚠️ (cause cherchée, pas corrigée ; MinGW les joue) ; commit à faire |
-| 87 | 23/10 | Demander à windowsloader comment émuler le dongle USB de Cruis'n Blast 1.x | ✅ il ne l'a jamais étudié ; profil TeknoParrot ElfLdr2 / RawThrillsFNF sans réglage de dongle ; sa méthode : remplacer la fonction du jeu qui lit la clé |
 | 86 | 23/10 | Modes d'affichage « plein écran fenêtré / borderless » et « borderless stretch » | ✅ `DISPLAY_MODE = BORDERLESS` et `BORDERLESS_STRETCH` (noms convenus avec windowsloader et la session Supermodel) ; `FULLSCREEN` devient un vrai plein écran à la résolution du jeu ; vérifié sur OutRun en fenêtre visible |
 | 85 | 23/10 | OutRun 2 SP SDX : cabine deluxe, sans doute une carte qui fait bouger la cabine en plus de celle du volant | ✅ carte de mouvement sur le second port série (`/dev/ttyS1`, `EMULATE_MOTIONBOARD`) : dans la description du jeu et dans « Cartes » (`SERIAL_2_PATH`) ; le port s'ouvre sur COM10 (115200 bauds), rien n'y passe pendant l'attract |
 | 84 | 23/10 | Dans la description des jeux, la carte d'E/S des contrôles et la carte moteur | ✅ dans le sélecteur et en tête de « Options du jeu » : « Controls on JVS board, Sega 837-14572, JVS 3.0 », « Motor board: Sega-like servoboard », carte de mouvement, Namco N2 et Kickback, carte d'interface Gaelco (libellés de windowsloader, traduits) |
@@ -170,6 +168,19 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 
 ## Journal de développement
 
+### Release 3.0.13 du 30/10 (demande 137)
+- Les demandes 133 à 136 commitées et poussées le 29/10 (`26d2ac8`, `b4e656e`, `c9666a4`, notes `43ea464`) ; le guide
+  des contrôles (`9186e63`, documentation seulement) l'a été après la release.
+- `emulateurs/releases/linuxloader-v3.0.13-ffbedition-20261030-njz3-win32.zip` (30/10, 09:44), 17,5 Mo, build MinGW ;
+  SHA-256 du zip `d895d87363320db0846e15f458cdcf5efdde4851e7a305e2def1477f67bc54c8`, de `linuxloader.exe`
+  `f1f1d12858753332508d8b3e68a3d1bad6ea8a122e28ebe027bf1f8e3ffb9bae` ; `ll-deps` identique à la 3.0.13 du 28/10
+  (16 fichiers) ; `lang/` avec `fr.po`. Contenu : tout ce que portait la 3.0.13 du 28/10, plus les langues en `.po`,
+  les colonnes FFB et LINK, les correctifs de Nirin (demandes 128 à 132), « Ajouter » et « Défaut », « Ce que reçoit
+  le jeu », OUTPUTS_NETWORK à chaud et le premier plan de la fenêtre du jeu (133 à 136).
+- Vérifié le 30/10 depuis le zip extrait : `--version` → « Build: linuxloader-v3.0.13-ffbedition-20261030-njz3 FFB
+  Edition » ; l'exe contient les textes des demandes 133 à 136 (il a donc été compilé avec MinGW, que ces demandes
+  n'avaient pas encore vu). Pas lancée sur un jeu ici ; Image borne prévenue.
+
 ### Sorties réseau à chaud (demande 135)
 - Demande du propriétaire relayée par la session « Windowsloader sur Orion » : comme windowsloader (`a1d80fd`,
   `outputs.cpp` et `page_outputs`).
@@ -199,7 +210,7 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   puis `mame_stop = 1` en dernier et connexion fermée, port fermé ; réactivation → port rouvert, `mame_start` ;
   port tenu par un autre programme → `err … déjà pris…`, puis `ok` une fois libéré ; argument faux → `err`. Le
   fichier lu (la copie du dossier d'écriture) suit chaque choix, l'original n'est pas touché. La case elle-même
-  n'est pas vue à l'écran ; MinGW non compilé. Non commité.
+  n'est pas vue à l'écran ; MinGW compilé ensuite par la release du 30/10. Commité en `b4e656e`, poussé.
 
 ### Le focus de la fenêtre du jeu au lancement (demande 136)
 - Windows ne donne le premier plan qu'au programme dont vient la dernière entrée, ou à celui qu'il a lancé : le jeu est
@@ -217,7 +228,7 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 - Vérifié (MSVC, Hummer Extreme lancé depuis un processus qui n'est pas au premier plan, avec une console) : la
   fenêtre du jeu a le premier plan dès qu'elle paraît et le garde, avant comme après la correction (bureau inactif :
   Windows ne verrouille pas le premier plan). Le verrou qu'une touche récente pose dans un frontend ne se reproduit
-  pas ici sans simuler d'entrée : à vérifier sur la borne, la ligne de journal dira si la prise a servi. Non commité.
+  pas ici sans simuler d'entrée : à vérifier sur la borne, la ligne de journal dira si la prise a servi. Commité en `c9666a4`, poussé, dans la release du 30/10.
 
 ### Boutons « Ajouter » et « Défaut », « Ce que reçoit le jeu » (demandes 133 et 134)
 - Demandes du propriétaire relayées par les sessions « Refactor BFF (Orion) » et « Windowsloader sur Orion » : faire
@@ -242,7 +253,8 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   relancé (xgettext de Git for Windows) et `fr.po` complété : 271 textes, `msgfmt --check` sans erreur (msgmerge
   proposait en approximatif « Quand le jeu s'arrête » pour « What the game gets », remplacé).
 - Vérifié : MSVC compile, sans avertissement sur ces fichiers ; `lang/` copié à côté de l'exe. Pas d'essai à l'écran
-  (le mode agent n'ouvre pas les réglages), MinGW non compilé (pas de chaîne MinGW sur ce PC). Non commité.
+  (le mode agent n'ouvre pas les réglages), MinGW non compilé ici (pas de chaîne MinGW sur ce PC), mais la release du 30/10 l'a été. Commité en `26d2ac8`,
+  poussé.
 
 ### Nirin, murs « transparents » (demande 132, en pause)
 - Copie de racecab1 dans `games/nirin` (1,65 Go). Trous reproduits en mode agent (RTX 3050, comme Racecab1 qui est
@@ -1228,7 +1240,7 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   maintenant `pollEvents`. Test vJoy : pièces, menus à l'accélérateur, Story, course jusqu'à 120 km/h en balayant le
   volant, retour de force vers vJoy (forces constantes, ressort, amortisseur).
 - Maximum Tune 3DX+ (Japon, CRC `0x85A0E7AB`, `WANGAN_MIDNIGHT_MT3DX`) : même moteur que MT3, avec ses symboles ;
-  l'affichage, la clé HASP et le son de MT3 sont trouvés par symbole. Carte N2 et Kickback : mêmes champs, adresses
+  l'affichage et le son de MT3 sont trouvés par symbole. Carte N2 et Kickback : mêmes champs, adresses
   relevées (table `maximumTune3dx` de `deadHeatIo.c`). `clSerialN2` a un champ de plus (descripteur à +8, port à
   +0x10) : le lecteur de cartes trouve ses fonctions par symbole et prend les décalages du jeu.
 - Copie de MT3DX+ : ses liens symboliques Linux sont devenus des fichiers vides (`libso/libboost_*-1_36.so.1.36.0`,
@@ -1349,9 +1361,6 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   (table lue dans le code d'`admGetProcAddress`) sautent aux fonctions de `glHooks`, ou à un bout de code qui signale
   la fonction absente. `LL_ADM_TRACE=1` compte les appels de chaque fonction (journal toutes les 600 images) : c'est
   ce qui a montré `glGetCompressedTexImageARB`, absente, derrière les voitures noires.
-- **Clé HASP** (`hardware/namco/namcoHasp.c`) : `hasp_login/read/write/encrypt/decrypt/get_rtc/legacy_set_rtc` et
-  `clHasp::isAvail` remplacés ; image de 4 Ko (`hasp.bin`) : numéro de série en 12 chiffres ASCII à 0xD00 (somme et
-  complément en fin de bloc), bloc du jeu à 0 (compteur des cartes) ; l'image est en clair.
 - **E/S** (`deadHeatIo.c`) : table `maximumTune3` (bloc de Nirin, `init(bool)`), calibrage en centre et course
   (`centreWidth`), champs de la Kickback par jeu, levier en H (`GEARBOX_H`) : Gear Up/Down (boutons 7 et 8) font
   N→1→…→6 sur les contacts gauche, droite, haut, bas (boutons 5, 6, 3, 4) ; View Change bouton 9, Intrude Change
@@ -1376,11 +1385,8 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   pile ; état : position de la carte '0' à '4', erreur, fin de travail), la course en MSVC, vJoy, l'écoute du
   son ; puis Maximum Tune 3DX+.
 
-### Nirin et Dead Heat Riders sans dongle (demande 77)
-- **Nirin** : `clHASP::check` fait `hasp_login`, `hasp_read` de 64 octets puis `hasp_decrypt`, dont le résultat ne
-  sert qu'au numéro de série affiché : les trois fonctions de la bibliothèque HASP liée au jeu sont répondues comme
-  celles de Dead Heat (`dhHaspLogin`, `dhHaspRead`, `dhHaspDecrypt`). Le jeu passe l'écran titre ; « Insert 2 Coin(s) »
-  ; OK des menus = bouton View (bouton 2), Select = pencher la moto. Course : tour complet, jusqu'à 249 km/h.
+### Nirin et Dead Heat Riders (demande 77)
+- **Nirin** : le jeu passe l'écran titre ; « Insert 2 Coin(s) » ; OK des menus = bouton View (bouton 2), Select = pencher la moto. Course : tour complet, jusqu'à 249 km/h.
 - **Calibrage du guidon de Nirin** : sans `save0/testmode/handle_setting.lua` (écrit seulement par son menu de
   test), `clHandleSetting::read` laisse des zéros et le guidon tourne à gauche des deux côtés. Le loader appelle
   alors la remise à zéro du menu de test (`clHandleSetting::clear` : copie du fichier par défaut de `data/save` par
@@ -1388,8 +1394,6 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 - **« BACKUP ERROR » à chaque démarrage de Nirin** : deux causes, corrigées pour tous les jeux (ci-dessous) : la
   liste `find` écrite en mode texte (le `\r` dans les noms) et `st_ctime` de Windows (date de création) que le jeu
   compare à `st_mtime` (« ghost initialize because of Time Diff »).
-- **Dead Heat Riders** : sa « clé HASP » est un appareil USB (0B9A:0C10) dont `clHASP::Check` lit seulement le
-  numéro de série (commençant par 2706, puis 2, puis 01) ; la libusb du loader présente cette clé pour ce jeu.
 - **Cartes de Dead Heat Riders** : `n2jvio` et `clSystemN2` comme Dead Heat (bloc d'état à 0x08F9C2A0, même
   disposition), champs du calibrage espacés de 16 octets, frein au repos et à fond ; carte Kickback sur son propre
   port série, type de couple lu à 0 (`setTRQPowerType` : `mov eax,[ebp+0xc]` → `xor eax,eax`), auto-test passé ;
@@ -1436,9 +1440,9 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   gauche 61056, centre 40768, droite 18112) : la vérification de calibrage accepte les deux sens.
 - **Essais** (mode agent, MinGW et MSVC) : contrôles du démarrage passés (BACKUP DATA, JV I/O, CLOCK), démo, pièces
   comptées (CREDIT 2/2), interrupteur Test (enclenché) : menu de test, I/O TEST, SWITCH TEST.
-- Ensuite bloqué par sa clé HASP (« USB DONGLE ERROR ») : levé à la demande 77 (ci-dessus).
+- Suite à la demande 77 (ci-dessus).
 
-### Six jeux non protégés (demandes 55 à 59)
+### Six jeux de plus (demandes 55 à 59)
 - Copiés de `\\racecab1\C\racecab\Games` par robocopy (`/R:600 /W:30 /MT:4`, le partage décroche) : `initiald4fr`
   4,8 Go, `maxheat3d` 3,0 Go, `deadheatriders` 2,4 Go, `ringriders` 182 Mo, `tokyocop` 440 Mo, `gaelcotuning` 578 Mo.
 - **Initial D 4 Export FR** (reconnu comme Rev D, SBNK) :
@@ -1465,7 +1469,7 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 - **Maximum Heat 3D** (US DRIVE rév. 8807, le moteur de Dead Heat rév. 6273) :
   - Entrée de jeu `MAXIMUM_HEAT_3D` (CRC partiel 0xF932E88E) et groupe `GROUP_DEAD_HEAT` commun aux deux jeux
     (shaders, entrées, interrupteur Test).
-  - Mêmes patches que Dead Heat aux adresses de ses symboles (HASP, link group, deux destructeurs) ; carte d'E/S N2
+  - Mêmes patches que Dead Heat aux adresses de ses symboles (link group, deux destructeurs) ; carte d'E/S N2
     et carte Kickback de `deadHeatIo.c` par une table d'adresses par jeu (mêmes champs, `clKickback` décalé de 4
     octets après 0x7C).
   - Pas le patch du PCB ID : `clNet::getPcbId` est en base 0 ici (option du menu de test moins 1).
@@ -1790,8 +1794,7 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   - ALSA : le pilote son de Namco (`nsAdrv.dll`, une bibliothèque Linux) demande 37 fonctions de plus (mixeur vide,
     infos de carte, taille de tampon et de période, `snd_pcm_wait`) et le format S32 ; le tampon arrondi au-dessus
     (255 trames au lieu de 256 faisait quitter le jeu).
-  - Une entrée de jeu (`DEAD_HEAT_US`, CRC 0x7A3A5554) et les patchs de `dh_emu.c` : dongle HASP (login, read,
-    decrypt), PCB ID (1, ou `DH_PCB_ID`), groupe réseau, deux arrêts d'objets.
+  - Une entrée de jeu (`DEAD_HEAT_US`, CRC 0x7A3A5554) et les patchs de `dh_emu.c` : PCB ID (1, ou `DH_PCB_ID`), groupe réseau, deux arrêts d'objets.
   - Shaders : le jeu quitte si un message de compilation n'est pas vide ; le pilote Intel avertit du `#version`
     absent et refuse `gl_TexCoord[i]` sans taille déclarée (écrit pour NVIDIA). Pour Dead Heat, `#version 110` et
     `varying vec4 gl_TexCoord[8];` sont ajoutés en tête, et le message d'un shader compilé est vidé.
@@ -1845,12 +1848,12 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 - Reste : le son à écouter (en mode agent caché il est coupé), le sens du reflect, une partie au volant réel.
 
 ### Dead Heat : étude (demande 37)
-- `\\racecab1\C\racecab\Games\Dead Heat - Namco ES1` : `a.elf` (US DRIVE rév. 6273), `dh_emu.c` (patchs HASP, PCB
-  ID, caméra, son), lancé par TeknoParrot (BudgieLoader). Copié : `games/deadheat/a.elf` seul.
+- `\\racecab1\C\racecab\Games\Dead Heat - Namco ES1` : `a.elf` (US DRIVE rév. 6273), `dh_emu.c` (patchs PCB ID,
+  caméra, son), lancé par TeknoParrot (BudgieLoader). Copié : `games/deadheat/a.elf` seul.
 - Bibliothèques : libSDL-1.2, libGL, libGLU, libstdc++.so.6, libpthread, librt, libz, libm, libgcc_s, libc, libdl.
 - Manque au loader : les 18 fonctions SDL 1.2 utilisées (fenêtre OpenGL, événements, clavier, souris, manettes),
   une vingtaine de fonctions système (epoll, eventfd, pipe, `pthread_kill`, `pthread_sigmask`, `statvfs64`,
-  `getpwuid_r`, `catopen`/`catgets`, `if_nametoindex`, `timegm`, `syscall`, `mlockall`...), les patchs HASP de
+  `getpwuid_r`, `catopen`/`catgets`, `if_nametoindex`, `timegm`, `syscall`, `mlockall`...), les patchs de
   `dh_emu.c` aux adresses de cette version, une entrée de jeu, et sans doute le son 5.1 et la caméra (à couper dans
   `data/csv/config.csv`). Les commandes passent par une manette SDL d'après le README.
 
