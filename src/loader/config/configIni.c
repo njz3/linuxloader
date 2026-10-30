@@ -217,7 +217,8 @@ int createDefaultIni(const char *filePath)
     iniOut(&out, "PRIMEVAL_HUNT_SCREEN_MODE = %d\n\n", defaults.phScreenMode);
     iniOut(&out, "# Set Primeval Hunt Test mode screen to single screen\n");
     iniOut(&out, "PRIMEVAL_HUNT_TEST_SCREEN_SINGLE = %s\n\n", defaults.phTestScreenSingle ? "true" : "false");
-    iniOut(&out, "# Set to true to bypass cabinet checks including drive board and tower in Outrun 2 SP SDX\n");
+    iniOut(&out, "# Set to true to bypass cabinet checks including drive board and tower in Outrun 2 SP SDX, for a cabinet\n"
+                 "# without a drive board (no force feedback then); ignored with EMULATE_DRIVEBOARD, which passes them\n");
     iniOut(&out, "SKIP_OUTRUN_CABINET_CHECK = %s\n\n", defaults.skipOutrunCabinetCheck ? "true" : "false");
     iniOut(&out, "# Hacky way to make MJ4 and AxA work at prohibited times\nMJ4_ENABLED_ALL_THE_TIME = %s\n\n",
             defaults.mj4EnabledAtT ? "true" : "false");

@@ -2657,8 +2657,13 @@ int initPatch()
             }
             detourFunction(0x0804d148, or2snprintf); // Fixes a bug in snprintf libc 2.39??
 
-            // Only apply these patches if skipOutrunCabinetCheck is enabled
-            if (config->skipOutrunCabinetCheck)
+            // Only apply these patches if skipOutrunCabinetCheck is enabled, for a cabinet without a drive board. The
+            // emulated board passes the checks: skipping the steering wheel's as well left the wheel without force
+            // feedback (a user's report, 30/10)
+            if (config->skipOutrunCabinetCheck && getConfig()->emulateDriveboard)
+                log_warn("SKIP_OUTRUN_CABINET_CHECK ignored: the emulated drive board passes the cabinet checks, and "
+                         "skipping them leaves the wheel without force feedback");
+            else if (config->skipOutrunCabinetCheck)
             {
                 // Bypass checks for Actuator and Force Feedback
                 detourFunction(0x08103eaa, stubRetOne); // Steering wheel

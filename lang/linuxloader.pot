@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lindbergh Loader\n"
 "Report-Msgid-Bugs-To: https://github.com/njz3/linuxloader/issues\n"
-"POT-Creation-Date: 2026-10-30 14:57+0100\n"
+"POT-Creation-Date: 2026-10-30 19:30+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1107,7 +1107,10 @@ msgid "Skip the cabinet checks"
 msgstr ""
 
 #: src/loader/config/gameOptions.c
-msgid "The drive board and tower checks of the start skipped."
+msgid ""
+"For a cabinet without a drive board: the drive board and tower checks of the "
+"start skipped, the wheel then without force feedback. Ignored with the "
+"emulated drive board, which passes them."
 msgstr ""
 
 #: src/loader/config/gameOptions.c

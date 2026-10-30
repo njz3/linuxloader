@@ -113,7 +113,9 @@ const GameOption gameOptionTable[] = {
         "inserts it), and the start waits for the link check (about 5 minutes)."),
      GAME_OPTION_SWITCH, FIELD(noCardReader), false, NULL, NULL, 0, 1, true, maximumTune3},
     {"SKIP_OUTRUN_CABINET_CHECK", N_("Skip the cabinet checks"),
-     N_("The drive board and tower checks of the start skipped."), GAME_OPTION_SWITCH, FIELD(skipOutrunCabinetCheck), false,
+     N_("For a cabinet without a drive board: the drive board and tower checks of the start skipped, the wheel then "
+        "without force feedback. Ignored with the emulated drive board, which passes them."),
+     GAME_OPTION_SWITCH, FIELD(skipOutrunCabinetCheck), false,
      NULL, NULL, 0, 1, true, outrun},
     {"HUMMER_FLICKER_FIX", N_("Fix the flickering"), N_("A shader patch for the flickering some graphics cards show."),
      GAME_OPTION_SWITCH, FIELD(hummerFlickerFix), false, NULL, NULL, 0, 1, true, hummer},
