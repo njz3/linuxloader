@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lindbergh Loader\n"
 "Report-Msgid-Bugs-To: https://github.com/njz3/linuxloader/issues\n"
-"POT-Creation-Date: 2026-10-30 19:30+0100\n"
+"POT-Creation-Date: 2026-10-30 23:23+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -175,6 +175,33 @@ msgstr ""
 
 #: src/loader/gui/guiCommon.cpp
 msgid "Display mode"
+msgstr ""
+
+#: src/loader/gui/guiCommon.cpp
+#, c-format
+msgid "Screen %d (not connected)"
+msgstr ""
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Screen"
+msgstr ""
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Smooth"
+msgstr ""
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Sharp pixels"
+msgstr ""
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Scaling filter"
+msgstr ""
+
+#: src/loader/gui/guiCommon.cpp
+msgid ""
+"Sharp pixels: square and crisp, but uneven unless the picture is enlarged a "
+"whole number of times."
 msgstr ""
 
 #: src/loader/gui/guiCommon.cpp

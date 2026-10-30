@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lindbergh Loader\n"
 "Report-Msgid-Bugs-To: https://github.com/njz3/linuxloader/issues\n"
-"POT-Creation-Date: 2026-10-30 19:30+0100\n"
+"POT-Creation-Date: 2026-10-30 23:23+0100\n"
 "PO-Revision-Date: 2026-10-28 15:00+0100\n"
 "Last-Translator: njz3\n"
 "Language-Team: French\n"
@@ -205,6 +205,33 @@ msgstr "Plein écran fenêtré étiré"
 #: src/loader/gui/guiCommon.cpp
 msgid "Display mode"
 msgstr "Mode d'affichage"
+
+#: src/loader/gui/guiCommon.cpp
+#, c-format
+msgid "Screen %d (not connected)"
+msgstr "Écran %d (non branché)"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Screen"
+msgstr "Écran"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Smooth"
+msgstr "Lisse"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Sharp pixels"
+msgstr "Pixels nets"
+
+#: src/loader/gui/guiCommon.cpp
+msgid "Scaling filter"
+msgstr "Agrandissement"
+
+#: src/loader/gui/guiCommon.cpp
+msgid ""
+"Sharp pixels: square and crisp, but uneven unless the picture is enlarged a "
+"whole number of times."
+msgstr "Pixels nets : carrés et francs, mais inégaux sauf si l'image est agrandie un nombre entier de fois."
 
 #: src/loader/gui/guiCommon.cpp
 msgid "Limit the frame rate"
@@ -1175,7 +1202,10 @@ msgid ""
 "For a cabinet without a drive board: the drive board and tower checks of the "
 "start skipped, the wheel then without force feedback. Ignored with the "
 "emulated drive board, which passes them."
-msgstr "Pour une borne sans carte servo : les contrôles de la carte servo et de la tour au démarrage sont sautés, le volant est alors sans retour de force. Sans effet avec la carte servo émulée, qui les passe."
+msgstr ""
+"Pour une borne sans carte servo : les contrôles de la carte servo et de la "
+"tour au démarrage sont sautés, le volant est alors sans retour de force. "
+"Sans effet avec la carte servo émulée, qui les passe."
 
 #: src/loader/config/gameOptions.c
 msgid "Fix the flickering"

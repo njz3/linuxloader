@@ -510,7 +510,11 @@ void drawSettings(bool *open, std::string &configFile, bool inGame)
     }
 
     const float footer = ImGui::GetFrameHeightWithSpacing() * 2.2f;
-    // The tabs scroll both ways in a small window; the buttons below stay in sight
+    // The tabs scroll both ways in a small window; the buttons below stay in sight. Their width is the visible one less
+    // a vertical scroll bar, 480 at least: left to ImGui, the texts wrapped at the edge kept the width they had before a
+    // vertical scroll bar came, cut at the edge, and a horizontal one came with it
+    ImGui::SetNextWindowContentSize(
+        ImVec2(std::max(ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ScrollbarSize, 480.0f * g_uiScale), 0.0f));
     ImGui::BeginChild("##tabs", ImVec2(0, -footer), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar);
     if (ImGui::BeginTabBar("##settingsTabs"))
     {
@@ -602,6 +606,45 @@ void drawSettings(bool *open, std::string &configFile, bool inGame)
                 if (inGame)
                     sdlApplyDisplaySettings();
             }
+
+            // DISPLAY_INDEX: the screens in SDL's order, the game's window opened on one (sdlCalls.c, at its start)
+            {
+                int count = 0;
+                SDL_DisplayID *displays = SDL_GetDisplays(&count);
+                auto screenName = [&](int i) {
+                    char text[192];
+                    if (!displays || i >= count)
+                        snprintf(text, sizeof(text), tr("Screen %d (not connected)"), i + 1);
+                    else
+                    {
+                        const char *name = SDL_GetDisplayName(displays[i]);
+                        const SDL_DisplayMode *desktop = SDL_GetDesktopDisplayMode(displays[i]);
+                        if (desktop)
+                            snprintf(text, sizeof(text), "%d: %s (%d x %d)", i + 1, name ? name : "", desktop->w, desktop->h);
+                        else
+                            snprintf(text, sizeof(text), "%d: %s", i + 1, name ? name : "");
+                    }
+                    return std::string(text);
+                };
+                if (ImGui::BeginCombo(tr("Screen"), screenName(std::max(cfg->displayIndex, 0)).c_str()))
+                {
+                    for (int i = 0; i < count; i++)
+                        if (ImGui::Selectable(screenName(i).c_str(), i == cfg->displayIndex))
+                            cfg->displayIndex = i;
+                    ImGui::EndCombo();
+                }
+                SDL_free(displays);
+                restartNote(inGame);
+            }
+
+            // SCALING_FILTER: read at each frame (blitPresent), the picture follows it
+            const char *filterLabels[] = {tr("Smooth"), tr("Sharp pixels")};
+            int filter = cfg->scalingFilterNearest ? 1 : 0;
+            if (ImGui::Combo(tr("Scaling filter"), &filter, filterLabels, IM_ARRAYSIZE(filterLabels)))
+                cfg->scalingFilterNearest = filter;
+            ImGui::PushTextWrapPos(0.0f);
+            ImGui::TextDisabled("%s", tr("Sharp pixels: square and crisp, but uneven unless the picture is enlarged a whole number of times."));
+            ImGui::PopTextWrapPos();
 
             ImGui::Separator();
             bool limiter = cfg->fpsLimiter != 0;
@@ -788,6 +831,8 @@ bool saveSettings(const std::string &configFile)
                                      {"Display", "HEIGHT", cfg->internalHeight > 0 ? std::to_string(cfg->internalHeight) : "AUTO"},
                                      {"Display", "DISPLAY_MODE", displayModeNames[std::clamp(mode, 0, IM_ARRAYSIZE(displayModeNames) - 1)]},
                                      {"Display", "FULLSCREEN", mode >= DISPLAY_FULLSCREEN ? "true" : "false"},
+                                     {"Display", "DISPLAY_INDEX", std::to_string(std::max(cfg->displayIndex, 0))},
+                                     {"Display", "SCALING_FILTER", cfg->scalingFilterNearest ? "NEAREST" : "LINEAR"},
                                      {"Display", "FPS_LIMITER_ENABLED", cfg->fpsLimiter ? "true" : "false"},
                                      {"Display", "FPS_TARGET", number},
                                      {"Display", "FPS_OVERLAY_ENABLED", cfg->fpsOverlayEnabled ? "true" : "false"},
