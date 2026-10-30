@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 141 | 30/10 | Dans le `linuxloader.ini`, un commentaire et la valeur par défaut de chaque réglage, ajoutés automatiquement, seulement quand le fichier n'existe pas | ✅ chaque `CLE = valeur` du fichier neuf est précédée de « # Default: valeur » (la valeur du fichier neuf, « (empty) » si vide), produite par le générateur ; les 8 réglages groupés ont leur propre commentaire ; « Sauvegarder » et les cases qui écrivent tout de suite partent du fichier commenté quand il n'existe pas ; les fichiers existants ne sont pas touchés ; corrigé au passage : sans aucun `linuxloader.ini` sous Windows, le nom du fichier lu était fait d'octets au hasard, et la fenêtre de réglages écrivait un fichier à ce nom dans le dossier du jeu ; MSVC, OutRun 2 en mode agent (voir journal) |
 | 140 | 30/10 | (relayée par la session « Windows loader Berstett ») Numéroter les boutons de joystick à partir de 1 dans la page Contrôles, comme Windows et vJoy, avec le même réglage que windowsloader | ⚠️ `[Input] BUTTONS_FROM_ONE = true` par défaut (`false` : les numéros de SDL), `--set` compris ; seul l'affichage change (« Bouton %d » reçoit le numéro + 1), `controls.ini`, la capture et la lecture gardent `JOY0_BUTTON_0` ; case sous les périphériques, écrite tout de suite dans le fichier de réglages lu ; MSVC compile, fichier par défaut vérifié, page pas vue à l'écran (voir journal) |
 | 139 | 30/10 | Relire le fichier de suivi, puis corriger les états périmés | ✅ demandes 37, 74, 78, 82 et 95 mises à jour d'après les demandes qui les ont finies ; ordre et numéros manquants du tableau laissés tels quels |
 | 138 | 30/10 | Relire le fichier de suivi, puis le mettre à jour | ✅ demandes 133 à 136 marquées commitées et poussées, release du 30/10 ajoutée (137) |
@@ -169,6 +170,32 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Commentaires et valeurs par défaut du linuxloader.ini neuf (demande 141)
+- Coût : nul à l'exécution (fichier lu une fois, lignes `#` et `;` sautées par `iniParser.c` ; 16,6 Ko au lieu de
+  14,4) ; `iniUpdate` garde les commentaires. Le coût est la maintenance, d'où la valeur par défaut tirée du code.
+- `createDefaultIni` (`configIni.c`) écrit d'abord en mémoire (`iniOut`, à la place des `fprintf`), puis
+  `writeWithDefaults` met « # Default: valeur » au-dessus de chaque ligne `CLE = valeur` : la valeur écrite par le
+  générateur, celle de `setDefaultValues` quand elle en vient ; « (empty) » pour une valeur vide ou `""`. Le
+  commentaire reste quand la valeur change. Les lignes en commentaire (`#ANALOGUE_1 = …` d'EVDEV) n'en ont pas.
+- Les réglages qui partageaient un commentaire en ont chacun un : `CROP_BARREL`, `BARREL_CENTER`, `BARREL_RADIUS`,
+  `ID_IP_SEAT_1` et `_2`, `OR2_IPADDRESS` et `OR2_NETMASK`, `IP_CAB1` à `IP_CAB4`, `2SPICY_IP_CAB1` et `_2`.
+- Seulement quand le fichier n'existe pas (consigne du propriétaire) : `--create config`, et `settingsUpdate`
+  (`guiCommon.cpp`), qui crée le fichier par défaut avant d'y écrire, pour « Sauvegarder », « Sauvegarder pour ce
+  jeu », la case OUTPUTS_NETWORK et la case des boutons. `controls.ini` garde `iniUpdate` seul. Les fichiers
+  existants, ceux des bornes et du dossier d'écriture compris, ne changent pas.
+- Défaut trouvé en essayant : sous Windows, sans `linuxloader.ini` ni dans le dossier de lancement ni dans celui du
+  jeu, `readConfig` laissait `filePath` non initialisé (le repli `lindbergh.ini` n'existe que sous Linux) :
+  `getConfigFilePath` rendait des octets de pile, et la fenêtre de réglages écrivait un fichier à ce nom
+  (« ÐÞÿ ») dans le dossier du jeu. `filePath` part vide : les valeurs par défaut sont lues, et la fenêtre écrit
+  `linuxloader.ini` dans le dossier courant du jeu, celui que `readConfig` lit ensuite.
+- Vérifié (MSVC) : `--create config` donne les mêmes 93 réglages et valeurs qu'avant, chacun avec un commentaire
+  et sa ligne « # Default: », en CRLF. OutRun 2 en mode agent, sans aucun `linuxloader.ini` : `menu outputs on`
+  crée le fichier commenté, identique au fichier neuf sauf `OUTPUTS_NETWORK = true`. MinGW non compilé ici.
+- Incident d'essai, réparé : les premiers essais ont écrit `OUTPUTS_NETWORK` dans `build-msvc/Release/linuxloader.ini`
+  et dans un vieux `linuxloader.ini` d'essai de `games/outrun2spdx/disk0/Jennifer` (lus faute de fichier au lieu
+  donné) ; les deux remis à `true` et `false`, leurs valeurs d'avant d'après la taille du fichier (la première) et
+  par déduction (la seconde, un fichier d'essai).
 
 ### Boutons numérotés à partir de 1 (demande 140)
 - Demande du propriétaire relayée par la session « Windows loader Berstett », faite dans windowsloader (`menu.cpp`,
