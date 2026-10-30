@@ -393,7 +393,7 @@ std::string describe(const std::string &token)
     if (token == "MOUSE_AXIS_Y")
         return tr("Y axis");
     if (sscanf(s, "JOY%d_BUTTON_%d%n", &device, &number, &length) == 2 && s[length] == '\0')
-        return format(tr("Button %d"), number);
+        return format(tr("Button %d"), number + (getConfig()->buttonsFromOne ? 1 : 0));
     if (sscanf(s, "JOY%d_AXIS_%d%n", &device, &number, &length) == 2)
         return format(tr("Axis %d"), number) + axisSuffix(s + length);
     if (sscanf(s, "JOY%d_HAT%d_%31s", &device, &number, name) == 3)
@@ -1088,8 +1088,9 @@ void setControlsFile(const std::string &path)
     }
 }
 
-void drawControlsTab(bool inGame)
+void drawControlsTab(bool inGame, const std::string &configFile)
 {
+    static std::string buttonsSaved; // where the buttons' box wrote its choice
     if (!g_loaded)
         load();
     if (g_section < 0)
@@ -1127,13 +1128,35 @@ void drawControlsTab(bool inGame)
     if (!sdlJoysticks.controllers[0] && !sdlJoysticks.joysticks[0])
         ImGui::TextDisabled("%s", tr("No controller connected."));
 
+    // Only the page's numbers change: written at once to the settings file read, like windowsloader's
+    EmulatorConfig *cfg = getConfig();
+    bool fromOne = cfg->buttonsFromOne != 0;
+    if (ImGui::Checkbox(tr("Number the buttons from 1 (as Windows and vJoy do)"), &fromOne))
+    {
+        cfg->buttonsFromOne = fromOne;
+        const char *value = fromOne ? "true" : "false";
+        char message[1200];
+        if (iniUpdate(configFile, {{"Input", "BUTTONS_FROM_ONE", value}}))
+            snprintf(message, sizeof(message), tr("[Input] BUTTONS_FROM_ONE = %s, saved to %s"), value, configFile.c_str());
+        else
+            snprintf(message, sizeof(message), tr("Cannot write %s"), configFile.c_str());
+        buttonsSaved = message;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("%s", tr("controls.ini keeps SDL's numbers, which start at 0: \"Button 1\" is JOY0_BUTTON_0 there."));
+    if (!buttonsSaved.empty())
+    {
+        ImGui::PushTextWrapPos(0.0f);
+        ImGui::TextDisabled("%s", buttonsSaved.c_str());
+        ImGui::PopTextWrapPos();
+    }
+
     if (inGame)
     {
         header(tr("What the game gets"));
         drawGameInputs();
     }
 
-    EmulatorConfig *cfg = getConfig();
     header(tr("Force feedback"));
     drawFfbDevice(inGame);
     ImGui::SliderInt(tr("Strength"), &cfg->ffbStrength, 0, 300, "%d %%");

@@ -254,6 +254,7 @@ void setDefaultValues(EmulatorConfig *cfg)
     cfg->whiteBorderPercentage = 0.02f;
     cfg->blackBorderPercentage = 0.0f;
     cfg->inputMode = 1;
+    cfg->buttonsFromOne = 1;
     cfg->enableCrosshairs = 0;
     cfg->gsevoCrosshairAlwaysOn = 0;
     cfg->gsevoCrosshairAlwaysOff = 0;
@@ -432,6 +433,7 @@ void applyIniConfig(EmulatorConfig *config, const IniConfig *ini)
 
     // [Input]
     config->inputMode = getInt(ini, "Input", "INPUT_MODE", config->inputMode);
+    config->buttonsFromOne = getInt(ini, "Input", "BUTTONS_FROM_ONE", config->buttonsFromOne) != 0;
 
     // [Emulation]
     const char *regionRaw = getValue(ini, "Emulation", "REGION");

@@ -64,6 +64,9 @@ int createDefaultIni(const char *filePath)
     fprintf(file, "[Input]\n");
     fprintf(file, "# Sets the Input Mode (1: SDL, 2: EVDEV\n");
     fprintf(file, "INPUT_MODE = %d\n\n", defaults.inputMode);
+    fprintf(file, "# The settings menu's controls page numbers a joystick's buttons from 1, as Windows and vJoy do (true),\n");
+    fprintf(file, "# or from 0, as SDL and controls.ini do (false). controls.ini keeps SDL's numbers either way\n");
+    fprintf(file, "BUTTONS_FROM_ONE = %s\n\n", defaults.buttonsFromOne ? "true" : "false");
 
     // [Emulation]
     fprintf(file, "[Emulation]\n");

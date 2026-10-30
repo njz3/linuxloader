@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lindbergh Loader\n"
 "Report-Msgid-Bugs-To: https://github.com/njz3/linuxloader/issues\n"
-"POT-Creation-Date: 2026-10-29 21:28+0100\n"
+"POT-Creation-Date: 2026-10-30 14:57+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -269,7 +269,7 @@ msgstr ""
 msgid "Save"
 msgstr ""
 
-#: src/loader/gui/guiCommon.cpp
+#: src/loader/gui/guiCommon.cpp src/loader/gui/guiControls.cpp
 #, c-format
 msgid "Cannot write %s"
 msgstr ""
@@ -744,6 +744,21 @@ msgstr ""
 
 #: src/loader/gui/guiControls.cpp
 msgid "No controller connected."
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
+msgid "Number the buttons from 1 (as Windows and vJoy do)"
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
+#, c-format
+msgid "[Input] BUTTONS_FROM_ONE = %s, saved to %s"
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
+msgid ""
+"controls.ini keeps SDL's numbers, which start at 0: \"Button 1\" is "
+"JOY0_BUTTON_0 there."
 msgstr ""
 
 #: src/loader/gui/guiControls.cpp

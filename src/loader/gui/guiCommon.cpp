@@ -615,7 +615,7 @@ void drawSettings(bool *open, std::string &configFile, bool inGame)
         // Force feedback is set in Controls, with the devices
         if (ImGui::BeginTabItem(tr("Controls")))
         {
-            drawControlsTab(inGame);
+            drawControlsTab(inGame, configFile);
             ImGui::EndTabItem();
         }
 
@@ -782,6 +782,7 @@ bool saveSettings(const std::string &configFile)
                                      {"Display", "FPS_TARGET", number},
                                      {"Display", "FPS_OVERLAY_ENABLED", cfg->fpsOverlayEnabled ? "true" : "false"},
                                      {"Display", "HIDE_CURSOR", cfg->hideCursor ? "true" : "false"},
+                                     {"Input", "BUTTONS_FROM_ONE", cfg->buttonsFromOne ? "true" : "false"},
                                      {"ForceFeedback", "FFB_STRENGTH", std::to_string(cfg->ffbStrength)},
                                      {"ForceFeedback", "FFB_INVERT", cfg->ffbInvert ? "true" : "false"},
                                      {"ForceFeedback", "FFB_DEVICE", cfg->ffbDevice},

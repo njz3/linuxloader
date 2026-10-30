@@ -61,7 +61,7 @@ std::string outputsState();
 
 // The controls page: the bindings of controls.ini, captured from the devices.
 void setControlsFile(const std::string &path);
-void drawControlsTab(bool inGame);
+void drawControlsTab(bool inGame, const std::string &configFile);
 // While a binding is being captured, the input that sets it: true when the event is taken.
 bool controlsCaptureEvent(const SDL_Event *event);
 // Writes the changed bindings; in game they apply at once. False when nothing could be written.

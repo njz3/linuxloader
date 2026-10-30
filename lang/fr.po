@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lindbergh Loader\n"
 "Report-Msgid-Bugs-To: https://github.com/njz3/linuxloader/issues\n"
-"POT-Creation-Date: 2026-10-29 21:28+0100\n"
+"POT-Creation-Date: 2026-10-30 14:57+0100\n"
 "PO-Revision-Date: 2026-10-28 15:00+0100\n"
 "Last-Translator: njz3\n"
 "Language-Team: French\n"
@@ -303,7 +303,7 @@ msgstr ""
 msgid "Save"
 msgstr "Sauvegarder"
 
-#: src/loader/gui/guiCommon.cpp
+#: src/loader/gui/guiCommon.cpp src/loader/gui/guiControls.cpp
 #, c-format
 msgid "Cannot write %s"
 msgstr "Impossible d'écrire %s"
@@ -341,21 +341,26 @@ msgstr "[Outputs] OUTPUTS_NETWORK = %s, enregistré dans %s"
 msgid ""
 "Network outputs on: TCP port %d, %d client(s) connected, start announced to "
 "127.0.0.1:%d (UDP)."
-msgstr "Sorties réseau actives : port TCP %d, %d client(s) connecté(s), début annoncé à 127.0.0.1:%d (UDP)."
+msgstr ""
+"Sorties réseau actives : port TCP %d, %d client(s) connecté(s), début "
+"annoncé à 127.0.0.1:%d (UDP)."
 
 #: src/loader/gui/guiCommon.cpp
 #, c-format
 msgid "Network outputs off: TCP port %d is already taken by another program."
-msgstr "Sorties réseau coupées : le port TCP %d est déjà pris par un autre programme."
+msgstr ""
+"Sorties réseau coupées : le port TCP %d est déjà pris par un autre programme."
 
 #: src/loader/gui/guiCommon.cpp
 #, c-format
 msgid "Network outputs off: TCP port %d could not be opened (error %d)."
-msgstr "Sorties réseau coupées : le port TCP %d n'a pas pu être ouvert (erreur %d)."
+msgstr ""
+"Sorties réseau coupées : le port TCP %d n'a pas pu être ouvert (erreur %d)."
 
 #: src/loader/gui/guiCommon.cpp
 msgid "Network outputs off. The values below are the ones the game gives."
-msgstr "Sorties réseau coupées. Les valeurs ci-dessous sont celles que le jeu donne."
+msgstr ""
+"Sorties réseau coupées. Les valeurs ci-dessous sont celles que le jeu donne."
 
 #: src/loader/gui/guiControls.cpp
 msgid "Test"
@@ -779,6 +784,23 @@ msgstr " (retour de force)"
 #: src/loader/gui/guiControls.cpp
 msgid "No controller connected."
 msgstr "Aucune manette branchée."
+
+#: src/loader/gui/guiControls.cpp
+msgid "Number the buttons from 1 (as Windows and vJoy do)"
+msgstr "Numéroter les boutons à partir de 1 (comme Windows et vJoy)"
+
+#: src/loader/gui/guiControls.cpp
+#, c-format
+msgid "[Input] BUTTONS_FROM_ONE = %s, saved to %s"
+msgstr "[Input] BUTTONS_FROM_ONE = %s, enregistré dans %s"
+
+#: src/loader/gui/guiControls.cpp
+msgid ""
+"controls.ini keeps SDL's numbers, which start at 0: \"Button 1\" is "
+"JOY0_BUTTON_0 there."
+msgstr ""
+"controls.ini garde les numéros de SDL, qui commencent à 0 : « Bouton 1 » y "
+"est JOY0_BUTTON_0."
 
 #: src/loader/gui/guiControls.cpp
 msgid "What the game gets"

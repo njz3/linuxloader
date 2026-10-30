@@ -390,6 +390,7 @@ typedef struct
     float cpuFreqGhz;
     ArcadeInputs arcadeInputs;
     int inputMode; // 0 = both, 1 = SDL, 2 = EVDEV only
+    int buttonsFromOne; // the controls page numbers a joystick's buttons from 1 (Windows, vJoy), controls.ini from 0 (SDL)
     int skipOutrunCabinetCheck;
     float whiteBorderPercentage;
     float blackBorderPercentage;
