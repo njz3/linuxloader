@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 148 | 30/10 | Pull, une release, prévenir Image borne | ✅ pull jusqu'à `5237912` (la fusion 3.0.14 et la -4 de la session d'ORION) ; `releases/linuxloader-v3.0.14-ffbedition-20261030-5-njz3-win32.zip` (MinGW, même code que la -4) ; Image borne prévenue (voir journal) |
 | 147 | 30/10 | Commit et push, une release, prévenir Image borne | ✅ rien à commiter (déjà poussé jusqu'à `e2aa045`) ; `dev/release/linuxloader-v3.0.14-ffbedition-20261030-4-njz3-win32-msvc.zip` (MSVC, la première en 3.0.14) ; Image borne prévenue (voir journal) |
 | 146 | 30/10 | Pousser la fusion ; `DISPLAY_INDEX` et `SCALING_FILTER` dans Affichage | ✅ fusion poussée (`921bbe8..3c1cdb4`) ; Affichage : « Écran » (les écrans de SDL, nom et résolution, au prochain lancement) et « Agrandissement » (Lisse / Pixels nets, tout de suite), enregistrés avec les autres réglages ; essayé dans le lanceur (un seul écran ici : le choix d'un autre écran n'est pas essayé) |
 | 145 | 30/10 | Pull et merge avec upstream | ✅ pull : rien de nouveau ; `lindbergh-loader/linuxloader` `87ffd44` (3.0.14 : passthrough JVS réécrit, `DISPLAY_INDEX`, `SCALING_FILTER`, rechargement de Rambo, shaders Intel/Mesa, NFS, touches du pavé numérique) fusionné dans `dev/ffbedition` (`23e0636`) ; 11 fichiers en conflit résolus ; compile en MSVC, Hummer démarre ; passthrough JVS non essayé (pas de paire COM ni de faux boîtier ce soir), MinGW non recompilé ; poussé (demande 146) |
@@ -176,6 +177,25 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Release 3.0.14 du 30/10, -5 (demande 148)
+- Pull : `2755d46..5237912`, la fusion avec upstream 3.0.14, Écran et Agrandissement (145, 146) et la -4 faite en MSVC
+  sur ORION (147). Le code est celui de la -4 (seul `NOTES.md` a changé depuis `e2aa045`) : la -5 en est le build
+  MinGW, à la demande du propriétaire, dans `emulateurs/releases` sur BERSTETT.
+- `version.h` mis le temps du build à 3.0.14 avec `#define RELEASE_SUFFIX "-5"`, puis remis par `git checkout` ; MinGW
+  de zéro (MSYS2 `C:\msys64\mingw32`, Ninja, Release) dans un dossier neuf. 52 avertissements, tous dans du code
+  d'upstream ou d'avant ; `'scale' is used uninitialized` (`sprSetPrintFont`, `patchResolution.c`) est une fausse
+  alerte de GCC (la variable est initialisée, lue par un cast de pointeur).
+- `emulateurs/releases/linuxloader-v3.0.14-ffbedition-20261030-5-njz3-win32.zip`, 18 390 508 octets ; SHA-256 du zip
+  `206805990d8e39b9d760be13d2aaef68a19ecfe2601db284a72b9aca303b5493`, de `linuxloader.exe`
+  `6b0057f33dfff7de9577ad02dd1559b7e86e821771303480b87d258a7d4cbc61` ; `ll-deps` (16 fichiers, `zink/` compris) repris
+  de la -2 ; `lang/` du build (`fr.po` à 285 textes). Pas de `controls.ini` dans le zip (comme les autres builds MinGW,
+  à la différence de la -4).
+- Vérifié depuis le zip extrait dans un dossier vierge : `--version` → « Build: linuxloader-v3.0.14-ffbedition-
+  20261030-5-njz3 FFB Edition » ; `--create config` → 95 « # Default: », avec `DISPLAY_INDEX`, `SCALING_FILTER` et
+  `BUTTONS_FROM_ONE` ; `--list-games` → 91 jeux ; OutRun 2 en mode agent caché : 60 FPS, pièce prise, retour de force
+  (centrage) ; l'erreur GL 1282 de `predrawFilterShader` était déjà là avec la -2. Les autres jeux ne sont pas relancés
+  ici. Image borne prévenue.
 
 ### Release 3.0.14 du 30/10, -4 (demande 147)
 - Arbre propre, HEAD `e2aa045` (= origin) ; `version.h` mis le temps du build à 3.0.14 (le changelog d'upstream) avec
