@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 142 | 30/10 | Une release, prévenir Image borne pour qu'elle mette à jour les bornes | ✅ `emulateurs/releases/linuxloader-v3.0.13-ffbedition-20261030-2-njz3-win32.zip` (deuxième du jour), depuis `8292427` ; Image borne prévenue (voir journal) |
 | 141 | 30/10 | Dans le `linuxloader.ini`, un commentaire et la valeur par défaut de chaque réglage, ajoutés automatiquement, seulement quand le fichier n'existe pas | ✅ chaque `CLE = valeur` du fichier neuf est précédée de « # Default: valeur » (la valeur du fichier neuf, « (empty) » si vide), produite par le générateur ; les 8 réglages groupés ont leur propre commentaire ; « Sauvegarder » et les cases qui écrivent tout de suite partent du fichier commenté quand il n'existe pas ; les fichiers existants ne sont pas touchés ; corrigé au passage : sans aucun `linuxloader.ini` sous Windows, le nom du fichier lu était fait d'octets au hasard, et la fenêtre de réglages écrivait un fichier à ce nom dans le dossier du jeu ; MSVC, OutRun 2 en mode agent (voir journal) |
 | 140 | 30/10 | (relayée par la session « Windows loader Berstett ») Numéroter les boutons de joystick à partir de 1 dans la page Contrôles, comme Windows et vJoy, avec le même réglage que windowsloader | ⚠️ `[Input] BUTTONS_FROM_ONE = true` par défaut (`false` : les numéros de SDL), `--set` compris ; seul l'affichage change (« Bouton %d » reçoit le numéro + 1), `controls.ini`, la capture et la lecture gardent `JOY0_BUTTON_0` ; case sous les périphériques, écrite tout de suite dans le fichier de réglages lu ; MSVC compile, fichier par défaut vérifié, page pas vue à l'écran (voir journal) |
 | 139 | 30/10 | Relire le fichier de suivi, puis corriger les états périmés | ✅ demandes 37, 74, 78, 82 et 95 mises à jour d'après les demandes qui les ont finies ; ordre et numéros manquants du tableau laissés tels quels |
@@ -170,6 +171,23 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Release 3.0.13 du 30/10, -2 (demande 142)
+- `release.py` n'existe plus (le dossier de travail de sa session a été vidé) : procédure refaite à la main, telle que
+  décrite aux demandes 110 et 129. Arbre propre, HEAD `8292427` (= origin) ; `version.h` mis le temps du build à
+  3.0.13 avec `#define RELEASE_SUFFIX "-2"` (une release du jour déjà dans `emulateurs/releases`), puis remis par
+  `git checkout` ; build MinGW de zéro (MSYS2 `C:\msys64\mingw32`, Ninja, Release) dans un dossier neuf, sans
+  avertissement dans les fichiers changés depuis la release du matin.
+- `emulateurs/releases/linuxloader-v3.0.13-ffbedition-20261030-2-njz3-win32.zip`, 18,4 Mo ; SHA-256 du zip
+  `443274ba2aa213f179667ca1a7e26b85d04b34c212505f342ee9b5fa275386aa`, de `linuxloader.exe`
+  `7a30f095976c1b80565f6e2056132e7437f0e44bf2214adf8c4213be9724bcae` ; `ll-deps` repris tel quel de la release du
+  matin (le build ne le produit pas) ; `lang/` du build (`fr.po` à 278 textes, en LF). Contenu en plus de la release du
+  matin : boutons numérotés à partir de 1 (140), commentaires et valeurs par défaut du `linuxloader.ini` neuf et nom du
+  fichier de réglages quand il n'y en a aucun (141).
+- Vérifié depuis le zip extrait dans un dossier vierge : `--version` → « Build: linuxloader-v3.0.13-ffbedition-
+  20261030-2-njz3 FFB Edition » ; `--create config` → 93 lignes « # Default: » ; `--list-games` → 91 jeux ; OutRun 2 en
+  mode agent caché avec cet exe : 60 FPS, pièce, menu du nombre de pilotes, retour de force (centrage). Les autres jeux
+  ne sont pas relancés ici. Image borne prévenue (chemin, empreintes, nouveautés, focus de la demande 136 à regarder).
 
 ### Commentaires et valeurs par défaut du linuxloader.ini neuf (demande 141)
 - Coût : nul à l'exécution (fichier lu une fois, lignes `#` et `;` sautées par `iniParser.c` ; 16,6 Ko au lieu de
