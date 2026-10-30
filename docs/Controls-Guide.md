@@ -187,6 +187,19 @@ So keep the pedals released when you click Map, then press the pedal fully. The 
 
 Then calibrate the wheel and the pedals in the game's own test menu when it has one (OutRun 2: CALIBRATION SETTING): a game's saved calibration, from another emulator, can take the released pedals for pressed. 
 
+## **The Controls page (Tab)** 
+
+A device's page (Map, beside the device) lists the game's actions with that device's inputs. Each row has: 
+
+- **Map**: the next input of the device replaces its inputs for the action. 
+- **Add**: the next input of the device joins its inputs for the action, once (two keys on one action, for example). Greyed until the device has one there. 
+- **Unmap**: the device's inputs for the action are removed. 
+- **Default**: the device's inputs for the action go back to those of a new controls.ini; its tooltip shows them. Greyed when they already are. 
+
+Reset... does Default for every row. In every case the other devices' inputs on the row stay. 
+
+In game, **What the game gets** shows, under Devices, each input as the game's board reads it, whatever the bindings: an analogue channel as a gauge with its count (the steering's centre is the gauge's middle), a button as pressed or -, the coins counted. A bar moving on the device's page but not there means the game does not get that input. 
+
 ## **Example** 
 
 Here is a complex mapping for Player 1's "Start" button: P1_Start = KEY_1, GC0_BUTTON_START, JOY0_BUTTON_9 
