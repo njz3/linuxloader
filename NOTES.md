@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 140 | 30/10 | (relayée par la session « Windows loader Berstett ») Numéroter les boutons de joystick à partir de 1 dans la page Contrôles, comme Windows et vJoy, avec le même réglage que windowsloader | ⚠️ `[Input] BUTTONS_FROM_ONE = true` par défaut (`false` : les numéros de SDL), `--set` compris ; seul l'affichage change (« Bouton %d » reçoit le numéro + 1), `controls.ini`, la capture et la lecture gardent `JOY0_BUTTON_0` ; case sous les périphériques, écrite tout de suite dans le fichier de réglages lu ; MSVC compile, fichier par défaut vérifié, page pas vue à l'écran (voir journal) |
 | 139 | 30/10 | Relire le fichier de suivi, puis corriger les états périmés | ✅ demandes 37, 74, 78, 82 et 95 mises à jour d'après les demandes qui les ont finies ; ordre et numéros manquants du tableau laissés tels quels |
 | 138 | 30/10 | Relire le fichier de suivi, puis le mettre à jour | ✅ demandes 133 à 136 marquées commitées et poussées, release du 30/10 ajoutée (137) |
 | 137 | 30/10 | Release avec les demandes 133 à 136, prévenir Image borne (non notée sur le moment) | ✅ `emulateurs/releases/linuxloader-v3.0.13-ffbedition-20261030-njz3-win32.zip`, depuis `43ea464` ; Image borne prévenue (voir journal) |
@@ -168,6 +169,22 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Boutons numérotés à partir de 1 (demande 140)
+- Demande du propriétaire relayée par la session « Windows loader Berstett », faite dans windowsloader (`menu.cpp`,
+  `g_buttonsFromOne`, non commitée) : même nom, même défaut, pour qu'un réglage serve aux deux loaders. SDL compte les
+  boutons à partir de 0 : le premier bouton de vJoy, `JOY0_BUTTON_0`, s'affichait « Bouton 0 », alors que joy.cpl,
+  vJoy Feeder et le BFF disent « Bouton 1 ».
+- `[Input] BUTTONS_FROM_ONE` (`buttonsFromOne`, `config.c`), vrai par défaut, documenté dans le `linuxloader.ini`
+  neuf (`configIni.c`) et écrit par « Sauvegarder ». `describe` (`guiControls.cpp`) affiche « Bouton %d » avec le
+  numéro + 1 ; `controls.ini`, la capture, la lecture et les infobulles (chaîne brute) gardent les numéros de SDL.
+  Chapeaux et axes inchangés. Aucun fichier à migrer.
+- Case « Numéroter les boutons à partir de 1 (comme Windows et vJoy) » sous la liste des périphériques, en jeu et
+  dans le picker : écrite aussitôt dans le fichier de réglages lu (`iniUpdate`, comme OUTPUTS_NETWORK), message
+  « [Input] BUTTONS_FROM_ONE = …, enregistré dans … » ; infobulle sur les numéros de `controls.ini`.
+  `drawControlsTab` reçoit le fichier de réglages. `fr.po` : 278 textes, `msgfmt --check` sans erreur.
+- Vérifié : MSVC compile, sans nouvel avertissement ; `--create config` écrit `BUTTONS_FROM_ONE = true` et son
+  commentaire. Page pas vue à l'écran (le mode agent n'ouvre pas les réglages) ; MinGW non compilé ici.
 
 ### Release 3.0.13 du 30/10 (demande 137)
 - Les demandes 133 à 136 commitées et poussées le 29/10 (`26d2ac8`, `b4e656e`, `c9666a4`, notes `43ea464`) ; le guide
