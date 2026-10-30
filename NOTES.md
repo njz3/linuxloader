@@ -92,6 +92,8 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 145 | 30/10 | Pull et merge avec upstream | ✅ pull : rien de nouveau ; `lindbergh-loader/linuxloader` `87ffd44` (3.0.14 : passthrough JVS réécrit, `DISPLAY_INDEX`, `SCALING_FILTER`, rechargement de Rambo, shaders Intel/Mesa, NFS, touches du pavé numérique) fusionné dans `dev/ffbedition` (`23e0636`) ; 11 fichiers en conflit résolus ; compile en MSVC, Hummer démarre ; passthrough JVS non essayé (pas de paire COM ni de faux boîtier ce soir), MinGW non recompilé ; non poussé |
+| 144 | 30/10 | La molette de la souris pour faire défiler les fenêtres ImGui, par exemple les contrôles | ✅ déjà là, rien à changer : essayé avec de vrais crans de molette Windows dans le lanceur (onglet Contrôles) et en jeu (Hummer : onglet Contrôles, page « Lier » du clavier) ; en attente de savoir où elle ne défile pas chez le propriétaire |
 | 143 | 30/10 | (retour d'un testeur d'OutRun 2, transmis par le propriétaire) Pédales et chocs bons, mais volant mou (aucun rappel) ; lampes : l'OUTPUT TEST du menu de test donne la lampe « View 3 » pour Driver lamp L et celle de Start pour Driver lamp R ; « Sauter les contrôles » coupe le retour de force et remet à zéro les réglages du menu de test | 🔄 « Sauter les contrôles » ignoré avec la carte servo émulée (voir journal) ; rappel et lampes : en attente du journal FFB du testeur et de la correspondance de son OUTPUT TEST |
 | 142 | 30/10 | Une release, prévenir Image borne pour qu'elle mette à jour les bornes | ✅ `emulateurs/releases/linuxloader-v3.0.13-ffbedition-20261030-2-njz3-win32.zip` (deuxième du jour), depuis `8292427` ; Image borne prévenue (voir journal) |
 | 141 | 30/10 | Dans le `linuxloader.ini`, un commentaire et la valeur par défaut de chaque réglage, ajoutés automatiquement, seulement quand le fichier n'existe pas | ✅ chaque `CLE = valeur` du fichier neuf est précédée de « # Default: valeur » (la valeur du fichier neuf, « (empty) » si vide), produite par le générateur ; les 8 réglages groupés ont leur propre commentaire ; « Sauvegarder » et les cases qui écrivent tout de suite partent du fichier commenté quand il n'existe pas ; les fichiers existants ne sont pas touchés ; corrigé au passage : sans aucun `linuxloader.ini` sous Windows, le nom du fichier lu était fait d'octets au hasard, et la fenêtre de réglages écrivait un fichier à ce nom dans le dossier du jeu ; MSVC, OutRun 2 en mode agent (voir journal) |
@@ -172,6 +174,30 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Merge avec upstream 3.0.14 (demande 145)
+- `lindbergh-loader/linuxloader` `87ffd44` fusionné (`23e0636`, non poussé) : passthrough JVS réécrit (PR #41),
+  `DISPLAY_INDEX` (écran du jeu), `SCALING_FILTER` (LINEAR/NEAREST), bouton de rechargement de Rambo en JVS émulé,
+  shaders GSEvo et OutRun pour Intel/Mesa, viewport d'After Burner Climax sous Windows, `stat64` pour les partages
+  NFS, touches du pavé numérique (`KEY_KP_7`, `KEY_KP_PLUS`...) et gâchettes de manette sur des boutons.
+- Conflits : configuration (la nôtre, plus `DISPLAY_INDEX` et `SCALING_FILTER`, aussi dans le `linuxloader.ini`
+  commenté) ; affichage (notre `blitPresent`, le filtre appliqué à sa copie et à l'image courbée) ; passthrough JVS ;
+  lecteur de cartes (notre chemin par le dossier d'écriture, avec le `stat64` d'upstream sous Linux) ; `jvs.c` (les
+  deux fonctions) ; After Burner Climax (le détour en double commenté comme upstream).
+- Passthrough JVS : la réécriture d'upstream est prise (lecture synchrone, plus de fil de lecture ni de trame vide
+  au bout de 200 ms). Son côté Windows n'était pas branché (`initBaseboard` réservé à Linux, un `read()` sur un
+  HANDLE) : il ouvre maintenant le port COM par `serialPort.c`, comme les autres cartes (115200 8N1, VMIN 0,
+  VTIME 1). À essayer sur une vraie carte ou la paire COM avec le faux boîtier.
+- Page Contrôles : une touche du pavé numérique capturée s'écrit `KEY_KP_PLUS`, plus `KEY_Keypad +` (le `+`
+  sépare les entrées), et s'affiche sous le nom de SDL ; le `controls.ini` généré prend les mêmes noms.
+- Pas encore dans la page Affichage : `DISPLAY_INDEX` et `SCALING_FILTER` se règlent dans le fichier.
+
+### Molette de la souris dans ImGui (demande 144)
+- Déjà prise en charge : le backend SDL3 d'ImGui reçoit `SDL_EVENT_MOUSE_WHEEL` dans le lanceur et en jeu
+  (`guiOverlayProcessEvent`), et rien ne la bloque (pas de `NoScrollWithMouse`). Essayée avec des crans envoyés
+  par `SendInput` sous le curseur : l'onglet Contrôles du lanceur, et en jeu sur Hummer l'onglet Contrôles et la
+  page « Lier » du clavier défilent. Elle ne fait rien hors d'une zone qui défile (boutons du bas, ligne du haut de
+  la page des liaisons) ni en mode agent (souris ignorée).
 
 ### Retour d'un testeur d'OutRun 2 (demande 143)
 - Pédales réglées, retour de force émulé identique à TeknoParrot pour l'herbe, le gravier, les chocs et les frôlements,
