@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 150 | 31/10 | Une release, prévenir Image borne | ✅ `releases/linuxloader-v3.0.14-ffbedition-20261031-njz3-win32.zip` (MinGW, `8f1a94c` : la -5 plus la correction de la demande 149) ; Image borne prévenue |
 | 149 | 31/10 | Boost, GearUp et GearDown sans effet dans les jeux Namco et Gaelco (trouvé par Image borne) : corriger | ✅ `fixPlayerForAction` ne les envoie plus au joueur 2 pour les groupes Dead Heat et Gaelco ; essayé sur Nirin avec vJoy (voir journal) ; commité et poussé |
 | 148 | 30/10 | Pull, une release, prévenir Image borne | ✅ pull jusqu'à `5237912` (la fusion 3.0.14 et la -4 de la session d'ORION) ; `releases/linuxloader-v3.0.14-ffbedition-20261030-5-njz3-win32.zip` (MinGW, même code que la -4) ; Image borne prévenue (voir journal) |
 | 147 | 30/10 | Commit et push, une release, prévenir Image borne | ✅ rien à commiter (déjà poussé jusqu'à `e2aa045`) ; `dev/release/linuxloader-v3.0.14-ffbedition-20261030-4-njz3-win32-msvc.zip` (MSVC, la première en 3.0.14) ; Image borne prévenue (voir journal) |
@@ -178,6 +179,19 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Release 3.0.14 du 31/10 (demande 150)
+- Arbre propre, HEAD `8f1a94c` (= origin) ; `version.h` mis le temps du build à 3.0.14, sans `RELEASE_SUFFIX`
+  (première release du jour), puis remis par `git checkout` ; MinGW de zéro dans un dossier neuf, les 52
+  avertissements de la -5, aucun dans `sdlInput.c`.
+- `emulateurs/releases/linuxloader-v3.0.14-ffbedition-20261031-njz3-win32.zip`, 18 390 510 octets ; SHA-256 du zip
+  `9523e5e13f4edd7919920b6f1ccc7d5729bc48508019b0d9af7678be3d8323af`, de `linuxloader.exe`
+  `2022987227ce4cf7da51b42faf2b732000dcf988c98f62c21be38d0a186e5450` ; `ll-deps` et `lang/` comme la -5. Par
+  rapport à la -5 : Boost, GearUp et GearDown dans les jeux Namco et Gaelco (demande 149).
+- Vérifié depuis le zip extrait dans un dossier vierge : `--version` → « Build: linuxloader-v3.0.14-ffbedition-
+  20261031-njz3 FFB Edition » ; `--create config` → 95 « # Default: » ; `--list-games` → 91 jeux ; OutRun 2 en mode
+  agent caché : 60 FPS, pièce, retour de force (centrage). La correction 149 n'est pas rejouée avec cet exe (le mode
+  agent ignore les manettes, voir 149). Image borne prévenue.
 
 ### Boost et vitesses dans les jeux Namco et Gaelco (demande 149)
 - Trouvé par Image borne : dans Dead Heat, Dead Heat Riders, Maximum Heat 3D, Nirin, Maximum Tune 3 et 3DX+ (carte N2
