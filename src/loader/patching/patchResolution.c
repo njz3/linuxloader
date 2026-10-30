@@ -20,6 +20,7 @@
 #include "../graphics/customCursor.h"
 #include "../graphics/glxBridge.h"
 #include "../graphics/overlayMsgs.h"
+#include "../graphics/sdlCalls.h"
 #include "flowControl.h"
 #include "patchResolution.h"
 
@@ -498,6 +499,17 @@ void bridgeglViewport(GLint x, GLint y, GLsizei width, GLsizei height)
             }
         }
     }
+#ifdef _WIN32
+    else if (gGrp == GROUP_ABC)
+    {
+        if (width > gWidth || height > gHeight)
+        {
+            void *addr = __builtin_return_address(0);
+            width = gWidth;
+            height = gHeight;
+        }
+    }
+#endif
     return glad_glViewport(x, y, width, height);
 }
 
@@ -2482,6 +2494,7 @@ int initResolutionPatches()
 {
     int numDisplays;
     SDL_DisplayID *sdlDisplayId = SDL_GetDisplays(&numDisplays);
+    SDL_DisplayID targetDisplay = getTargetDisplayID();
 
     // We respect the After Burner Climax cabinet's original 4:3 aspect ratio if the user requests it
     if (gGrp == GROUP_ABC && getConfig()->keepAspectRatio)
@@ -2535,8 +2548,8 @@ int initResolutionPatches()
             float newFontScale = gHeight / 480.0;
             unsigned int *newFontScalePtr = (unsigned int *)&newFontScale;
             setVariable(0x0806cd72, *newFontScalePtr);
-            abcDrawSpriteCAVEAddress = (void *)(0x08076a28 + 6);
-            detourFunction(0x08076a28, abcDrawSprite);
+            // abcDrawSpriteCAVEAddress = (void *)0x08076a28 + 6;
+            // detourFunction(0x08076a28, abcDrawSprite);
 
             abcDrawSpriteOri = (void (*)(void *))trampolineHook((void *)0x08076a28, abcDrawSprite, 6);
 
@@ -3576,7 +3589,7 @@ int initResolutionPatches()
                 setVariable(0x080ce5a4, gHeight); // 600
                 break;
             }
-            const SDL_DisplayMode *displayMode = SDL_GetCurrentDisplayMode(sdlDisplayId[0]);
+            const SDL_DisplayMode *displayMode = SDL_GetCurrentDisplayMode(targetDisplay);
             if (getConfig()->fullscreen)
             {
                 gWidth = displayMode->w;
@@ -3602,7 +3615,7 @@ int initResolutionPatches()
                 setVariable(0x080ce2fc, gHeight); // 600
                 break;
             }
-            const SDL_DisplayMode *displayMode = SDL_GetCurrentDisplayMode(sdlDisplayId[0]);
+            const SDL_DisplayMode *displayMode = SDL_GetCurrentDisplayMode(targetDisplay);
             if (getConfig()->fullscreen)
             {
                 gWidth = displayMode->w;
@@ -3622,7 +3635,7 @@ int initResolutionPatches()
         break;
         case LETS_GO_JUNGLE_SBNR_SPECIAL:
         {
-            const SDL_DisplayMode *displayMode = SDL_GetCurrentDisplayMode(sdlDisplayId[0]);
+            const SDL_DisplayMode *displayMode = SDL_GetCurrentDisplayMode(targetDisplay);
             if (getConfig()->keepAspectRatio)
             {
                 if (getConfig()->fullscreen)
@@ -3821,7 +3834,7 @@ int initResolutionPatches()
         break;
         case PRIMEVAL_HUNT_SBPP:
         {
-            const SDL_DisplayMode *displayMode = SDL_GetCurrentDisplayMode(sdlDisplayId[0]);
+            const SDL_DisplayMode *displayMode = SDL_GetCurrentDisplayMode(targetDisplay);
             if (getConfig()->fullscreen)
             {
                 gWidth = displayMode->w;

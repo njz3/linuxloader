@@ -342,8 +342,9 @@ static void blitPresentBarrel(const Barrel *b, bool horizontal, GLint srcX0, GLi
     glad_glViewport(0, 0, drawableW, drawableH);
     glad_glEnable(GL_TEXTURE_2D);
     glad_glBindTexture(GL_TEXTURE_2D, fboTextureId);
-    glad_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glad_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    const GLint scalingFilter = getConfig()->scalingFilterNearest ? GL_NEAREST : GL_LINEAR; // SCALING_FILTER
+    glad_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, scalingFilter);
+    glad_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, scalingFilter);
     glad_glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
     glad_glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 
@@ -501,9 +502,10 @@ static void blitPresent(void)
         CHECK_GL("bent picture to default framebuffer");
         return;
     }
+    GLenum scalingFilter = getConfig()->scalingFilterNearest ? GL_NEAREST : GL_LINEAR; // SCALING_FILTER
     glad_glBlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dest.X, dest.Y, dest.X + dest.W, dest.Y + dest.H, GL_COLOR_BUFFER_BIT,
-                           GL_LINEAR);
-    CHECK_GL("second blit (GL_LINEAR scaled) to default framebuffer");
+                           scalingFilter);
+    CHECK_GL("second blit (scaled) to default framebuffer");
 }
 
 // The agent's `screen`: the picture placed in the window as the display settings want, in the window's back buffer

@@ -313,6 +313,7 @@ typedef struct
     int internalWidth;  // WIDTH as the ini gives it, the game's render width; 0 for AUTO, the game's native one
     int internalHeight; // HEIGHT, likewise
     int displayMode; // DISPLAY_*, -1 when only FULLSCREEN was given
+    int displayIndex; // DISPLAY_INDEX, the screen the window opens on: 0 the first
     char eepromPath[MAX_PATH_LENGTH];
     char sramPath[MAX_PATH_LENGTH];
     char libCgPath[MAX_PATH_LENGTH];
@@ -344,6 +345,7 @@ typedef struct
     JVSIOType jvsIOType;
     int hummerFlickerFix;
     int keepAspectRatio;
+    int scalingFilterNearest;
     int fpsLimiter;
     float fpsTarget;
     int lgjRenderWithMesa;

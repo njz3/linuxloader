@@ -8,6 +8,7 @@
 
 int initSDL();
 void startSDL();
+SDL_DisplayID getTargetDisplayID();
 SDL_Window* getSDLWindow();
 SDL_GLContext getSDLContext();
 int makeSDLCurrent(SDL_Window *win, SDL_GLContext ctx);

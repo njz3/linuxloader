@@ -1,25 +1,22 @@
 #pragma once
 
-#define JVSBUFFER_SIZE 1024
+#define JVSBUFFER_SIZE 256
 
-typedef struct {
+typedef struct
+{
     int ctsCounter;
     int ready;
     int size;
     char buffer[JVSBUFFER_SIZE];
 } JVSFrame;
 
-#ifdef __linux__
-int getDCD(int fd);
-int getDSR(int fd);
-int getCTS(int fd);
-#endif
+typedef enum
+{
+    JVS_PASSTHROUGH_STATUS_OK = 0,
+    JVS_PASSTHROUGH_STATUS_ERROR = 1,
+    JVS_PASSTHROUGH_STATUS_TIMEOUT = 2
+} JVSPassthroughStatus;
 
-JVSFrame readJVSFrameFromThread();
-int startJVSFrameThread(int * fd);
-void * readJVSFrameThread(void * arg);
-
-int openJVSSerial(char *jvsPath);
-int initJVSSerial(int fd);
-int readJVSFrame(int fd, unsigned char *buffer);
-int jvsSerialWrite(int fd, const void *buffer, int count);
+JVSPassthroughStatus initJVSPassthrough(char *jvsPath);
+JVSPassthroughStatus writeJVSFrame(unsigned char *buffer, int size);
+JVSPassthroughStatus readJVSFrame(unsigned char *buffer, int *size);

@@ -686,6 +686,14 @@ int setSwitch(JVSPlayer player, JVSInput switchNumber, int value)
     return 1;
 }
 
+int getSwitch(JVSPlayer player, JVSInput switchNumber)
+{
+    if (player > io.capabilities.players)
+        return 0;
+
+    return (io.state.inputSwitch[player] & switchNumber) != 0;
+}
+
 // Test pressed in the last seconds: a game leaves when it is, for the boot program to start the test menu (Initial D 4
 // after 7 seconds)
 int jvsTestPressedRecently()

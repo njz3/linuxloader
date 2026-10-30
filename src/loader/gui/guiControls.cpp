@@ -381,7 +381,11 @@ std::string describe(const std::string &token)
     char name[32] = "";
     const char *s = token.c_str();
     if (hasPrefix(token, "KEY_"))
-        return token.substr(4);
+    {
+        // SDL's name: "Keypad +" for KEY_KP_PLUS
+        SDL_Scancode scancode = keyNameToScancode(token.c_str() + 4);
+        return scancode != SDL_SCANCODE_UNKNOWN ? SDL_GetScancodeName(scancode) : token.substr(4);
+    }
     if (token == "MOUSE_LEFT_BUTTON")
         return tr("Left button");
     if (token == "MOUSE_RIGHT_BUTTON")
@@ -436,7 +440,7 @@ bool pressed(const std::string &token)
     const char *s = token.c_str();
     if (hasPrefix(token, "KEY_"))
     {
-        SDL_Scancode scancode = SDL_GetScancodeFromName(token.c_str() + 4);
+        SDL_Scancode scancode = keyNameToScancode(token.c_str() + 4);
         return scancode != SDL_SCANCODE_UNKNOWN && SDL_GetKeyboardState(nullptr)[scancode];
     }
     if (hasPrefix(token, "MOUSE_") && token.find("_BUTTON") != std::string::npos)
@@ -1201,7 +1205,7 @@ bool controlsCaptureEvent(const SDL_Event *event)
         case SDL_EVENT_KEY_DOWN:
             if (device.kind != KEYBOARD || event->key.repeat)
                 return true;
-            snprintf(token, sizeof(token), "KEY_%s", SDL_GetScancodeName(event->key.scancode));
+            snprintf(token, sizeof(token), "KEY_%s", scancodeToKeyName(event->key.scancode)); // KP_PLUS, not "Keypad +"
             break;
         case SDL_EVENT_KEY_UP:
             return true;

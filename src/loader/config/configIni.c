@@ -93,6 +93,7 @@ int createDefaultIni(const char *filePath)
     iniOut(&out, "# Boost render resolution in HOD4/2Spicy/Harley/Rambo/HOD-EX/ID4/ID5 and LGJ\n");
     iniOut(&out, "BOOST_RENDER_RES = %s\n\n", defaults.boostRenderRes ? "true" : "false");
     iniOut(&out, "# Set to true for full screen\nFULLSCREEN = %s\n\n", defaults.fullscreen ? "true" : "false");
+    iniOut(&out, "# Set the display to use (0 = first display, 1 = second display...)\nDISPLAY_INDEX = %d\n\n", defaults.displayIndex);
     iniOut(&out, "# Shape of the picture: ORIGINAL (the game's render resolution); 4:3 or 16:9 (that frame, the picture whole\n");
     iniOut(&out, "# inside at its own shape, black bars where the shapes differ; 4:3_LETTERBOX is 4:3); 4:3_STRETCH or 16:9_STRETCH\n");
     iniOut(&out, "# (the picture fills the frame, deformed); 4:3_CROP or 16:9_CROP (the picture fills the frame, cut on the\n");
@@ -118,6 +119,9 @@ int createDefaultIni(const char *filePath)
     iniOut(&out, "BLACK_BORDER_PERCENTAGE = %.1f\n\n", defaults.blackBorderPercentage * 100.0f);
     iniOut(&out, "# Set to keep the original aspect ratio in the games that support it\n#  (Sega Race TV, Primeval Hunt, LGJ-SP, GSEvo, After Burner Climax)\n");
     iniOut(&out, "KEEP_ASPECT_RATIO = %s\n\n", defaults.keepAspectRatio ? "true" : "false");
+    iniOut(&out, "# Filter used to stretch the game to the window or screen (LINEAR/NEAREST)\n");
+    iniOut(&out, "#  NEAREST keeps the pixels sharp, but looks uneven unless the scale is a whole number\n");
+    iniOut(&out, "SCALING_FILTER = %s\n\n", defaults.scalingFilterNearest ? "NEAREST" : "LINEAR");
     iniOut(&out, "# Set to true to enable the mouse pointer/Cursor\nHIDE_CURSOR = %s\n\n", defaults.hideCursor ? "true" : "false");
     iniOut(&out, "# Set to false if you don't want to limit the FPS\n");
     iniOut(&out, "FPS_LIMITER_ENABLED = %s\n\n", defaults.fpsLimiter ? "true" : "false");

@@ -357,10 +357,17 @@ int lookupCrcTable(uint32_t crc)
     return 0;
 }
 
+// On Linux use stat64, the 32-bit stat fails with EOVERFLOW on filesystems with
+// 64-bit inode numbers (e.g. NFS shares), even though the file exists.
 bool fileExists(const char *path)
 {
+#ifdef __linux__
+    struct stat64 buffer;
+    return stat64(path, &buffer) == 0;
+#else
     struct stat buffer;
     return stat(path, &buffer) == 0;
+#endif
 }
 
 char *myBasename(char *path)
@@ -400,8 +407,13 @@ bool isPathAbsolute(const char *path)
 
 bool dirExists(const char *path)
 {
+#ifdef __linux__
+    struct stat64 buffer;
+    return stat64(path, &buffer) == 0 && S_ISDIR(buffer.st_mode);
+#else
     struct stat buffer;
     return stat(path, &buffer) == 0 && S_ISDIR(buffer.st_mode);
+#endif
 }
 
 void isCleanElf(char *command)

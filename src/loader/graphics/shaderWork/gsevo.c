@@ -77,6 +77,20 @@ SearchReplace gsevoSet1[] = {{"OPTION NV_vertex_program2;\r\n\r\n", ""},
                              {"oTxc3", "result.texcoord[3]"},
                              {"iPointSize", "vertex.attrib[12]"},
                              {"iZ0", "vertex.attrib[1]"},
+                             {"iZ1", "vertex.attrib[6]"},
+
+                             //   ARB_vertex_program only guarantees one address register, so the Mesa shader
+                             // patches collapse the NV_vertex_program2 addrParam/addrIndex pair with an ALIAS.
+                             // Intel's Windows driver refuses the aliased name outright, and segfaults compiling
+                             // an ARL whose source operand is relatively addressed.
+                             //
+                             //   Both rewrites below are exact no-ops on a conformant driver: ALIAS makes the two
+                             // names the same register, so renaming changes nothing, and ARL truncates its source
+                             // either way, so staging the fetch through a temp yields the same address. They run
+                             // for every non-NVIDIA GPU because the whole hook is only installed for those.
+                             //
+                             //   index.z is free, and index is declared before use, in all four
+                             // vsu_lit_all_*.vsh units - the only shaders where this instruction appears.
                              {"ALIAS\taddrParam = addrIndex;\r\n", ""},
                              {"addrParam", "addrIndex"},
                              {"ARL addrIndex.x, lightIndexArray[addrIndex.x].x;",
@@ -84,6 +98,23 @@ SearchReplace gsevoSet1[] = {{"OPTION NV_vertex_program2;\r\n\r\n", ""},
 
 int gsevoSetCount1 = sizeof(gsevoSet1) / sizeof(SearchReplace);
 
+/**
+ *   Every one of the 392 generated fragment shaders under shader/fsTextureBlend/ ends with
+ *
+ *       MOV     oDepth.z,   iPos.z;      with  OUTPUT oDepth = result.depth;
+ *
+ * which replaces the rasterised depth with fragment.position.z. On a conformant driver that
+ * is a no-op: fragment.position.z IS the interpolated depth the fragment would have got.
+ *
+ *   Intel's Windows ICD does not produce the same value, so geometry drawn in more than one
+ * pass no longer agrees with itself and the GL_LEQUAL test passes and fails per pixel. That is
+ * the flickering green speckle over characters, props and foliage, and the stray screen
+ * crossing slivers that come with it. Dropping the write lets the rasteriser's own depth
+ * stand, which is what the instruction was trying to reproduce anyway.
+ *
+ *   Verified by per-draw capture: the draw that contributed the most speckle went from +226 to
+ * not registering at all, and the scene FBO came back pixel clean.
+ */
 SearchReplace gsevoIntelFs[] = {{"MOV\t\toDepth.z,\tiPos.z;", "# depth passthrough dropped, see gsevoIntelFs"}};
 
 int gsevoIntelFsCount = sizeof(gsevoIntelFs) / sizeof(SearchReplace);

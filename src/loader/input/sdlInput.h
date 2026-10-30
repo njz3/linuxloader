@@ -275,6 +275,11 @@ typedef enum
 } GameInputKind;
 void sdlInputGameInputs(void (*emit)(int player, const char *name, GameInputKind kind, int value, void *context), void *context);
 
+// A key's name after KEY_ in controls.ini: SDL's, but KP_7, KP_PLUS... for the keypad, whose SDL names hold the '+'
+// and ',' separators; '_' accepted for a space. SDL_SCANCODE_UNKNOWN for a name it does not know
+SDL_Scancode keyNameToScancode(const char *name);
+const char *scancodeToKeyName(SDL_Scancode scancode);
+
 #ifdef __cplusplus
 }
 #endif

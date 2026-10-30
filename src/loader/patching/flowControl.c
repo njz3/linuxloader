@@ -258,8 +258,8 @@ void *findStaticFnAddr(const char *functionName)
     if (fd < 0)
         return NULL;
 
-    struct stat st;
-    if (fstat(fd, &st) < 0)
+    struct stat64 st;
+    if (fstat64(fd, &st) < 0)
     {
         close(fd);
         return NULL;

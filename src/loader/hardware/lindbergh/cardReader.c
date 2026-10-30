@@ -371,9 +371,7 @@ bool idCardFileExists(const char *folderPath, long expectedSize, bool twoDigits)
 {
     if (folderPath != NULL && strlen(folderPath) > 0)
     {
-        struct stat buffer;
-        stat(folderPath, &buffer);
-        if (!S_ISDIR(buffer.st_mode))
+        if (!dirExists(folderPath))
         {
             log_error("ID Card Folder does not exist! Check the config file.");
             exit(EXIT_FAILURE);
@@ -417,8 +415,13 @@ bool idCardFileExists(const char *folderPath, long expectedSize, bool twoDigits)
         // Through the write folder, as the game reads it: WRITE_DIR\<game>'s card when it is there, else the game
         // folder's (a plain stat looked in WRITE_DIR\<game> only, missed the game's cards and turned the autoload off)
         char readPath[1024];
+#ifdef __linux__
+        struct stat64 fileStat;
+        if (stat64(writeDirForRead(currentFullPath, readPath, sizeof(readPath)), &fileStat) == 0)
+#else
         struct stat fileStat;
         if (stat(writeDirForRead(currentFullPath, readPath, sizeof(readPath)), &fileStat) == 0)
+#endif
         {
             if (fileStat.st_size == expectedSize)
             {

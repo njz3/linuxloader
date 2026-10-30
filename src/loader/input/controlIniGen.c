@@ -251,7 +251,7 @@ static void getBindingString(const ControlBinding *binding, char *buffer, size_t
     switch (binding->type)
     {
         case INPUT_TYPE_KEY:
-            snprintf(temp_buffer, sizeof(temp_buffer), "KEY_%s", SDL_GetScancodeName(binding->sdlId));
+            snprintf(temp_buffer, sizeof(temp_buffer), "KEY_%s", scancodeToKeyName((SDL_Scancode)binding->sdlId));
             break;
         case INPUT_TYPE_MOUSE_BUTTON:
             if (binding->sdlId == SDL_BUTTON_LEFT)

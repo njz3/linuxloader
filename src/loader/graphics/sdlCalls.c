@@ -143,16 +143,34 @@ static void takeForeground(SDL_Window *window)
 }
 #endif
 
+SDL_DisplayID getTargetDisplayID()
+{
+    int numDisplays = 0;
+    SDL_DisplayID *sdlDisplayId = SDL_GetDisplays(&numDisplays);
+    if (!sdlDisplayId || numDisplays < 1)
+    {
+        SDL_free(sdlDisplayId);
+        return SDL_GetPrimaryDisplay();
+    }
+
+    int index = getConfig()->displayIndex;
+    if (index < 0 || index >= numDisplays)
+    {
+        log_warn("DISPLAY_INDEX %d is out of range (%d display(s) detected), will use the first one.\n", index, numDisplays);
+        index = 0;
+    }
+
+    SDL_DisplayID displayId = sdlDisplayId[index];
+    SDL_free(sdlDisplayId);
+    return displayId;
+}
+
 void startSDL()
 {
     creatingWindow = true;
-    int numDisplays;
-    SDL_DisplayID *sdlDisplayId = SDL_GetDisplays(&numDisplays);
-    if (numDisplays > 1)
-        log_warn("More than 1 display detected, will use the first one.\n");
+    SDL_DisplayID targetDisplay = getTargetDisplayID();
 
-    const SDL_DisplayMode *displayMode = SDL_GetCurrentDisplayMode(sdlDisplayId[0]);
-    SDL_free(sdlDisplayId);
+    const SDL_DisplayMode *displayMode = SDL_GetCurrentDisplayMode(targetDisplay);
     if (displayMode == NULL)
     {
         log_error("SDL_GetCurrentDisplayMode Error: %s\n", SDL_GetError());
@@ -222,6 +240,9 @@ void startSDL()
     if (gId == GHOST_SQUAD_EVOLUTION_SBNJ || gId == MJ4_EVO_SBTA || gId == MJ4_SBPN_REVG)
         SDL_SetWindowSize(g_SdlWindow, gWidth, gHeight + 1);
 
+    // Place the window on the selected display, fullscreen is then applied on that display
+    SDL_SetWindowPosition(g_SdlWindow, SDL_WINDOWPOS_CENTERED_DISPLAY(targetDisplay), SDL_WINDOWPOS_CENTERED_DISPLAY(targetDisplay));
+
 #ifdef __linux__
     x11Display = (Display *)SDL_GetPointerProperty(SDL_GetWindowProperties(g_SdlWindow), SDL_PROP_WINDOW_X11_DISPLAY_POINTER, NULL);
     x11Window = (Window)SDL_GetNumberProperty(SDL_GetWindowProperties(g_SdlWindow), SDL_PROP_WINDOW_X11_WINDOW_NUMBER, 0);
@@ -258,7 +279,7 @@ void startSDL()
 
     // Hacky way to make AxA games render the characters properly
     if (gId == QUIZ_AXA_SBMS || gId == QUIZ_AXA_SBUR_LIVE)
-        SDL_SetWindowPosition(g_SdlWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+        SDL_SetWindowPosition(g_SdlWindow, SDL_WINDOWPOS_CENTERED_DISPLAY(targetDisplay), SDL_WINDOWPOS_CENTERED_DISPLAY(targetDisplay));
 
     if (!getConfig()->fullscreen && !gameIsOutrunChihiroMode)
     {

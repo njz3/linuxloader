@@ -26,6 +26,7 @@ extern "C"
     int parseArgs(int argc, char *argv[], char *command, char *originalDir, char *gameELF, char *libraryPath);
     uint32_t getCrc32Mem(const uint8_t *data, size_t size);
     bool fileExists(const char *filename);
+    bool dirExists(const char *path);
     char *myBasename(char *path);
 #ifdef __cplusplus
 }

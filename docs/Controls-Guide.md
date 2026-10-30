@@ -121,7 +121,11 @@ The value for each key is a comma-separated list of physical input strings. Here
 
 - **Example** : KEY_A, KEY_Space, KEY_ArrowUp 
 
-- **Note** : The name is the SDL Scancode Name, not necessarily the character on the key. 
+- **Note** : The name is the SDL Scancode Name, not necessarily the character on the key. Names with spaces can also be written with _ (e.g. KEY_Left_Shift). 
+
+- **Numpad** : KEY_KP_0 to KEY_KP_9, KEY_KP_PLUS, KEY_KP_MINUS, KEY_KP_MULTIPLY, KEY_KP_DIVIDE, KEY_KP_PERIOD, KEY_KP_COMMA, KEY_KP_ENTER, KEY_KP_EQUALS 
+
+- Unknown names are ignored and reported in the log. 
 
 ## **Mouse** 
 
@@ -147,7 +151,9 @@ The value for each key is a comma-separated list of physical input strings. Here
 
    - JOY<N>_AXIS_<AxisNumber> (e.g., JOY0_AXIS_0) 
 
-   - GC<N>_AXIS_<AxisName> (e.g., GC0_AXIS_LEFTX, GC0_AXIS_TRIGGERRIGHT) 
+   - GC<N>_AXIS_<AxisName> (e.g., GC0_AXIS_LEFTX, GC0_AXIS_RIGHTTRIGGER). The axis names are LEFTX, LEFTY, RIGHTX, RIGHTY, LEFTTRIGGER and RIGHTTRIGGER. 
+
+   - Triggers are axes, not buttons: use GC0_AXIS_RIGHTTRIGGER, not GC0_BUTTON_RIGHTTRIGGER. When a trigger is mapped to a button it works as a button press (e.g. P1_Button3 = GC0_AXIS_RIGHTTRIGGER). 
 
 ## **Axis Suffixes (for JOY and GC axes)** 
 

@@ -36,7 +36,8 @@ int orFsMesaCount = sizeof(orFsMesa) / sizeof(SearchReplace);
 
 SearchReplace orVsMesa[] = {
     {"!!VP2.0\nBB1:\n", "!!ARBvp1.0\n#OPTION NV_vertex_program3;\nPARAM c[215] = { program.env[0..214] };\nTEMP R0, "
-                        "R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12, R13, R14;\n\n"},
+                        "R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12, R13, R14;\n"
+                        "MOV result.color.secondary, {0,0,0,0};\nMOV result.color.back.secondary, {0,0,0,0};\n\n"},
     {"v[OPOS]", "vertex.attrib[0]"},
     {"v[NRML]", "vertex.attrib[2]"},
     {"o[HPOS]", "result.position"},

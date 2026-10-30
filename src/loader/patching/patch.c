@@ -465,6 +465,23 @@ static int harleyAnalogRemapHook(void *a, void *b, uint32_t channel, void *d)
     return originalAmJvspAckAnalogInput(a, b, remappedChannel, d);
 }
 
+// Rambo has no reload button, on the cabinet you reload by aiming off-screen. Every reload
+// check in the game calls GunMgr_GetReloadOn(), so we also return true while Reload (BUTTON_2) is held.
+static uint32_t ramboGunMgrAddr;
+static int ramboGetReloadOn(unsigned char player)
+
+{
+    uint32_t gunMgr = *(uint32_t *)(uintptr_t)ramboGunMgrAddr;
+    if (gunMgr == 0)
+        return 0;
+
+    // Each player has a 0x30 byte input struct starting at 0x34, the off-screen flag is at +0x0c
+    if (*(int *)(uintptr_t)(gunMgr + 0x34 + player * 0x30 + 0x0c))
+        return 1;
+
+    return getSwitch(player + 1, BUTTON_2);
+}
+
 #ifdef _WIN32
 uint32_t bridgeGettid(void)
 {
@@ -2859,6 +2876,12 @@ int initPatch()
             detourFunction(0x082c3018, amDipswExit);
             detourFunction(0x082c308d, amDipswGetData);
             detourFunction(0x082c3103, amDipswSetLed);
+            // Reload button (emulated JVS only, a passthrough board has no such switch)
+            if (getConfig()->emulateJVS)
+            {
+                ramboGunMgrAddr = 0x0842fe74;
+                detourFunction(0x08067bd6, ramboGetReloadOn);
+            }
 
             securityBoardSetDipSwitch(1, getConfig()->ramboGunsSwitch);
 
@@ -2893,6 +2916,12 @@ int initPatch()
             detourFunction(0x082c2f0c, amDipswExit);
             detourFunction(0x082c2f81, amDipswGetData);
             detourFunction(0x082c2ff7, amDipswSetLed);
+            // Reload button (emulated JVS only, a passthrough board has no such switch)
+            if (getConfig()->emulateJVS)
+            {
+                ramboGunMgrAddr = 0x084304d4;
+                detourFunction(0x08067b3e, ramboGetReloadOn);
+            }
 
             securityBoardSetDipSwitch(1, getConfig()->ramboGunsSwitch);
 

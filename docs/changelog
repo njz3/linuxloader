@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.14]
+### Added
+    - DISPLAY_INDEX option to choose which monitor the game opens on (thanks @Tartifless).
+    - SCALING_FILTER option (LINEAR/NEAREST) to choose how the game is stretched to the window or screen.
+    - Rambo reload fixed when using emulated JVS.
+    - Option in config to choose from Linear or Nearest (Nearest is default).
+    
+### Changed
+    - JVS passthrough rewritten, now works on both Linux and Windows (thanks @bobbydilley).
+### Fixed
+    - GSEvo and Outrun 2 shader fixes for Intel/Mesa.
+    - After Burner Climax oversized viewport on Windows.
+    - Fixed Smoke and Dust in Outrun 2.
+    - Fixed VF5 R creating a folder in the root named Home in windows.
+    - Games stored on NFS shares with 64-bit inodes (e.g. Unraid) failed to launch (#47).
+    - Numpad keys (KEY_KP_x) and gamepad triggers can now be bound to buttons, unknown control names are logged (#55).
+
 ## [3.0.13]
 ### Added
     - Virtua Fighter 5 support for Windows. All versions.

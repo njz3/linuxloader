@@ -266,10 +266,9 @@ int initSdlInput(const char *controlsPath)
     initActionProperties();
 
     // Load control bindings from specified file on tries to load it from the current folder, otherwise use defaults.
-    struct stat buffer;
     IniConfig *ini;
     int isProfileLoaded = 0;
-    if (stat(controlsPath, &buffer) == 0)
+    if (fileExists(controlsPath))
     {
         log_debug("controls config file loaded from %s\n", controlsPath);
         ini = iniLoad(controlsPath);
@@ -737,6 +736,65 @@ void initActionProperties()
         gActionProperties[SYSTEM][LA_Test].isToggle = true;
 }
 
+// SDL names the keypad keys "Keypad 7", "Keypad +"... which can't be written in controls.ini
+// ('+' and ',' are separators), so they are also accepted as KEY_KP_7, KEY_KP_PLUS...
+static const struct
+{
+    const char *name;
+    SDL_Scancode scancode;
+} gKeypadNames[] = {
+    {"KP_0", SDL_SCANCODE_KP_0},         {"KP_1", SDL_SCANCODE_KP_1},           {"KP_2", SDL_SCANCODE_KP_2},
+    {"KP_3", SDL_SCANCODE_KP_3},         {"KP_4", SDL_SCANCODE_KP_4},           {"KP_5", SDL_SCANCODE_KP_5},
+    {"KP_6", SDL_SCANCODE_KP_6},         {"KP_7", SDL_SCANCODE_KP_7},           {"KP_8", SDL_SCANCODE_KP_8},
+    {"KP_9", SDL_SCANCODE_KP_9},         {"KP_PLUS", SDL_SCANCODE_KP_PLUS},     {"KP_MINUS", SDL_SCANCODE_KP_MINUS},
+    {"KP_MULTIPLY", SDL_SCANCODE_KP_MULTIPLY}, {"KP_DIVIDE", SDL_SCANCODE_KP_DIVIDE}, {"KP_PERIOD", SDL_SCANCODE_KP_PERIOD},
+    {"KP_COMMA", SDL_SCANCODE_KP_COMMA}, {"KP_ENTER", SDL_SCANCODE_KP_ENTER},   {"KP_EQUALS", SDL_SCANCODE_KP_EQUALS},
+};
+
+/**
+ * @brief Converts the name after KEY_ to a scancode. Accepts SDL scancode names, the KP_ keypad
+ * names above, and '_' in place of spaces (e.g. Left_Shift).
+ * @return The scancode, or SDL_SCANCODE_UNKNOWN if the name is not recognised.
+ */
+SDL_Scancode keyNameToScancode(const char *name)
+{
+    if (SDL_strcasecmp(name, "Comma") == 0)
+        return SDL_SCANCODE_COMMA;
+
+    for (size_t i = 0; i < sizeof(gKeypadNames) / sizeof(gKeypadNames[0]); i++)
+    {
+        if (SDL_strcasecmp(name, gKeypadNames[i].name) == 0)
+            return gKeypadNames[i].scancode;
+    }
+
+    SDL_Scancode scancode = SDL_GetScancodeFromName(name);
+    if (scancode == SDL_SCANCODE_UNKNOWN && strchr(name, '_'))
+    {
+        char spaced[64];
+        snprintf(spaced, sizeof(spaced), "%s", name);
+        for (char *p = spaced; *p; p++)
+        {
+            if (*p == '_')
+                *p = ' ';
+        }
+        scancode = SDL_GetScancodeFromName(spaced);
+    }
+    return scancode;
+}
+
+/**
+ * @brief Returns the name to use after KEY_ for a scancode, the KP_ name for keypad keys.
+ */
+const char *scancodeToKeyName(SDL_Scancode scancode)
+{
+    for (size_t i = 0; i < sizeof(gKeypadNames) / sizeof(gKeypadNames[0]); i++)
+    {
+        if (gKeypadNames[i].scancode == scancode)
+            return gKeypadNames[i].name;
+    }
+    return SDL_GetScancodeName(scancode);
+}
+
 /**
  * @brief Adds a new control binding to the appropriate lookup table.
  * It also checks for and reports any conflicts where a single physical input
@@ -760,7 +818,7 @@ void addBinding(ControlBinding binding)
                 if (binding.sdlId < SDL_SCANCODE_COUNT)
                 {
                     pair = &gKeyBindings[binding.sdlId];
-                    snprintf(inputName, sizeof(inputName), "KEY_%s", SDL_GetScancodeName((SDL_Scancode)binding.sdlId));
+                    snprintf(inputName, sizeof(inputName), "KEY_%s", scancodeToKeyName((SDL_Scancode)binding.sdlId));
                 }
                 break;
             case INPUT_TYPE_MOUSE_BUTTON:
@@ -1035,11 +1093,9 @@ void parseSdlSource(const char *token, JVSPlayer player, LogicalAction action, i
 
     if (strncmp(mutableToken, "KEY_", 4) == 0)
     {
-        map.type = INPUT_TYPE_KEY;
-        if (strcmp(mutableToken + 4, "Comma") == 0 || strcmp(mutableToken + 4, "COMMA") == 0)
-            map.sdlId = SDL_SCANCODE_COMMA;
-        else
-            map.sdlId = SDL_GetScancodeFromName(mutableToken + 4);
+        map.sdlId = keyNameToScancode(mutableToken + 4);
+        if (map.sdlId != SDL_SCANCODE_UNKNOWN)
+            map.type = INPUT_TYPE_KEY;
     }
     else if (strncmp(mutableToken, "GC", 2) == 0)
     {
@@ -1050,13 +1106,18 @@ void parseSdlSource(const char *token, JVSPlayer player, LogicalAction action, i
             map.deviceIndex = devId;
             if (strcmp(typeStr, "BUTTON") == 0)
             {
-                map.type = INPUT_TYPE_GAMEPAD_BUTTON;
-                map.sdlId = SDL_GetGamepadButtonFromString(nameStr);
+                SDL_GamepadButton button = SDL_GetGamepadButtonFromString(nameStr);
+                if (button != SDL_GAMEPAD_BUTTON_INVALID)
+                {
+                    map.type = INPUT_TYPE_GAMEPAD_BUTTON;
+                    map.sdlId = button;
+                }
             }
-            else if (strcmp(typeStr, "AXIS") == 0)
+            else if (strcmp(typeStr, "AXIS") == 0 && SDL_GetGamepadAxisFromString(nameStr) != SDL_GAMEPAD_AXIS_INVALID)
             {
                 map.type = INPUT_TYPE_GAMEPAD_AXIS;
                 map.sdlId = SDL_GetGamepadAxisFromString(nameStr);
+                bool isTrigger = (map.sdlId == SDL_GAMEPAD_AXIS_LEFT_TRIGGER || map.sdlId == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
                 // Check for axis mode suffixes
                 if (strstr(mutableToken, "_POSITIVE_SIDE"))
                 {
@@ -1083,6 +1144,12 @@ void parseSdlSource(const char *token, JVSPlayer player, LogicalAction action, i
                 {
                     map.axisMode = AXIS_MODE_DIGITAL;
                     map.axisThreshold = -1;
+                }
+                else if (isTrigger && gJvsMap[player][action].call_type == JVS_CALL_SWITCH)
+                {
+                    // A trigger bound to a button acts as a button press (same as _POSITIVE)
+                    map.axisMode = AXIS_MODE_DIGITAL;
+                    map.axisThreshold = 1;
                 }
                 else
                 {
@@ -1173,6 +1240,8 @@ void parseSdlSource(const char *token, JVSPlayer player, LogicalAction action, i
     }
     if (map.type != INPUT_TYPE_NONE)
         addBinding(map);
+    else
+        log_warn("Unknown input '%s' in controls file, it will be ignored.", token);
 }
 
 /**
@@ -1340,7 +1409,7 @@ int loadProfileFromIni(const IniSection *section)
         if (action == LA_ExitGame)
             exitGameFound = true;
 
-        if (player != SYSTEM && (action != LA_Card1Insert || action != LA_Card2Insert))
+        if (player != SYSTEM && (action != LA_Card1Insert && action != LA_Card2Insert))
             player = fixPlayerForAction(action, player);
 
         if (action == LA_Card2Insert && gameType == DIGITAL)
@@ -1967,8 +2036,7 @@ void processSdlEvent(const SDL_Event *e)
                         }
                         else
                         {
-                            if (e->button.button == SDL_BUTTON_RIGHT &&
-                                (gId == RAMBO_SBQL || gId == RAMBO_SBSS_CHINA || gId == TOO_SPICY_SBMV) && isActive)
+                            if (e->button.button == SDL_BUTTON_RIGHT && gId == TOO_SPICY_SBMV && isActive)
                             {
                                 ActionState *state = &gActionStates[binding->player][LA_GunX];
                                 state->analogValue = -1;
@@ -2042,7 +2110,7 @@ void processSdlEvent(const SDL_Event *e)
             if (gameType == SHOOTING && (posX <= 0.01 || posX >= 0.99 || posY <= 0.01 || posY >= 0.99))
             {
                 outOfBounds[reloadPlayer] = true;
-                if (gId == RAMBO_SBQL || gId == RAMBO_SBSS_CHINA || gId == TOO_SPICY_SBMV)
+                if (gId == TOO_SPICY_SBMV)
                 {
                     if (bindingX->type != INPUT_TYPE_NONE)
                     {

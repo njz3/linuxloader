@@ -207,6 +207,10 @@ int sharedMkdir(const char *path, mode_t mode)
         return writeDirMkdir(".\\rankingdata");
 #endif
     }
+
+    if (strncmp(path, "/home", 5) == 0 || strncmp(path, "/home/disk2", 11) == 0)
+        return 0;
+
 #ifdef __linux__
     log_debug("Creating directory: %s", path);
     return _mkdir(path, mode);
