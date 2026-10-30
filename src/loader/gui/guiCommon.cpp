@@ -30,6 +30,7 @@
 #include "../hardware/lindbergh/netOutputs.h"
 extern "C"
 {
+#include "../config/configIni.h"
 #include "../graphics/fpsLimiter.h"
 }
 
@@ -368,6 +369,15 @@ void applyScale()
     }
 }
 } // namespace
+
+bool settingsUpdate(const std::string &configFile, const std::vector<IniValue> &values)
+{
+    // A file not there yet starts as a new linuxloader.ini, with the comments of each setting
+    std::error_code error;
+    if (!std::filesystem::exists(configFile, error))
+        createDefaultIni(configFile.c_str());
+    return iniUpdate(configFile, values);
+}
 
 bool iniUpdate(const std::string &path, const std::vector<IniValue> &values)
 {
@@ -795,7 +805,7 @@ bool saveSettings(const std::string &configFile)
                                      {"Launcher", "LANGUAGE", cfg->language},
                                  };
     gameOptionsIniValues(values); // [Game.<short name>] of the game being run, none in the picker
-    return iniUpdate(configFile, values);
+    return settingsUpdate(configFile, values);
 }
 
 bool switchOutputs(bool on, const std::string &configFile, std::string *saved)
@@ -804,7 +814,7 @@ bool switchOutputs(bool on, const std::string &configFile, std::string *saved)
     getConfig()->outputsNetwork = on; // the choice, kept even when the port could not be opened
     const char *value = on ? "true" : "false";
     char message[1200];
-    if (iniUpdate(configFile, {{"Outputs", "OUTPUTS_NETWORK", value}}))
+    if (settingsUpdate(configFile, {{"Outputs", "OUTPUTS_NETWORK", value}}))
         snprintf(message, sizeof(message), tr("[Outputs] OUTPUTS_NETWORK = %s, saved to %s"), value, configFile.c_str());
     else
         snprintf(message, sizeof(message), tr("Cannot write %s"), configFile.c_str());

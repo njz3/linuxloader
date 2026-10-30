@@ -41,6 +41,9 @@ struct IniValue
     std::string value;
 };
 bool iniUpdate(const std::string &path, const std::vector<IniValue> &values);
+// The same in the settings file (linuxloader.ini, a game's own): one not there yet starts as a new linuxloader.ini, the
+// comments of each setting with it
+bool settingsUpdate(const std::string &configFile, const std::vector<IniValue> &values);
 
 // The "Game options" page: the options of the game being run (config/gameOptions.c), in its [Game.<short name>]
 // section of configFile; and their values for saveSettings

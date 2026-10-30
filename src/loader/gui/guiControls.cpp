@@ -1136,7 +1136,7 @@ void drawControlsTab(bool inGame, const std::string &configFile)
         cfg->buttonsFromOne = fromOne;
         const char *value = fromOne ? "true" : "false";
         char message[1200];
-        if (iniUpdate(configFile, {{"Input", "BUTTONS_FROM_ONE", value}}))
+        if (settingsUpdate(configFile, {{"Input", "BUTTONS_FROM_ONE", value}}))
             snprintf(message, sizeof(message), tr("[Input] BUTTONS_FROM_ONE = %s, saved to %s"), value, configFile.c_str());
         else
             snprintf(message, sizeof(message), tr("Cannot write %s"), configFile.c_str());
