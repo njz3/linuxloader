@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 149 | 31/10 | Boost, GearUp et GearDown sans effet dans les jeux Namco et Gaelco (trouvé par Image borne) : corriger | ✅ `fixPlayerForAction` ne les envoie plus au joueur 2 pour les groupes Dead Heat et Gaelco ; essayé sur Nirin avec vJoy (voir journal) ; commité et poussé |
 | 148 | 30/10 | Pull, une release, prévenir Image borne | ✅ pull jusqu'à `5237912` (la fusion 3.0.14 et la -4 de la session d'ORION) ; `releases/linuxloader-v3.0.14-ffbedition-20261030-5-njz3-win32.zip` (MinGW, même code que la -4) ; Image borne prévenue (voir journal) |
 | 147 | 30/10 | Commit et push, une release, prévenir Image borne | ✅ rien à commiter (déjà poussé jusqu'à `e2aa045`) ; `dev/release/linuxloader-v3.0.14-ffbedition-20261030-4-njz3-win32-msvc.zip` (MSVC, la première en 3.0.14) ; Image borne prévenue (voir journal) |
 | 146 | 30/10 | Pousser la fusion ; `DISPLAY_INDEX` et `SCALING_FILTER` dans Affichage | ✅ fusion poussée (`921bbe8..3c1cdb4`) ; Affichage : « Écran » (les écrans de SDL, nom et résolution, au prochain lancement) et « Agrandissement » (Lisse / Pixels nets, tout de suite), enregistrés avec les autres réglages ; essayé dans le lanceur (un seul écran ici : le choix d'un autre écran n'est pas essayé) |
@@ -177,6 +178,21 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Boost et vitesses dans les jeux Namco et Gaelco (demande 149)
+- Trouvé par Image borne : dans Dead Heat, Dead Heat Riders, Maximum Heat 3D, Nirin, Maximum Tune 3 et 3DX+ (carte N2
+  de Namco) et dans les jeux Gaelco (vu sur Tuning Race), les boutons de `Boost`, `GearUp` et `GearDown` du
+  `controls.ini` (boutons 7, 9 et 10 de vJoy) n'arrivent pas au jeu. `fixPlayerForAction` (`sdlInput.c`, code
+  d'origine) envoie toujours ces trois actions au joueur 2, la convention des jeux Sega, alors que `remapPerGame` les
+  met sur le joueur 1 pour ces deux groupes (`deadHeatIo.c` et `gaelcoIo.c` ne lisent que le joueur 1) ; le groupe
+  Dead Heat met même celles du joueur 2 à « rien ».
+- Corrigé : pour `GROUP_DEAD_HEAT` et `GROUP_GAELCO`, le joueur du `controls.ini` est gardé (une clé sans `P2_` donne le
+  joueur 1). Les autres jeux ne changent pas.
+- Le mode agent ne le voyait pas : `set` pose l'action directement, et `pollEvents` jette les événements des
+  périphériques. Essayé avec un exe de test qui laissait passer ceux des manettes (modification retirée ensuite) :
+  Nirin, `controls.ini` du build, vJoy 1 (`GearUp = JOY0_BUTTON_8`, `GearDown = JOY0_BUTTON_9`) ; avant la correction
+  les boutons du joueur 1 restent à 0, après ils passent à 128 puis 64 (ses boutons 3 et 4, montée et descente). Pas
+  essayé sur un jeu Gaelco (pas de copie locale) ni sur une borne.
 
 ### Release 3.0.14 du 30/10, -5 (demande 148)
 - Pull : `2755d46..5237912`, la fusion avec upstream 3.0.14, Écran et Agrandissement (145, 146) et la -4 faite en MSVC

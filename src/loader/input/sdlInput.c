@@ -1291,6 +1291,10 @@ int getJoystickID(SDL_JoystickID instance_id)
  */
 JVSPlayer fixPlayerForAction(LogicalAction action, int player)
 {
+    // Namco's N2 board and Gaelco's board read player 1's buttons only: remapPerGame puts these actions there
+    if (gGrp == GROUP_DEAD_HEAT || gGrp == GROUP_GAELCO)
+        return (JVSPlayer)player;
+
     if (action == LA_Boost)
         return PLAYER_2;
 
