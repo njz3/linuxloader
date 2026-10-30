@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 147 | 30/10 | Commit et push, une release, prévenir Image borne | ✅ rien à commiter (déjà poussé jusqu'à `e2aa045`) ; `dev/release/linuxloader-v3.0.14-ffbedition-20261030-4-njz3-win32-msvc.zip` (MSVC, la première en 3.0.14) ; Image borne prévenue (voir journal) |
 | 146 | 30/10 | Pousser la fusion ; `DISPLAY_INDEX` et `SCALING_FILTER` dans Affichage | ✅ fusion poussée (`921bbe8..3c1cdb4`) ; Affichage : « Écran » (les écrans de SDL, nom et résolution, au prochain lancement) et « Agrandissement » (Lisse / Pixels nets, tout de suite), enregistrés avec les autres réglages ; essayé dans le lanceur (un seul écran ici : le choix d'un autre écran n'est pas essayé) |
 | 145 | 30/10 | Pull et merge avec upstream | ✅ pull : rien de nouveau ; `lindbergh-loader/linuxloader` `87ffd44` (3.0.14 : passthrough JVS réécrit, `DISPLAY_INDEX`, `SCALING_FILTER`, rechargement de Rambo, shaders Intel/Mesa, NFS, touches du pavé numérique) fusionné dans `dev/ffbedition` (`23e0636`) ; 11 fichiers en conflit résolus ; compile en MSVC, Hummer démarre ; passthrough JVS non essayé (pas de paire COM ni de faux boîtier ce soir), MinGW non recompilé ; poussé (demande 146) |
 | 144 | 30/10 | La molette de la souris pour faire défiler les fenêtres ImGui, par exemple les contrôles | ✅ déjà là, rien à changer : essayé avec de vrais crans de molette Windows dans le lanceur (onglet Contrôles) et en jeu (Hummer : onglet Contrôles, page « Lier » du clavier) ; en attente de savoir où elle ne défile pas chez le propriétaire |
@@ -175,6 +176,21 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Release 3.0.14 du 30/10, -4 (demande 147)
+- Arbre propre, HEAD `e2aa045` (= origin) ; `version.h` mis le temps du build à 3.0.14 (le changelog d'upstream) avec
+  `#define RELEASE_SUFFIX "-4"` (quatrième release du jour), puis remis par `git checkout` ; MSVC de zéro
+  (`msvc-x86`, `--clean-first`).
+- `E:\Arcade\emulateurs\dev\release\linuxloader-v3.0.14-ffbedition-20261030-4-njz3-win32-msvc.zip`, 17 313 834
+  octets ; SHA-256 du zip `1653df13c28acbe13384f9cff3ec9763c2edfaa4f9d7aaf6a9018526c361945d`, de `linuxloader.exe`
+  `f6e129e10e8fd4105b8a0d7542188a090b7d1d9ed38d8341022bbcb337572733`. Par rapport à la -3 de 19h38 : l'exe et les
+  deux fichiers de `lang/` changent ; `ll-deps` (16 fichiers, `zink/` compris) et `controls.ini` identiques.
+- Vérifié depuis le zip extrait dans un dossier vierge : `--version` → « Build: linuxloader-v3.0.14-ffbedition-
+  20261030-4-njz3 FFB Edition » ; `--create config` → 95 « # Default: », avec `DISPLAY_INDEX` et `SCALING_FILTER` ;
+  Hummer en agent caché : écran titre, pièce → CREDIT(S) 1, 33,1 ms par image, comme la -3 mesurée juste avant.
+- Image borne (Berstett) prévenue : chemin sur ORION et `\\ORION\E$\…`, empreintes, nouveautés depuis la
+  20261030-2 (option « sauter les contrôles » d'OutRun, fusion 3.0.14, Écran et Agrandissement), ce qui n'est pas
+  vérifié. Message remis, lecture non confirmée (session à distance).
 
 ### Écran et filtre d'agrandissement dans Affichage (demande 146)
 - « Écran » (`DISPLAY_INDEX`) : les écrans dans l'ordre de SDL, « 1: PHL 325E1 (2560 x 1440) » ; la fenêtre du jeu
