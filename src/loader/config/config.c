@@ -732,7 +732,7 @@ int initConfig(const char *configFilePath)
 
     config.inputMode = 0;
 
-    char filePath[PATH_MAX];
+    char filePath[PATH_MAX] = ""; // none found under Windows: the defaults, and no file name made of stack bytes
     if (configFilePath != NULL && configFilePath[0] != '\0')
     {
         strncpy(filePath, configFilePath, PATH_MAX - 1);
