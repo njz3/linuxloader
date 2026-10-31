@@ -402,6 +402,11 @@ int initSdlInput(const char *controlsPath)
                 {
                     sdlJoysticks.joysticksCount++;
                 }
+                else // its inputs never reach the game (a device another program holds: a loader left running)
+                {
+                    log_error("Controller of P%d ('%s') not opened: %s", player, SDL_GetJoystickNameForID(deviceIndex),
+                              SDL_GetError());
+                }
             }
         }
         SDL_free(joystics);
