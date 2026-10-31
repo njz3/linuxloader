@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 154 | 31/10 | R-Tuned en link sur les bornes : cab1 ne prend ni pièce ni Start (essais d'Image borne) ; commit, push, release, déploiement par Image borne | ✅ pas le jeu ni le link : depuis 10:17, le loader de racecab1 n'ouvre plus vJoy (un autre programme le tient, à vérifier sur place) ; l'échec d'ouverture d'une manette est maintenant journalisé (`ae1dd5a`) ; `releases/linuxloader-v3.0.14-ffbedition-20261031-3-njz3-win32.zip` ; Image borne prévenue pour le déploiement (voir journal) |
 | 153 | 31/10 | Pousser, faire une release, prévenir Image borne | ✅ `b4ae013` poussé ; `releases/linuxloader-v3.0.14-ffbedition-20261031-2-njz3-win32.zip` (MinGW : link 151, dossier d'écriture 152) ; Image borne prévenue (voir journal) |
 | 152 | 31/10 | Dossier d'écriture inutilisable : règle du propriétaire commune aux émulateurs (relayée par la session Flycast) ; commit de la 151 d'abord | ✅ `4a20866` (151) commité ; sonde au démarrage, rien écrit dans les dossiers modèles ni gardé, lectures aux endroits habituels, notification de 20 s traduite ; OutRun 2 essayé avec un dossier interdit en écriture, impossible à créer, et normal (voir journal) |
 | 151 | 31/10 | Le link pour tous les jeux Lindbergh (avec le Server Box), aussi en local (plusieurs copies sur un PC), et les jeux pas encore marqués link (Namco, Gaelco) ; essais sur les bornes par Image borne | 🔄 link sur un PC (`LOCAL_LINK_ADDRESS`) : OutRun 2, Hummer, Race TV, Initial D 5, R-Tuned et Dead Heat reliés ici ; R-Tuned réparé (SRAM, `bind`) ; moteur Dead Heat : multicast sur la carte du réseau des bornes, `ifconfig.pl` de Maximum Tune 3 ; Gaelco (Ring Riders, Tuning Race, Tokyo Cop) reliés ici : SIGIO émulé, MII, `SOCK_PACKET` ; dossier d'écriture pour les images disque ; Nirin et Initial D 4 Japon (faux Server Box) pas encore ; builds de test `…-20261031-linktest-…` et `…-linktest2-…` pour Image borne ; rien de commité (voir journal) |
@@ -182,6 +183,26 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### R-Tuned sur les bornes, et la release 3.0.14 -3 (demande 154)
+- Essais d'Image borne (linktest3, SRAM de `linktest-logs\seeds-rtuned`) : les deux bornes échangent leurs paquets
+  (0xa4 puis 0xd8, plus de 10 000 de chaque côté) et se voient au salon, mais cab1 ne prend jamais son Start (rt2 à
+  rt4), puis ni pièce ni Start même en attract. Refait ici à deux copies avec les mêmes SRAM et la même séquence
+  (Start sur la copie 2, puis sur la copie 1 pendant le compte à rebours) : la copie 1 entre, les deux arrivent
+  ensemble au choix de la voiture. SRAM échangées (rt5) : contrôle réseau bloqué, normal (l'adresse vient de
+  `IP_CAB<LINK ID>`) ; SRAM et `IP_CAB1`/2 échangés (rt6) : le problème suit la machine cab1, pas le LINK ID 1.
+- Cause dans les logs : à partir de rt2 (10:17), cab1 trouve vJoy par son GUID mais ne l'ouvre pas (ni « SDL
+  CONTROLLER 0 » dans l'en-tête, ni « Haptic opened », retour de force par le repli rumble) ; tous les essais de cab1
+  jusqu'à mt3 (10:06), avec le même exe, l'ouvraient. Probablement un autre programme qui tient vJoy sur racecab1
+  (un loader resté en vie, l'outil de retour de force) : à vérifier sur place par Image borne. `SDL_OpenJoystick` /
+  `SDL_OpenGamepad` en échec ne laissaient aucune trace : `sdlInput.c` écrit maintenant « Controller of P1 (…) not
+  opened: <SDL_GetError> » (`ae1dd5a`, poussé ; le cas d'échec n'a pas pu être provoqué ici).
+- Release MinGW de `ae1dd5a`, `RELEASE_SUFFIX` « -3 », 51 avertissements :
+  `emulateurs/releases/linuxloader-v3.0.14-ffbedition-20261031-3-njz3-win32.zip`, 19 040 388 octets, SHA-256 du zip
+  `99e0ddbc662d627058da887bb8e43d49011e4bb1f80de1f2df2b782497de2d40`, de `linuxloader.exe`
+  `d076b7e3037027a88ef9535a82392fd0de8094d978fa2ab864b67770e5aa523f` ; mêmes fichiers que les précédentes. Vérifié
+  depuis le zip : `--version` « …-20261031-3-njz3 », 96 « # Default: », 91 jeux, OutRun 2 en mode agent 60 FPS.
+  Image borne prévenue pour la déployer sur les bornes.
 
 ### Release 3.0.14 -2 du 31/10 (demande 153)
 - `4a20866` (151) et `b4ae013` (152) poussés sur `dev/ffbedition`. Arbre propre, HEAD `b4ae013` ; `version.h` mis le
