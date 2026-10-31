@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 153 | 31/10 | Pousser, faire une release, prévenir Image borne | ✅ `b4ae013` poussé ; `releases/linuxloader-v3.0.14-ffbedition-20261031-2-njz3-win32.zip` (MinGW : link 151, dossier d'écriture 152) ; Image borne prévenue (voir journal) |
 | 152 | 31/10 | Dossier d'écriture inutilisable : règle du propriétaire commune aux émulateurs (relayée par la session Flycast) ; commit de la 151 d'abord | ✅ `4a20866` (151) commité ; sonde au démarrage, rien écrit dans les dossiers modèles ni gardé, lectures aux endroits habituels, notification de 20 s traduite ; OutRun 2 essayé avec un dossier interdit en écriture, impossible à créer, et normal (voir journal) |
 | 151 | 31/10 | Le link pour tous les jeux Lindbergh (avec le Server Box), aussi en local (plusieurs copies sur un PC), et les jeux pas encore marqués link (Namco, Gaelco) ; essais sur les bornes par Image borne | 🔄 link sur un PC (`LOCAL_LINK_ADDRESS`) : OutRun 2, Hummer, Race TV, Initial D 5, R-Tuned et Dead Heat reliés ici ; R-Tuned réparé (SRAM, `bind`) ; moteur Dead Heat : multicast sur la carte du réseau des bornes, `ifconfig.pl` de Maximum Tune 3 ; Gaelco (Ring Riders, Tuning Race, Tokyo Cop) reliés ici : SIGIO émulé, MII, `SOCK_PACKET` ; dossier d'écriture pour les images disque ; Nirin et Initial D 4 Japon (faux Server Box) pas encore ; builds de test `…-20261031-linktest-…` et `…-linktest2-…` pour Image borne ; rien de commité (voir journal) |
 | 150 | 31/10 | Une release, prévenir Image borne | ✅ `releases/linuxloader-v3.0.14-ffbedition-20261031-njz3-win32.zip` (MinGW, `8f1a94c` : la -5 plus la correction de la demande 149) ; Image borne prévenue |
@@ -181,6 +182,20 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Release 3.0.14 -2 du 31/10 (demande 153)
+- `4a20866` (151) et `b4ae013` (152) poussés sur `dev/ffbedition`. Arbre propre, HEAD `b4ae013` ; `version.h` mis le
+  temps du build à 3.0.14 avec `RELEASE_SUFFIX` « -2 » (deuxième release du jour), puis remis par `git checkout` ;
+  MinGW de zéro dans un dossier neuf, 51 avertissements.
+- `emulateurs/releases/linuxloader-v3.0.14-ffbedition-20261031-2-njz3-win32.zip`, 19 040 295 octets ; SHA-256 du zip
+  `053ea8e563b368c430d75ddc8ae4876f8f8ec09ed4c487d8abc66b3d751e62ed`, de `linuxloader.exe`
+  `344e9601a073fe6ae9914a176bd2ad6df7eb99d73d272a23777895513067c254` ; `ll-deps` et `lang/` comme la release du matin
+  (mêmes fichiers, `ll-deps` identiques ; `fr.po` avec les deux textes de la notification). Par rapport à elle : le
+  link (151) et le dossier d'écriture refusé (152).
+- Vérifié depuis le zip extrait dans un dossier vierge : `--version` → « Build: linuxloader-v3.0.14-ffbedition-
+  20261031-2-njz3 FFB Edition » ; `--create config` → 96 « # Default: » ; `--list-games` → 91 jeux, link « yes » pour
+  les Gaelco et le moteur Dead Heat ; OutRun 2 en mode agent avec un dossier d'écriture : 60 FPS, pièce ; Ring Riders à
+  deux copies sur ce PC : 57 FPS chacune. Image borne prévenue.
 
 ### Dossier d'écriture inutilisable (demande 152)
 - Règle du propriétaire pour tous ses émulateurs (relayée par la session Flycast ; Supermodel et Flycast l'appliquent) :
