@@ -720,10 +720,8 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 - Mode agent : `menu outputs on|off` fait ce que fait la case (`guiOutputsSwitch`, Windows) et répond `ok MESSAGE`
   ou `err MESSAGE` (l'état et où le choix est enregistré) ; sous Linux, `err`.
 - Vérifié (MSVC, Hummer Extreme en mode agent, `-c` vers un `linuxloader.ini` d'essai et `--write-dir`, récepteur
-  UDP sur 8001 et client TCP sur 8000), 14 points : activation → `ok`, annonce « mame_start = hummer-ext
-tcp =
-  8000
- », `mame_start` puis les lampes à la connexion, « 1 client(s) » dans l'état ; arrêt → `ok`, `RawDrive`
+  UDP sur 8001 et client TCP sur 8000), 14 points : activation → `ok`, annonce « mame_start = hummer-exttcp =
+  8000 », `mame_start` puis les lampes à la connexion, « 1 client(s) » dans l'état ; arrêt → `ok`, `RawDrive`
   puis `mame_stop = 1` en dernier et connexion fermée, port fermé ; réactivation → port rouvert, `mame_start` ;
   port tenu par un autre programme → `err … déjà pris…`, puis `ok` une fois libéré ; argument faux → `err`. Le
   fichier lu (la copie du dossier d'écriture) suit chaque choix, l'original n'est pas touché. La case elle-même
