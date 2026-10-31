@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 160 | 31/10 | Un fichier journal texte, avec une case dans l'interface (au lancement suivant), à côté de l'exe ou à la racine de WRITE_DIR, le précédent gardé en .old.log ; et les noms de sorties que BFF connaît (`RawLamps` inchangé) | ✅ `LOG_FILE` ([System], coché par défaut) : `linuxloader.log` + `linuxloader.old.log`, case dans À propos ; `LampStart`, `LampView1`, `LampLeader`, `LampDriverL`, `LampDriverR` pour OutRun 2 ; essayé sur Hummer (write-dir, à côté de l'exe, désactivé) ; lampes nommées non essayées (pas d'OutRun 2 ici) |
 | 159 | 31/10 | (second retour du testeur d'OutRun 2, version 20261030) OUTPUT TEST → `lampN`, lampe arrière, où est le journal, ressort « progressif » selon le type de borne | ⚠️ lampes : notre table était juste (Start lamp0, View lamp4, pilote G lamp2, pilote D lamp5) ; ses lumières sont branchées autrement dans son outil de sorties ; noms G et D ajoutés ; lampe arrière sur aucune sortie JVS (question posée) ; pas de fichier journal (console seulement) ; ressort présent en DX/SDX, absent en standard : le jeu |
 | 158 | 31/10 | Commit et push de la demande 157 ; ce qui reste à faire en link | ✅ commité et poussé sur `dev/ffbedition` ; reste : essais de DHR et MT3 / 3DX+ sur les bornes, Nirin, Initial D 4 Japan, Hummer, Race TV et Initial D 4 / 5 Export à refaire sur les bornes |
 | 157 | 31/10 | Le link de Dead Heat Riders et de Maximum Tune 3 / 3DX+ | 🔄 reliés ici à deux copies ; corrections : adresse dans le réseau du PC et pairs traduits (DHR), `ifconfig.txt` au bon endroit, pipes dans `select`, `errno` gardé après `accept` (MT3) ; build `…-linktest4-…` pour Image borne ; commité et poussé à la demande 158, pas encore essayé sur les bornes (voir journal) |
@@ -188,6 +189,34 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Fichier journal et sorties nommées (demande 160)
+- `[System] LOG_FILE` (vrai par défaut) : les lignes de la console d'un lancement de jeu aussi dans
+  `linuxloader.log`, à côté de `linuxloader.exe`, ou à la racine du dossier d'écriture quand il y en a un (le dossier
+  du loader n'est alors jamais écrit) ; dans le dossier temporaire de Windows s'il ne peut être fait là. Celui du
+  lancement précédent devient `linuxloader.old.log`. Texte brut : les couleurs (séquences ANSI) retirées, lignes en
+  CRLF ; en tête, la version, la date et la ligne de commande. Arrêté à 100 Mo (une ligne le dit, la console continue).
+- `log/logFile.c` : le processus que lance le front end ou le lanceur (le superviseur de `mainW.cpp`) fait passer sa
+  sortie et celle des processus du jeu (jeu, menu de test, jeu à nouveau) par un tube ; un fil la recopie dans la
+  console (ou là où elle allait : fichier ou tube d'un front end) et dans le fichier. Ce que le jeu a écrit avant
+  de planter est gardé (le tube est lu par un autre processus). Les processus du jeu écrivent sans tampon quand leur
+  sortie est un tube. Pas en mode agent (sa sortie est son protocole).
+- Le choix est lu par le superviseur dans le `linuxloader.ini` que lira le lancement (celui du dossier d'écriture
+  s'il existe), `--set System.LOG_FILE=…` par-dessus. Case « Écrire le journal dans un fichier (LOG_FILE) » dans
+  Tab > À propos : enregistrée aussitôt dans ce fichier (comme la case des sorties réseau), avec le chemin du journal.
+- Premier essai raté : `_dup2` fermait le handle de la sortie standard que gardait le fil de copie, Windows donnait
+  son numéro au tube, et le fil réécrivait dans ce qu'il lisait : 6 Go en quelques secondes puis blocage, fenêtre
+  de Hummer figée. Le fil a maintenant sa propre copie du handle (`DuplicateHandle`), et le plafond de 100 Mo.
+- Essais sur Hummer, lancé comme par un front end puis quitté par Échap : avec `--write-dir` (le journal à sa racine,
+  `.old.log` au deuxième lancement), sans (à côté de l'exe), et `--set System.LOG_FILE=false` (aucun fichier). La
+  case dans le lanceur écrit `LOG_FILE = false` puis `true`. La sortie de Hummer par Échap finit parfois en violation
+  d'accès (0xC0000005) : déjà le cas avec la release d'hier (2 fois sur 2), sans rapport.
+- Sorties réseau : en plus de `RawLamps` et des `lampN`, inchangés (une borne d'origine pilotée par BFF en JVS ne
+  doit rien perdre), OutRun 2 envoie `LampStart` (lamp0), `LampView1` (lamp4) et `LampLeader` (lamp2 ou lamp5), noms
+  de Supermodel que les scripts de BFF placent comme sur une borne Model 2/3, et `LampDriverL` / `LampDriverR`. Le
+  testeur peut refaire son mapping sur `RawLamps`/`lampN`, ou se servir des noms. Listés dans Tab > Sorties et réseau.
+- `iniParser.h` a sa garde `extern "C"` (inclus maintenant par `config.h`, aussi en C++).
+- MSVC compile ; MinGW non recompilé ; les lampes nommées non essayées en jeu (pas d'OutRun 2 sur ce PC).
 
 ### Second retour du testeur d'OutRun 2 (demande 159)
 - OUTPUT TEST du menu de test, avec la 20261030 : Start → `lamp0`, View change → `lamp4`, Driver lamp L → `lamp2`,
