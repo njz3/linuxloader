@@ -297,14 +297,16 @@ static std::vector<GameLamp> gameLamps(const GameData *data)
         return lamps;
     }
     // The uses known, read in the game: OutRun 2's CabinetLampOn and CabinetLampBlink (DispPushStart: 0x80,
-    // CheckViewChange: 0x08, the two drivers' 0x20 and 0x04, which blink together at "Select the main driver")
+    // CheckViewChange: 0x08, the two drivers' 0x20 and 0x04, which blink together at "Select the main driver"); the
+    // test menu's OUTPUT TEST confirms them, the drivers' L and R from it (a tester's cabinet, 31/10). Its TAIL LAMP is
+    // on none of the JVS outputs
     const char *uses[20] = {NULL};
     if (data->gameGroup == GROUP_OUTRUN || data->gameGroup == GROUP_OUTRUN_TEST)
     {
         uses[0] = N_("Start lamp");
-        uses[2] = N_("Driver lamp");
+        uses[2] = N_("Driver lamp L");
         uses[4] = N_("View change lamp");
-        uses[5] = N_("Driver lamp");
+        uses[5] = N_("Driver lamp R");
     }
     int outputs = getConfig()->jvsIOType == SEGA_TYPE_1 ? 6 : 20; // jvs.c's boards
     for (int output = 0; output < outputs; output++)

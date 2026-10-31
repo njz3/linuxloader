@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lindbergh Loader\n"
 "Report-Msgid-Bugs-To: https://github.com/njz3/linuxloader/issues\n"
-"POT-Creation-Date: 2026-10-31 10:01+0100\n"
+"POT-Creation-Date: 2026-10-31 17:33+0100\n"
 "PO-Revision-Date: 2026-10-28 15:00+0100\n"
 "Last-Translator: njz3\n"
 "Language-Team: French\n"
@@ -1028,12 +1028,16 @@ msgid "Start lamp"
 msgstr "Lampe Start"
 
 #: src/loader/gui/guiGameOptions.cpp
-msgid "Driver lamp"
-msgstr "Lampe de pilote"
+msgid "Driver lamp L"
+msgstr "Lampe de pilote G"
 
 #: src/loader/gui/guiGameOptions.cpp
 msgid "View change lamp"
 msgstr "Lampe de changement de vue"
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Driver lamp R"
+msgstr "Lampe de pilote D"
 
 #: src/loader/gui/guiGameOptions.cpp
 #, c-format

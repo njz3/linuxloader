@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lindbergh Loader\n"
 "Report-Msgid-Bugs-To: https://github.com/njz3/linuxloader/issues\n"
-"POT-Creation-Date: 2026-10-31 10:01+0100\n"
+"POT-Creation-Date: 2026-10-31 17:33+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -974,11 +974,15 @@ msgid "Start lamp"
 msgstr ""
 
 #: src/loader/gui/guiGameOptions.cpp
-msgid "Driver lamp"
+msgid "Driver lamp L"
 msgstr ""
 
 #: src/loader/gui/guiGameOptions.cpp
 msgid "View change lamp"
+msgstr ""
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Driver lamp R"
 msgstr ""
 
 #: src/loader/gui/guiGameOptions.cpp
