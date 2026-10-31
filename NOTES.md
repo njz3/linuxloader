@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 156 | 31/10 | Commit, push, une release, Image borne pour la déployer | ✅ rien à commiter (`e34fe0f` déjà poussé) ; `releases/linuxloader-v3.0.14-ffbedition-20261031-4-njz3-win32.zip` (MinGW : la -3 plus le filtre 155) ; Image borne prévenue pour le déploiement (voir journal) |
 | 155 | 31/10 | Comme windowsloader : avec un dossier d'écriture refusé, des copies temporaires pour les seuls fichiers essentiels, filtre sur les noms (demande relayée par windowsloader) | ✅ `[Paths] TEMP_WRITES` + `writeDirTempWrites` des modules + l'EEPROM et la SRAM du loader ; tout le reste refusé et journalisé (300 chemins) ; neuf jeux essayés dossier refusé : tous démarrent (voir journal) |
 | 154 | 31/10 | R-Tuned en link sur les bornes : cab1 ne prend ni pièce ni Start (essais d'Image borne) ; commit, push, release, déploiement par Image borne | ✅ pas le jeu ni le link : depuis 10:17, le loader de racecab1 n'ouvre plus vJoy (un autre programme le tient, à vérifier sur place) ; l'échec d'ouverture d'une manette est maintenant journalisé (`ae1dd5a`) ; `releases/linuxloader-v3.0.14-ffbedition-20261031-3-njz3-win32.zip` ; Image borne prévenue pour le déploiement (voir journal) |
 | 153 | 31/10 | Pousser, faire une release, prévenir Image borne | ✅ `b4ae013` poussé ; `releases/linuxloader-v3.0.14-ffbedition-20261031-2-njz3-win32.zip` (MinGW : link 151, dossier d'écriture 152) ; Image borne prévenue (voir journal) |
@@ -184,6 +185,16 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Release 3.0.14 -4 du 31/10 (demande 156)
+- Arbre propre, `e34fe0f` déjà poussé. Release MinGW, `RELEASE_SUFFIX` « -4 », 50 avertissements :
+  `emulateurs/releases/linuxloader-v3.0.14-ffbedition-20261031-4-njz3-win32.zip`, 19 041 101 octets, SHA-256 du zip
+  `d4367a92702fddb558a735450225634017dbb393b400953d8951c6781f2b638e`, de `linuxloader.exe`
+  `0857a903189bedd5a0167cedc701e0de5a8381b265e072ae193beda5b580f724` ; mêmes fichiers que les précédentes. Par
+  rapport à la -3 : le filtre des fichiers essentiels (155, `TEMP_WRITES`).
+- Vérifié depuis le zip : `--version` « …-20261031-4-njz3 », 97 « # Default: » (`TEMP_WRITES` en plus), 91 jeux,
+  OutRun 2 en mode agent avec un dossier d'écriture : 60 FPS. Image borne prévenue pour la déployer (le propriétaire
+  l'a demandé ; la -3 n'avait pas été déployée).
 
 ### Dossier d'écriture refusé : seuls les fichiers essentiels en copie (demande 155)
 - Demande du propriétaire, relayée par windowsloader (son commit `58e47e3`) : avec un dossier d'écriture refusé, des
