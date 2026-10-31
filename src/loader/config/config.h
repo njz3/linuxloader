@@ -1,6 +1,7 @@
 #pragma once
 
 #include <SDL3/SDL_keycode.h>
+#include "iniParser.h"
 #include <stdint.h>
 #include <sys/types.h>
 
@@ -333,6 +334,7 @@ typedef struct
     GameRegion region;
     int freeplay;
     int showDebugMessages;
+    int logFile; // LOG_FILE: the console's lines of a run also in linuxloader.log (log/logFile.c), at its start
     int useAltJvsPassthrough;
     char *gameID;
     char *gameTitle;
@@ -418,6 +420,8 @@ extern "C" {
 int initConfig(const char *configFilePath);
 // --set SECTION.KEY=VALUE on the command line: applied over the ini file's values (initConfig)
 void configAddOverride(const char *assignment);
+// Those settings written over an ini's values: initConfig's, and the log file's choice before the game starts
+void configApplyOverrides(IniConfig *ini);
 // The ini file the game's settings came from: the one given, or <short name>.ini beside linuxloader.ini for this game
 const char *getConfigFilePath(void);
 void setDefaultValues(EmulatorConfig *cfg);

@@ -29,6 +29,8 @@
 #include "../config/config.h"
 #include "../redirections/writeDir.h"
 #include "../hardware/lindbergh/netOutputs.h"
+#include "../log/logFile.h"
+#include "../mainShared.h"
 extern "C"
 {
 #include "../config/configIni.h"
@@ -48,6 +50,9 @@ float g_uiScale = 0.0f;
 ImGuiStyle g_baseStyle;
 std::string g_status; // result of the last save, shown under the buttons
 std::string g_outputsSaved; // where the network outputs' box wrote its choice
+// LOG_FILE as the next run reads it (log/logFile.c), read once: the write folder's root, the settings file, the choice
+std::string g_logRoot, g_logSettings, g_logSaved;
+int g_logFileShown = -1;
 
 // The list's tooltip: the games patchResolution.c resizes, and their limits
 const char *internalResolutionGames = N_(
@@ -755,6 +760,50 @@ void drawSettings(bool *open, std::string &configFile, bool inGame)
         {
             ImGui::TextUnformatted("Lindbergh Loader");
             ImGui::TextDisabled("Dear ImGui %s", IMGUI_VERSION);
+            ImGui::Separator();
+
+            // LOG_FILE as the next run reads it (log/logFile.c): the running game's write folder, else the picker's
+            // settings file's; saved at once in the file that run reads it from, as the network outputs' box
+            if (g_logFileShown < 0)
+            {
+                char root[1024] = "", settings[1024];
+                if (inGame)
+                    snprintf(root, sizeof(root), "%s", writeDirRoot());
+                else
+                    writeDirRootFor(NULL, configFile.c_str(), root, sizeof(root));
+                const char *read = inGame ? configPath : configFile.c_str();
+                logFileSettings(read, root, settings, sizeof(settings));
+                g_logRoot = root;
+                g_logSettings = settings;
+                g_logFileShown = logFileWanted(read, root);
+            }
+            bool logFile = g_logFileShown != 0;
+            if (ImGui::Checkbox(tr("Write the log to a file (LOG_FILE)"), &logFile))
+            {
+                g_logFileShown = logFile;
+                cfg->logFile = logFile;
+                const char *value = logFile ? "true" : "false";
+                char message[1200];
+                if (settingsUpdate(g_logSettings, {{"System", "LOG_FILE", value}}))
+                    snprintf(message, sizeof(message), tr("[System] LOG_FILE = %s, saved to %s"), value, g_logSettings.c_str());
+                else
+                    snprintf(message, sizeof(message), tr("Cannot write %s"), g_logSettings.c_str());
+                g_logSaved = message;
+            }
+            {
+                char path[1024];
+                logFilePath(g_logRoot.c_str(), path, sizeof(path));
+                char text[1600];
+                snprintf(text, sizeof(text),
+                         tr("The console's lines of each game's run, in %s; the previous run's in linuxloader.old.log "
+                            "beside it. Takes effect at the next start."),
+                         path);
+                ImGui::PushTextWrapPos(0.0f);
+                ImGui::TextDisabled("%s", text);
+                if (!g_logSaved.empty())
+                    ImGui::TextDisabled("%s", g_logSaved.c_str());
+                ImGui::PopTextWrapPos();
+            }
             ImGui::Separator();
             ImGui::PushTextWrapPos(0.0f);
             ImGui::TextUnformatted(tr("Interface based on sm2-emu's, by Daniel Martin (dmanlfc) and the sm2-emu contributors, modified "

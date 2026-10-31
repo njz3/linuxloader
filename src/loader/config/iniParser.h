@@ -21,9 +21,17 @@ typedef struct
     int numSections;
 } IniConfig;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 IniConfig *iniLoad(const char *filename);
 void iniFree(IniConfig *config);
 const char *iniGetValue(const IniConfig *config, const char *section, const char *key);
 IniSection *iniGetSection(const IniConfig *config, const char *sectionName);
 bool iniSetValue(IniConfig *config, const char *section, const char *key, const char *value);
 int iniSave(const IniConfig *config, const char *filename);
+
+#ifdef __cplusplus
+}
+#endif

@@ -874,6 +874,31 @@ void writeDirEnterGame(const char *gameName)
     }
 }
 
+const char *writeDirRoot(void)
+{
+    return rootDir;
+}
+
+int writeDirRootFor(const char *writeDir, const char *configPath, char *out, size_t size)
+{
+    char fromIni[MAX_PATH] = "";
+    if ((!writeDir || !writeDir[0]) && configPath && configPath[0])
+    {
+        IniConfig *ini = iniLoad(configPath);
+        if (ini)
+        {
+            iniPath(ini, "WRITE_DIR", fromIni, sizeof(fromIni));
+            iniFree(ini);
+        }
+        writeDir = fromIni;
+    }
+    out[0] = '\0';
+    if (!writeDir || !writeDir[0])
+        return 0;
+    absoluteFolder(out, size, writeDir);
+    return 1;
+}
+
 #else
 
 #include <fcntl.h>
@@ -909,6 +934,20 @@ int writeDirGameFolder(char *buffer, size_t size)
 void writeDirImageRoot(const char *root)
 {
     (void)root;
+}
+
+const char *writeDirRoot(void)
+{
+    return "";
+}
+
+int writeDirRootFor(const char *writeDir, const char *configPath, char *out, size_t size)
+{
+    (void)writeDir;
+    (void)configPath;
+    if (size)
+        out[0] = '\0';
+    return 0;
 }
 
 void writeDirTempWrites(const char *patterns)

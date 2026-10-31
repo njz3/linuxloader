@@ -192,6 +192,7 @@ void setDefaultValues(EmulatorConfig *cfg)
     cfg->region = EX;
     cfg->freeplay = -1;
     cfg->showDebugMessages = 0;
+    cfg->logFile = 1;
     cfg->useAltJvsPassthrough = 0;
     cfg->hummerFlickerFix = 0;
     cfg->keepAspectRatio = 1;
@@ -525,6 +526,7 @@ void applyIniConfig(EmulatorConfig *config, const IniConfig *ini)
     config->gsevoCrosshairAlwaysOff = getInt(ini, "CrossHairs", "GSEVO_CROSSHAIR_ALWAYS_OFF", config->gsevoCrosshairAlwaysOff);
 
     config->showDebugMessages = getInt(ini, "System", "DEBUG_MSGS", config->showDebugMessages);
+    config->logFile = getInt(ini, "System", "LOG_FILE", config->logFile);
     config->useAltJvsPassthrough = getInt(ini, "System", "USE_ALT_JVS_PASSTHROUGH", config->useAltJvsPassthrough);
     const char *colourRaw = getValue(ini, "System", "LINDBERGH_COLOUR");
     if (colourRaw)
@@ -658,7 +660,7 @@ static bool sameText(const char *a, const char *b)
     return tolower((unsigned char)*a) == tolower((unsigned char)*b);
 }
 
-static void applyOverrides(IniConfig *ini)
+void configApplyOverrides(IniConfig *ini)
 {
     static const char *sections[] = {"Cards",    "CrossHairs", "Cursor",  "Display", "EVDEV",   "Emulation", "ForceFeedback", "GameSpecific",
                                      "Graphics", "Input",      "Launcher", "Network", "Outputs", "Paths",     "System"};
@@ -789,7 +791,7 @@ int initConfig(const char *configFilePath)
         return 1;
     }
 
-    applyOverrides(ini);
+    configApplyOverrides(ini);
     applyIniConfig(&config, ini);
     applyGameOptions(ini);
 

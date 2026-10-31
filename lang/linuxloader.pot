@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lindbergh Loader\n"
 "Report-Msgid-Bugs-To: https://github.com/njz3/linuxloader/issues\n"
-"POT-Creation-Date: 2026-10-31 17:33+0100\n"
+"POT-Creation-Date: 2026-10-31 17:55+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -281,6 +281,27 @@ msgid "About"
 msgstr ""
 
 #: src/loader/gui/guiCommon.cpp
+msgid "Write the log to a file (LOG_FILE)"
+msgstr ""
+
+#: src/loader/gui/guiCommon.cpp
+#, c-format
+msgid "[System] LOG_FILE = %s, saved to %s"
+msgstr ""
+
+#: src/loader/gui/guiCommon.cpp src/loader/gui/guiControls.cpp
+#, c-format
+msgid "Cannot write %s"
+msgstr ""
+
+#: src/loader/gui/guiCommon.cpp
+#, c-format
+msgid ""
+"The console's lines of each game's run, in %s; the previous run's in "
+"linuxloader.old.log beside it. Takes effect at the next start."
+msgstr ""
+
+#: src/loader/gui/guiCommon.cpp
 msgid ""
 "Interface based on sm2-emu's, by Daniel Martin (dmanlfc) and the sm2-emu "
 "contributors, modified for the Lindbergh loader:"
@@ -294,11 +315,6 @@ msgstr ""
 
 #: src/loader/gui/guiCommon.cpp
 msgid "Save"
-msgstr ""
-
-#: src/loader/gui/guiCommon.cpp src/loader/gui/guiControls.cpp
-#, c-format
-msgid "Cannot write %s"
 msgstr ""
 
 #: src/loader/gui/guiCommon.cpp
@@ -1009,6 +1025,21 @@ msgstr ""
 
 #: src/loader/gui/guiGameOptions.cpp
 msgid "0 or 1"
+msgstr ""
+
+#: src/loader/gui/guiGameOptions.cpp
+#, c-format
+msgid "%s or %s"
+msgstr ""
+
+#: src/loader/gui/guiGameOptions.cpp
+#, c-format
+msgid "%s, under Supermodel's name (BackForceFeeder)"
+msgstr ""
+
+#: src/loader/gui/guiGameOptions.cpp
+#, c-format
+msgid "%s, by its name"
 msgstr ""
 
 #: src/loader/gui/guiGameOptions.cpp

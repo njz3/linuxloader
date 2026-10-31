@@ -153,6 +153,35 @@ static void lampName(int byteIndex, int bit, char *name, size_t size)
     SDL_snprintf(name, size, "lamp%d", byteIndex * 8 + (7 - bit));
 }
 
+// The lamps a game's module knows, also sent under the names other tools read: Supermodel's (LampStart, LampView1,
+// LampLeader, which BackForceFeeder's scripts place where a Model 2/3 cabinet has them), and explicit ones. RawLamps
+// and lampN stay the JVS outputs as they are (a cabinet wired as the original), a mapping made on them is kept
+static const NetNamedLamp outrunLamps[] = {
+    {"LampStart", {0, -1}},  // OutRun 2's Start lamp
+    {"LampView1", {4, -1}},  // its View change lamp
+    {"LampLeader", {2, 5}},  // either of its driver lamps
+    {"LampDriverL", {2, -1}}, // Driver lamp L
+    {"LampDriverR", {5, -1}}, // Driver lamp R
+};
+#define NET_NAMED_LAMPS_MAX 8 // the longest table's
+static const NetNamedLamp *namedLamps = NULL;
+static int namedLampCount = 0;
+
+// With stateMutex held: on when either of its outputs is, -1 while the game gave none of their bytes
+static int namedLampValue(const NetNamedLamp *lamp)
+{
+    int value = -1;
+    for (int i = 0; i < 2; i++)
+    {
+        int output = lamp->outputs[i];
+        if (output < 0 || output >= NET_GPO_BYTES * 8 || !gpoKnown[output / 8])
+            continue;
+        int on = (gpo[output / 8] >> (7 - output % 8)) & 1;
+        value = value < 0 ? on : (value | on);
+    }
+    return value;
+}
+
 // Appends every known value, for a client that just connected
 static size_t buildState(char *buf, size_t size)
 {
@@ -177,6 +206,15 @@ static size_t buildState(char *buf, size_t size)
             if (written > 0)
                 len += (size_t)written;
         }
+    }
+    for (int i = 0; i < namedLampCount && len < size; i++)
+    {
+        int value = namedLampValue(&namedLamps[i]);
+        if (value < 0)
+            continue;
+        written = formatLine(buf + len, size - len, namedLamps[i].name, value);
+        if (written > 0)
+            len += (size_t)written;
     }
 
     if (lastDrive >= 0 && len < size)
@@ -460,6 +498,12 @@ void netOutputsInit(void)
     if (!stateMutex)
         stateMutex = SDL_CreateMutex();
     SDL_snprintf(gameName, sizeof(gameName), "%s", config->gameShortTitle ? config->gameShortTitle : "lindbergh");
+    if (config->gameGroup == GROUP_OUTRUN || config->gameGroup == GROUP_OUTRUN_TEST)
+    {
+        namedLamps = outrunLamps;
+        namedLampCount = (int)(sizeof(outrunLamps) / sizeof(outrunLamps[0]));
+    }
+    SDL_COMPILE_TIME_ASSERT(namedLamps, sizeof(outrunLamps) / sizeof(outrunLamps[0]) <= NET_NAMED_LAMPS_MAX);
     if (config->outputsNetwork)
         netOutputsEnable(true);
 }
@@ -506,6 +550,9 @@ static void gpoWrite(int byteIndex, uint8_t value)
     if (!gpoKnown[byteIndex] || gpo[byteIndex] != value)
     {
         uint8_t changed = gpoKnown[byteIndex] ? (uint8_t)(gpo[byteIndex] ^ value) : 0xFF;
+        int before[NET_NAMED_LAMPS_MAX];
+        for (int i = 0; i < namedLampCount; i++)
+            before[i] = namedLampValue(&namedLamps[i]);
         gpo[byteIndex] = value;
         gpoKnown[byteIndex] = true;
         if (!running)
@@ -521,6 +568,13 @@ static void gpoWrite(int byteIndex, uint8_t value)
                 lampName(byteIndex, bit, name, sizeof(name));
                 pendingLine(name, (value >> bit) & 1);
             }
+        }
+        // After RawLamps and lampN, which a tool may also read
+        for (int i = 0; i < namedLampCount; i++)
+        {
+            int now = namedLampValue(&namedLamps[i]);
+            if (now >= 0 && now != before[i])
+                pendingLine(namedLamps[i].name, now);
         }
     }
 }
@@ -572,6 +626,21 @@ int netOutputsLastDrive(void)
     int value = lastDrive;
     SDL_UnlockMutex(stateMutex);
     return value;
+}
+
+int netOutputsNamedLamps(NetNamedLamp *lamps, int *values, int max)
+{
+    if (!stateMutex)
+        return 0;
+    SDL_LockMutex(stateMutex);
+    for (int i = 0; i < namedLampCount && i < max; i++)
+    {
+        lamps[i] = namedLamps[i];
+        values[i] = namedLampValue(&namedLamps[i]);
+    }
+    int count = namedLampCount;
+    SDL_UnlockMutex(stateMutex);
+    return count;
 }
 
 bool netOutputsRunning(void)

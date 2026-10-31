@@ -46,6 +46,12 @@ extern "C"
     // The root of the Linux disk image the game's folder is in (Gaelco's games): its files outside the game's folder
     // are written in WRITE_DIR\<game>\linuxroot
     void writeDirImageRoot(const char *root);
+    // WRITE_DIR's root once writeDirSettings ran, "" when there is none
+    const char *writeDirRoot(void);
+    // The root a run started now would take, neither made nor checked: writeDir (the command line's), else [Paths]
+    // WRITE_DIR of configPath, relative to the loader's folder. 0 when there is none (the log file's place, before the
+    // game's processes start, and the settings' page)
+    int writeDirRootFor(const char *writeDir, const char *configPath, char *out, size_t size);
 
     // The path to read: WRITE_DIR\<game>'s file when it is there, else the game folder's. Paths other than the game's
     // (devices, other folders) come back as they are.

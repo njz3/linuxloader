@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lindbergh Loader\n"
 "Report-Msgid-Bugs-To: https://github.com/njz3/linuxloader/issues\n"
-"POT-Creation-Date: 2026-10-31 17:33+0100\n"
+"POT-Creation-Date: 2026-10-31 17:55+0100\n"
 "PO-Revision-Date: 2026-10-28 15:00+0100\n"
 "Last-Translator: njz3\n"
 "Language-Team: French\n"
@@ -313,6 +313,27 @@ msgid "About"
 msgstr "À propos"
 
 #: src/loader/gui/guiCommon.cpp
+msgid "Write the log to a file (LOG_FILE)"
+msgstr "Écrire le journal dans un fichier (LOG_FILE)"
+
+#: src/loader/gui/guiCommon.cpp
+#, c-format
+msgid "[System] LOG_FILE = %s, saved to %s"
+msgstr "[System] LOG_FILE = %s, enregistré dans %s"
+
+#: src/loader/gui/guiCommon.cpp src/loader/gui/guiControls.cpp
+#, c-format
+msgid "Cannot write %s"
+msgstr "Impossible d'écrire %s"
+
+#: src/loader/gui/guiCommon.cpp
+#, c-format
+msgid ""
+"The console's lines of each game's run, in %s; the previous run's in "
+"linuxloader.old.log beside it. Takes effect at the next start."
+msgstr "Les lignes de la console à chaque lancement d'un jeu, dans %s ; celles du lancement précédent dans linuxloader.old.log, à côté. Prend effet au prochain démarrage."
+
+#: src/loader/gui/guiCommon.cpp
 msgid ""
 "Interface based on sm2-emu's, by Daniel Martin (dmanlfc) and the sm2-emu "
 "contributors, modified for the Lindbergh loader:"
@@ -331,11 +352,6 @@ msgstr ""
 #: src/loader/gui/guiCommon.cpp
 msgid "Save"
 msgstr "Sauvegarder"
-
-#: src/loader/gui/guiCommon.cpp src/loader/gui/guiControls.cpp
-#, c-format
-msgid "Cannot write %s"
-msgstr "Impossible d'écrire %s"
 
 #: src/loader/gui/guiCommon.cpp
 #, c-format
@@ -1064,6 +1080,21 @@ msgstr "Lampes %d à %d, la lampe %d sur le bit 7"
 #: src/loader/gui/guiGameOptions.cpp
 msgid "0 or 1"
 msgstr "0 ou 1"
+
+#: src/loader/gui/guiGameOptions.cpp
+#, c-format
+msgid "%s or %s"
+msgstr "%s ou %s"
+
+#: src/loader/gui/guiGameOptions.cpp
+#, c-format
+msgid "%s, under Supermodel's name (BackForceFeeder)"
+msgstr "%s, sous le nom de Supermodel (BackForceFeeder)"
+
+#: src/loader/gui/guiGameOptions.cpp
+#, c-format
+msgid "%s, by its name"
+msgstr "%s, sous son nom"
 
 #: src/loader/gui/guiGameOptions.cpp
 msgid "byte, 0 to 255, one line each"

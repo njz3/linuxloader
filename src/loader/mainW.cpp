@@ -31,6 +31,7 @@
 #include "elfLoader/pthread/pthreadEmu.hpp"
 #include "loader/config/config.h"
 #include "log/log.h"
+#include "log/logFile.h"
 #include "graphics/gpuVendor.h"
 #include "init.h"
 #include "patching/patch.h"
@@ -297,6 +298,10 @@ int main(int argc, char *argv[], char *envp[])
     }
     if (agentMode)
         agentInit(agentMode == 2);
+    // Output into a pipe (LOG_FILE's, log/logFile.c, or a front end's): each line through it at once, as on a console,
+    // and none lost when the game crashes. Not the agent's, its answers flushed by the agent
+    else if (GetFileType(GetStdHandle(STD_OUTPUT_HANDLE)) == FILE_TYPE_PIPE)
+        setvbuf(stdout, NULL, _IONBF, 0);
     argc = (int)args.size();
     args.push_back(NULL);
     argv = args.data();
@@ -319,9 +324,18 @@ int main(int argc, char *argv[], char *envp[])
     s_startTime = time(NULL);
     snprintf(s_startDir, sizeof(s_startDir), "%s", originalDir);
 
-    // The game, its test menu and the game again, each in a process of its own (segabootSupervise)
+    // The game, its test menu and the game again, each in a process of its own (segabootSupervise); their lines also
+    // in linuxloader.log, the previous run's kept as linuxloader.old.log (LOG_FILE, log/logFile.c)
     if (!agentMode && !s_segabootChild)
-        return segabootSupervise(rawArgc, rawArgv);
+    {
+        char writeRoot[MAX_PATH_LENGTH];
+        writeDirRootFor(s_writeDir, configPath, writeRoot, sizeof(writeRoot));
+        bool logging = logFileWanted(configPath, writeRoot) && logFileStart(writeRoot);
+        int code = segabootSupervise(rawArgc, rawArgv);
+        if (logging)
+            logFileStop();
+        return code;
+    }
 
     char elfPath[MAX_PATH_LENGTH];
     char elfArgs[MAX_PATH_LENGTH] = "";

@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstdarg>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -347,6 +348,21 @@ void drawOutputsList()
             if (lamp.index / 8 == byte)
                 lines.push_back({formatText("lamp%d", lamp.index), tr("0 or 1"), lamp.meaning,
                                  value(raw < 0 ? -1 : (raw >> (7 - lamp.index % 8)) & 1)});
+    }
+    // The same lamps under names other tools read (netOutputs.c): "lamp2 or lamp5, Supermodel's name (BackForceFeeder)"
+    NetNamedLamp named[8];
+    int namedValues[8];
+    int namedCount = std::min(netOutputsNamedLamps(named, namedValues, 8), 8);
+    for (int i = 0; i < namedCount; i++)
+    {
+        std::string outputs = formatText("lamp%d", named[i].outputs[0]);
+        if (named[i].outputs[1] >= 0)
+            outputs = formatText(tr("%s or %s"), outputs.c_str(), formatText("lamp%d", named[i].outputs[1]).c_str());
+        bool supermodel = strncmp(named[i].name, "LampDriver", 10) != 0;
+        lines.push_back({named[i].name, tr("0 or 1"),
+                         formatText(supermodel ? tr("%s, under Supermodel's name (BackForceFeeder)") : tr("%s, by its name"),
+                                    outputs.c_str()),
+                         value(namedValues[i])});
     }
     bool drive = data->gameGroup == GROUP_GAELCO || (data->gameGroup == GROUP_DEAD_HEAT && data->crc32 != NIRIN) ||
                  (data->gameGroup != GROUP_DEAD_HEAT && gameDataHasServoBoard(data));

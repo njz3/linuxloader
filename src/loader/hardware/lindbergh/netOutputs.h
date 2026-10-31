@@ -43,6 +43,16 @@ bool netOutputsRunning(void);
 int netOutputsGpo(int byteIndex);
 int netOutputsLastDrive(void);
 
+// A lamp also sent under a name other tools read (LampStart...), for the games whose lamps are known: its JVS outputs,
+// 0 the first as lampN (-1 for none), on when either is
+typedef struct
+{
+    const char *name;
+    int outputs[2];
+} NetNamedLamp;
+// The game's: their count, at most max copied, each one's value now in values (-1 while the game gave none)
+int netOutputsNamedLamps(NetNamedLamp *lamps, int *values, int max);
+
 #ifdef __cplusplus
 }
 #endif

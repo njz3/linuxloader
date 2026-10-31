@@ -261,6 +261,9 @@ int createDefaultIni(const char *filePath)
     iniOut(&out, "[System]\n");
     iniOut(&out, "# Set to true to see debug messages in the console\n");
     iniOut(&out, "DEBUG_MSGS = %s\n\n", defaults.showDebugMessages ? "true" : "false");
+    iniOut(&out, "# Set to false to not write the console's lines to linuxloader.log too: next to linuxloader.exe, or at the\n");
+    iniOut(&out, "# root of the write folder (WRITE_DIR) when there is one; replaced at each start of a game, read then\n");
+    iniOut(&out, "LOG_FILE = %s\n\n", defaults.logFile ? "true" : "false");
     iniOut(&out, "# Set the colour of the lindbergh (YELLOW, RED, BLUE, SILVER, REDEX)\nLINDBERGH_COLOUR = YELLOW\n\n");
 
     // [Outputs]
