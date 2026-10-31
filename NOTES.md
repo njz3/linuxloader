@@ -92,10 +92,11 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 161 | 31/10 | Maximum Tune 3DX+ en link (les deux bornes se disent ID:1) ; un pull ; commit, push, une release si nécessaire | 🔄 3DX+ lit `/tmp/data/etc/testmode.lua` (Maximum Tune 3 : `/tmp/data/testmode.lua`) : le loader y lit TotalMachine pour 3DX+, ses réglages pour les bornes à refaire ; pull des demandes 159 et 160 ; release 3.0.14 -5 (voir journal) |
 | 160 | 31/10 | Un fichier journal texte, avec une case dans l'interface (au lancement suivant), à côté de l'exe ou à la racine de WRITE_DIR, le précédent gardé en .old.log ; et les noms de sorties que BFF connaît (`RawLamps` inchangé) | ✅ `LOG_FILE` ([System], coché par défaut) : `linuxloader.log` + `linuxloader.old.log`, case dans À propos ; `LampStart`, `LampView1`, `LampLeader`, `LampDriverL`, `LampDriverR` pour OutRun 2 ; essayé sur Hummer (write-dir, à côté de l'exe, désactivé) ; lampes nommées non essayées (pas d'OutRun 2 ici) |
 | 159 | 31/10 | (second retour du testeur d'OutRun 2, version 20261030) OUTPUT TEST → `lampN`, lampe arrière, où est le journal, ressort « progressif » selon le type de borne | ⚠️ lampes : notre table était juste (Start lamp0, View lamp4, pilote G lamp2, pilote D lamp5) ; ses lumières sont branchées autrement dans son outil de sorties ; noms G et D ajoutés ; lampe arrière sur aucune sortie JVS (question posée) ; pas de fichier journal (console seulement) ; ressort présent en DX/SDX, absent en standard : le jeu |
 | 158 | 31/10 | Commit et push de la demande 157 ; ce qui reste à faire en link | ✅ commité et poussé sur `dev/ffbedition` ; reste : essais de DHR et MT3 / 3DX+ sur les bornes, Nirin, Initial D 4 Japan, Hummer, Race TV et Initial D 4 / 5 Export à refaire sur les bornes |
-| 157 | 31/10 | Le link de Dead Heat Riders et de Maximum Tune 3 / 3DX+ | 🔄 reliés ici à deux copies ; corrections : adresse dans le réseau du PC et pairs traduits (DHR), `ifconfig.txt` au bon endroit, pipes dans `select`, `errno` gardé après `accept` (MT3) ; build `…-linktest4-…` pour Image borne ; commité et poussé à la demande 158, pas encore essayé sur les bornes (voir journal) |
+| 157 | 31/10 | Le link de Dead Heat Riders et de Maximum Tune 3 / 3DX+ | 🔄 reliés ici à deux copies ; corrections : adresse dans le réseau du PC et pairs traduits (DHR), `ifconfig.txt` au bon endroit, pipes dans `select`, `errno` gardé après `accept` (MT3) ; build `…-linktest4-…` pour Image borne ; commité et poussé à la demande 158 ; sur les bornes : DHR et MT3 reliés, DHR seul sans interférence, 3DX+ pas relié (les deux se disent ID:1) (voir journal) |
 | 156 | 31/10 | Commit, push, une release, Image borne pour la déployer | ✅ rien à commiter (`e34fe0f` déjà poussé) ; `releases/linuxloader-v3.0.14-ffbedition-20261031-4-njz3-win32.zip` (MinGW : la -3 plus le filtre 155) ; Image borne prévenue pour le déploiement (voir journal) |
 | 155 | 31/10 | Comme windowsloader : avec un dossier d'écriture refusé, des copies temporaires pour les seuls fichiers essentiels, filtre sur les noms (demande relayée par windowsloader) | ✅ `[Paths] TEMP_WRITES` + `writeDirTempWrites` des modules + l'EEPROM et la SRAM du loader ; tout le reste refusé et journalisé (300 chemins) ; neuf jeux essayés dossier refusé : tous démarrent (voir journal) |
 | 154 | 31/10 | R-Tuned en link sur les bornes : cab1 ne prend ni pièce ni Start (essais d'Image borne) ; commit, push, release, déploiement par Image borne | ✅ pas le jeu ni le link : depuis 10:17, le loader de racecab1 n'ouvre plus vJoy (un autre programme le tient, à vérifier sur place) ; l'échec d'ouverture d'une manette est maintenant journalisé (`ae1dd5a`) ; `releases/linuxloader-v3.0.14-ffbedition-20261031-3-njz3-win32.zip` ; Image borne prévenue pour le déploiement (voir journal) |
@@ -190,6 +191,17 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 
 ## Journal de développement
 
+### Maximum Tune 3DX+ en link, et la release 3.0.14 -5 (demande 161)
+- Essais d'Image borne (journal de la demande 157) : 3DX+ prend bien l'adresse de chaque PC, mais les deux bornes se
+  disent ID:1. Son exécutable (copie de racecab1 dans `games\mt3dx`, sans `_teknoparrot_off`) lit
+  `/tmp/data/etc/testmode.lua`, `bookkeeping.lua` et `cardbackup.lua` (Maximum Tune 3 : `/tmp/data/…`) : le
+  `testmode.lua` posé dans `tmp\data` n'était lu que par le loader, le jeu gardait ses valeurs par défaut.
+  `maximumTuneLinked` lit `tmp\data\etc\testmode.lua` pour 3DX+. Ses clés diffèrent un peu de celles de Maximum
+  Tune 3 (`NormalWinsAndRemains`, `CoinChute`, `NormalFreePlay`, `ScreenColorLevel`) : ses réglages pour les bornes sont à
+  refaire à partir du fichier qu'il écrit lui-même.
+- Pull de `dev/ffbedition` (demandes 159 et 160 d'une autre session, en avance rapide) ; `build-msvc` à reconfigurer
+  (nouveau `src/loader/log/logFile.c`).
+
 ### Fichier journal et sorties nommées (demande 160)
 - `[System] LOG_FILE` (vrai par défaut) : les lignes de la console d'un lancement de jeu aussi dans
   `linuxloader.log`, à côté de `linuxloader.exe`, ou à la racine du dossier d'écriture quand il y en a un (le dossier
@@ -275,6 +287,19 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 - À 11:13:01, tous les dossiers `ll-deps` de mon espace de travail (`%TEMP%\claude\…\scratchpad`) ont été effacés en
   60 ms par un autre programme (pas le loader, qui n'efface que ses `linuxloader-nosave-*`) ; le premier zip linktest4
   en manquait, refait depuis la -4. Les releases et les builds du dépôt sont intacts.
+- Essais d'Image borne sur les bornes (linktest4, logs et photos dans `linktest-logs\dhr3`, `mt3b`, `mt3dx`,
+  `dhr-solo`) :
+  - Dead Heat Riders relié : lignes « Link: » attendues (.41 / .42), « LINKED= 2 » sur les deux, même ville, même
+    grille (8TH / 7TH).
+  - Maximum Tune 3 relié : « 2 Cars in linked play », rampe de départ choisie à la majorité, course « 2/2 » / « 1/2 »,
+    chacun voit la voiture « GUEST » de l'autre. Hors link : avec 2 crédits, Start (vJoy 4, `P1_Start`) ne lance pas
+    la partie, accélérateur plus View (vJoy 5) oui ; à voir.
+  - Maximum Tune 3DX+ pas relié : les deux logs ont bien « Link: Maximum Tune's address is this PC's » (.4 / .5) et le
+    multicast, mais les deux bornes se disent ID:1 (cab1 : ID:2-4 NG puis « Could not read Ghost Battle data » ; cab2 :
+    les quatre « チェック中… ») : 3DX+ ne prend pas son PCB ID dans `tmp/data/testmode.lua` (PcbId 1 sur cab2), ou le
+    lit ailleurs. Pas de copie du jeu ici pour le vérifier.
+  - Dead Heat Riders seul sur les deux bornes, PCB ID 1 par défaut : chacune joue seule, sans gel. Les deux se donnent
+    .41, et l'autre borne est montrée au jeu sous .41, sa propre adresse : il l'ignore.
 
 ### Release 3.0.14 -4 du 31/10 (demande 156)
 - Arbre propre, `e34fe0f` déjà poussé. Release MinGW, `RELEASE_SUFFIX` « -4 », 50 avertissements :

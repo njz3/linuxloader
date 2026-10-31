@@ -1533,14 +1533,16 @@ static const uint8_t eth0Mac[6] = {0x00, 0xD0, 0xF1, 0x00, 0x00, 0x01}; // SEGA 
 
 // Maximum Tune 3 and 3DX+ run in Namco's debug mode under the loader (started without an argument: seqMain(argc ==
 // 1)), where they set no address (no sudo ifconfig) and only read eth0's from ifconfig.pl: on a link, TOTAL MACHINE 2
-// or more in their test menu (TotalMachine 1 or more in tmp/data/testmode.lua), eth0 is this PC's address on its
-// network. Their link takes the other cabinets' status from its /24 only (clNet::receive<clProtocolStatusData>) and
-// connects to their sources, the other PCs. Alone, it stays as before (no network)
+// or more in their test menu (TotalMachine 1 or more in tmp/data/testmode.lua, 3DX+'s tmp/data/etc/testmode.lua), eth0
+// is this PC's address on its network. Their link takes the other cabinets' status from its /24 only
+// (clNet::receive<clProtocolStatusData>) and connects to their sources, the other PCs. Alone, it stays as before (no
+// network)
 static bool maximumTuneLinked(void)
 {
     if ((gId != WANGAN_MIDNIGHT_MT3 && gId != WANGAN_MIDNIGHT_MT3DX) || eth0Set[0] || sharedLocalLinkAddress())
         return false;
-    FILE *file = writeDirFopen("tmp\\data\\testmode.lua", "r");
+    FILE *file =
+        writeDirFopen(gId == WANGAN_MIDNIGHT_MT3DX ? "tmp\\data\\etc\\testmode.lua" : "tmp\\data\\testmode.lua", "r");
     if (!file)
         return false;
     char line[256];
