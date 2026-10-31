@@ -185,6 +185,11 @@ int createDefaultIni(const char *filePath)
     iniOut(&out, "# place of the game folder's (a link cabinet's NVRAM, its LINK ID set), copied there when the game starts; a\n");
     iniOut(&out, "# file already in WRITE_DIR\\<game> is never replaced. Relative to the loader's folder, or a full path.\n");
     iniOut(&out, "# For Example: saves\nSEED_DIR = \"\"\n\n");
+    iniOut(&out, "# Windows, a WRITE_DIR that cannot be made or written in: nothing is written, but the files named here,\n");
+    iniOut(&out, "# kept in a copy in the temporary folder until the game ends, so that a game that cannot start without them\n");
+    iniOut(&out, "# does (the boards' memories the loader keeps are always). Names, without case, * and ? allowed, separated by\n");
+    iniOut(&out, "# ';'; the log lists the files refused.\n");
+    iniOut(&out, "# For Example: *.sav;settings.dat\nTEMP_WRITES = \"\"\n\n");
     iniOut(&out, "# If set, libCG.so needed for 2Spicy, Harley, Rambo and HOD-Ex shader recompilation\n");
     iniOut(&out, "# will be loaded from the specified location. (include the name of file in the location ");
     iniOut(&out, "For Example: /my/file/location/myLibCg.so)\nLIBCG_PATH = \"%s\"\n\n", defaults.libCgPath);

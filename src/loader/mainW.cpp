@@ -370,6 +370,11 @@ int main(int argc, char *argv[], char *envp[])
 
     initConfig(configPath);
     writeDirEnterGame(getConfig()->gameShortTitle); // from now on the current folder
+    // The files still written when the write folder is refused: [Paths] TEMP_WRITES, and the boards' memories the
+    // loader keeps (the game modules add theirs, patching/patch.c)
+    writeDirTempWrites(getConfig()->tempWrites);
+    writeDirTempWrites(getConfig()->eepromPath);
+    writeDirTempWrites(getConfig()->sramPath);
 
     // The game's tmp folder, in the write folder; not made when it is refused (the current folder is then the game's)
     if (!writeDirRefused() && !std::filesystem::exists("tmp"))

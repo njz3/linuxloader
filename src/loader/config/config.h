@@ -320,6 +320,7 @@ typedef struct
     char jvsPath[MAX_PATH_LENGTH];
     char serial1Path[MAX_PATH_LENGTH];
     char serial2Path[MAX_PATH_LENGTH];
+    char tempWrites[1024]; // [Paths] TEMP_WRITES: the files still written when the write folder is refused (writeDir.c)
     int width;
     int height;
     int boostRenderRes;

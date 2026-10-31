@@ -24,9 +24,10 @@ static int active = 0;
 // WRITE_DIR asked for but unusable (not made, or a file not written in it): nothing is kept. The settings and the
 // game's files are read where they are (the loader's folder, the game's, the current one staying the game's), and
 // never written there, those folders being the cabinet's templates (two emulators started at once by accident must
-// not change them). A file written goes to a copy of its own in Windows' temporary folder (shadowOf), read back for
-// the rest of the run (an EEPROM's settings the loader writes at start, Namco's ifconfig.txt) and removed when the
-// loader ends; folders are neither made, removed nor renamed
+// not change them). Every write is refused (folders made, removed, renamed included), but for the files a game
+// cannot start without (writeDirTempWrites: [Paths] TEMP_WRITES, the game's module, the loader's boards' memories):
+// those go to a copy of their own in Windows' temporary folder (shadowOf), read back for the rest of the run (an
+// EEPROM's settings the loader writes at start, Namco's ifconfig.txt) and removed when the loader ends
 static int refused = 0;
 
 // A Linux disk image's files outside the game's folder (Gaelco's /home/save0/switch.bin, the image's root being the
@@ -172,9 +173,83 @@ static void refuse(const char *folder, const char *reason)
               folder, reason);
 }
 
+// A write refused, in the log once for each path, up to REFUSED_LOGGED of them: the names to give TEMP_WRITES for a
+// game that does not start
+#define REFUSED_LOGGED 300
+static char *refusedLogged[REFUSED_LOGGED];
+static int refusedLoggedCount = 0;
+static SRWLOCK refusedLock = SRWLOCK_INIT;
+
 static void refusedWrite(const char *what, const char *path)
 {
-    log_warn("write folder refused: %s %s not written", what, path);
+    AcquireSRWLockExclusive(&refusedLock);
+    int seen = 0;
+    for (int i = 0; i < refusedLoggedCount && !seen; i++)
+        seen = _stricmp(refusedLogged[i], path) == 0;
+    if (!seen && refusedLoggedCount < REFUSED_LOGGED)
+    {
+        refusedLogged[refusedLoggedCount++] = _strdup(path);
+        log_warn("write folder refused: %s %s not written%s", what, path,
+                 refusedLoggedCount == REFUSED_LOGGED ? " (the next ones are not logged)" : "");
+    }
+    ReleaseSRWLockExclusive(&refusedLock);
+}
+
+// The files still written while refused: name patterns separated by ';'. The loader's own files a game reads back:
+// Namco's dongle image (namcoHasp.c) and eth0 as its ifconfig.pl gives it (filesystemShared.c)
+static char tempWrites[2048] = "hasp.bin;ifconfig.txt";
+
+void writeDirTempWrites(const char *patterns)
+{
+    if (!patterns)
+        return;
+    char copy[1024];
+    snprintf(copy, sizeof(copy), "%s", patterns);
+    for (char *pattern = strtok(copy, ";"); pattern; pattern = strtok(NULL, ";"))
+    {
+        while (*pattern == ' ' || *pattern == '\t' || *pattern == '"')
+            pattern++;
+        char *end = pattern + strlen(pattern);
+        while (end > pattern && (end[-1] == ' ' || end[-1] == '\t' || end[-1] == '"'))
+            *--end = '\0';
+        // a name: the last part of a path given (EEPROM_PATH)
+        for (char *c = pattern; *c; c++)
+            if (*c == '/' || *c == '\\')
+                pattern = c + 1;
+        if (!pattern[0])
+            continue;
+        size_t length = strlen(tempWrites);
+        if (length + strlen(pattern) + 2 < sizeof(tempWrites))
+            snprintf(tempWrites + length, sizeof(tempWrites) - length, "%s%s", length ? ";" : "", pattern);
+    }
+}
+
+// name matches pattern, without case: * any run of characters, ? any one
+static int nameMatches(const char *pattern, const char *name)
+{
+    if (*pattern == '\0')
+        return *name == '\0';
+    if (*pattern == '*')
+        return nameMatches(pattern + 1, name) || (*name && nameMatches(pattern, name + 1));
+    if (*name && (*pattern == '?' || tolower((unsigned char)*pattern) == tolower((unsigned char)*name)))
+        return nameMatches(pattern + 1, name + 1);
+    return 0;
+}
+
+// Whether a file is one still written while refused
+static int essential(const char *path)
+{
+    const char *name = path;
+    for (const char *c = path; *c; c++)
+        if (*c == '/' || *c == '\\')
+            name = c + 1;
+    char patterns[sizeof(tempWrites)];
+    snprintf(patterns, sizeof(patterns), "%s", tempWrites);
+    char *context = NULL;
+    for (char *pattern = strtok_s(patterns, ";", &context); pattern; pattern = strtok_s(NULL, ";", &context))
+        if (nameMatches(pattern, name))
+            return 1;
+    return 0;
 }
 
 // The copies of the files written while the write folder is refused, by full path
@@ -424,10 +499,13 @@ const char *writeDirForWrite(const char *path, int keep, char *buffer, size_t si
     char relative[MAX_PATH], gameSide[MAX_PATH];
     if (refused)
     {
-        const char *copy = shadowOf(path, 1, keep);
+        const char *copy = essential(path) ? shadowOf(path, 1, keep) : NULL;
         if (!copy)
+        {
             refusedWrite("file", path);
-        return copy ? copy : "NUL";
+            errno = EACCES;
+        }
+        return copy;
     }
     if (!relativePart(path, relative, sizeof(relative)))
         return path;
@@ -469,7 +547,7 @@ FILE *writeDirFopen(const char *path, const char *mode)
     }
     const char *target = write ? writeDirForWrite(path, strchr(mode, 'w') == NULL, buffer, sizeof(buffer))
                                : writeDirForRead(path, buffer, sizeof(buffer));
-    return fopen(target, mode);
+    return target ? fopen(target, mode) : NULL; // NULL: a write refused
 }
 
 int writeDirOpen(const char *path, int flags, int mode)
@@ -485,7 +563,7 @@ int writeDirOpen(const char *path, int flags, int mode)
     }
     const char *target = write ? writeDirForWrite(path, (flags & _O_TRUNC) == 0, buffer, sizeof(buffer))
                                : writeDirForRead(path, buffer, sizeof(buffer));
-    return _open(target, flags, mode);
+    return target ? _open(target, flags, mode) : -1; // -1: a write refused
 }
 
 int writeDirMkdir(const char *path)
@@ -494,12 +572,13 @@ int writeDirMkdir(const char *path)
     if (refused)
     {
         if (exists(path))
-        {
             errno = EEXIST;
-            return -1;
+        else
+        {
+            refusedWrite("folder", path);
+            errno = EACCES;
         }
-        refusedWrite("folder", path);
-        return 0;
+        return -1;
     }
     return _mkdir(writeDirForWrite(path, 0, buffer, sizeof(buffer)));
 }
@@ -528,15 +607,20 @@ int writeDirRemove(const char *path)
     char writeSide[MAX_PATH], gameSide[MAX_PATH];
     if (refused)
     {
-        int had = shadowOf(path, 0, 0) != NULL;
-        shadowForget(path);
-        if (!had && !exists(path))
+        // A copy is removed (the file is read where it is again); the files of those folders never are
+        if (shadowOf(path, 0, 0))
         {
-            errno = ENOENT;
-            return -1;
+            shadowForget(path);
+            return 0;
         }
-        refusedWrite("removal of", path);
-        return 0;
+        if (!exists(path))
+            errno = ENOENT;
+        else
+        {
+            refusedWrite("removal of", path);
+            errno = EACCES;
+        }
+        return -1;
     }
     if (!writeDirSides(path, writeSide, gameSide, sizeof(writeSide)))
         return remove(path);
@@ -556,13 +640,19 @@ int writeDirRename(const char *from, const char *to)
         return rename(from, to);
     if (refused)
     {
-        // The target's copy gets the content; the source stays as it is
+        // A file still written: its copy gets the content, the source stays as it is. Any other: refused
         const char *copy = shadowOf(from, 0, 0);
         const char *read = copy ? copy : exists(from) ? from : NULL;
-        const char *written = read ? shadowOf(to, 1, 0) : NULL;
-        if (!read || !written || !CopyFileA(read, written, FALSE))
+        if (!read)
         {
-            errno = read ? EACCES : ENOENT;
+            errno = ENOENT;
+            return -1;
+        }
+        const char *written = essential(to) ? shadowOf(to, 1, 0) : NULL;
+        if (!written || !CopyFileA(read, written, FALSE))
+        {
+            refusedWrite("rename to", to);
+            errno = EACCES;
             return -1;
         }
         return 0;
@@ -819,6 +909,11 @@ int writeDirGameFolder(char *buffer, size_t size)
 void writeDirImageRoot(const char *root)
 {
     (void)root;
+}
+
+void writeDirTempWrites(const char *patterns)
+{
+    (void)patterns;
 }
 
 const char *writeDirRefused(void)

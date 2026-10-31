@@ -360,7 +360,8 @@ namespace FileSystemBridge
 
         char winPath[MAX_PATH], redirected[MAX_PATH];
         ConvertPath(winPath, pathname, MAX_PATH);
-        return _creat(writeDirForWrite(winPath, 0, redirected, sizeof(redirected)), mode);
+        const char *target = writeDirForWrite(winPath, 0, redirected, sizeof(redirected));
+        return target ? _creat(target, mode) : -1; // -1: a write refused (writeDir.c)
     }
 
     int bridgeRmdir(const char *path)

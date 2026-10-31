@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 155 | 31/10 | Comme windowsloader : avec un dossier d'écriture refusé, des copies temporaires pour les seuls fichiers essentiels, filtre sur les noms (demande relayée par windowsloader) | ✅ `[Paths] TEMP_WRITES` + `writeDirTempWrites` des modules + l'EEPROM et la SRAM du loader ; tout le reste refusé et journalisé (300 chemins) ; neuf jeux essayés dossier refusé : tous démarrent (voir journal) |
 | 154 | 31/10 | R-Tuned en link sur les bornes : cab1 ne prend ni pièce ni Start (essais d'Image borne) ; commit, push, release, déploiement par Image borne | ✅ pas le jeu ni le link : depuis 10:17, le loader de racecab1 n'ouvre plus vJoy (un autre programme le tient, à vérifier sur place) ; l'échec d'ouverture d'une manette est maintenant journalisé (`ae1dd5a`) ; `releases/linuxloader-v3.0.14-ffbedition-20261031-3-njz3-win32.zip` ; Image borne prévenue pour le déploiement (voir journal) |
 | 153 | 31/10 | Pousser, faire une release, prévenir Image borne | ✅ `b4ae013` poussé ; `releases/linuxloader-v3.0.14-ffbedition-20261031-2-njz3-win32.zip` (MinGW : link 151, dossier d'écriture 152) ; Image borne prévenue (voir journal) |
 | 152 | 31/10 | Dossier d'écriture inutilisable : règle du propriétaire commune aux émulateurs (relayée par la session Flycast) ; commit de la 151 d'abord | ✅ `4a20866` (151) commité ; sonde au démarrage, rien écrit dans les dossiers modèles ni gardé, lectures aux endroits habituels, notification de 20 s traduite ; OutRun 2 essayé avec un dossier interdit en écriture, impossible à créer, et normal (voir journal) |
@@ -183,6 +184,28 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Dossier d'écriture refusé : seuls les fichiers essentiels en copie (demande 155)
+- Demande du propriétaire, relayée par windowsloader (son commit `58e47e3`) : avec un dossier d'écriture refusé, des
+  copies dans `%TEMP%` seulement pour les fichiers jugés essentiels, toute autre écriture refusée ; les mêmes moyens
+  que windowsloader.
+- Le filtre (`writeDir.c`, `essential`) porte sur le nom du fichier (le dernier élément du chemin), sans la casse,
+  `*` et `?`, motifs séparés par « ; ». Il réunit `[Paths] TEMP_WRITES` (`linuxloader.ini`, ou `--set
+  Paths.TEMP_WRITES=…` ; vide par défaut, commenté dans le fichier d'exemple : 97 « # Default: »), ce que déclare le
+  module d'un jeu (`writeDirTempWrites("…")`, aucun pour l'instant : pas de jeu essayé qui en ait besoin), et les
+  fichiers du loader : l'EEPROM et la SRAM (`EEPROM_PATH`, `SRAM_PATH`, par `mainW.cpp`), `hasp.bin` et
+  `ifconfig.txt` (Namco, relus par le jeu).
+- Le reste est refusé : `fopen`/`open`/`creat` en écriture rendent une erreur (EACCES), comme `mkdir`, la suppression
+  d'un fichier et `rename` vers un nom non essentiel ; le log nomme chaque chemin refusé une fois, jusqu'à 300 (« write
+  folder refused: file … not written »), pour savoir quoi mettre dans `TEMP_WRITES`.
+- Essayé ici avec un dossier interdit en écriture (icacls), 2 pièces et Start : OutRun 2, Dead Heat, Nirin, R-Tuned,
+  Hummer, Race TV, Ring Riders, Tuning Race, Tokyo Cop démarrent et vont à leurs menus, 57 à 60 FPS, avec seulement
+  l'EEPROM et la SRAM en copie (plus `ifconfig.txt` pour Dead Heat) ; refusés par exemple les fichiers de
+  `save0/testmode` de Dead Heat, les `planner/*.dat` de Nirin (143), `tmp\warning` de R-Tuned, les `switch.bin` des
+  Gaelco. Rien de modifié à côté de l'exe ni dans les jeux. `--set Paths.TEMP_WRITES=*_param.dat; find.txt` sur Nirin :
+  28 fichiers en copie, 117 refusés. Hummer a montré deux fois « The CALIBRATION SETTING has not been set correctly »,
+  puis plus (dossier refusé ou non) : intermittent, pas lié. Dead Heat attend ses PCB 2 à 4 avec ou sans refus (les
+  réglages de son dossier local).
 
 ### R-Tuned sur les bornes, et la release 3.0.14 -3 (demande 154)
 - Essais d'Image borne (linktest3, SRAM de `linktest-logs\seeds-rtuned`) : les deux bornes échangent leurs paquets

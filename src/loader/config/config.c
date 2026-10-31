@@ -182,6 +182,7 @@ void setDefaultValues(EmulatorConfig *cfg)
     strcpy(cfg->sramPath, "sram.bin");
     strcpy(cfg->libCgPath, "");
     strcpy(cfg->jvsPath, "/dev/ttyUSB0");
+    strcpy(cfg->tempWrites, "");
     strcpy(cfg->serial1Path, "/dev/ttyS0");
     strcpy(cfg->serial2Path, "/dev/ttyS1");
     cfg->width = 640;
@@ -485,6 +486,7 @@ void applyIniConfig(EmulatorConfig *config, const IniConfig *ini)
     getString(ini, "Paths", "SRAM_PATH", config->sramPath, MAX_PATH_LENGTH);
     getString(ini, "Paths", "EEPROM_PATH", config->eepromPath, MAX_PATH_LENGTH);
     getString(ini, "Paths", "LIBCG_PATH", config->libCgPath, MAX_PATH_LENGTH);
+    getString(ini, "Paths", "TEMP_WRITES", config->tempWrites, sizeof(config->tempWrites));
 
     // [Graphics]
     config->hummerFlickerFix = getInt(ini, "Graphics", "HUMMER_FLICKER_FIX", config->hummerFlickerFix);
