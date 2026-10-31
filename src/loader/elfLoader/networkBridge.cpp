@@ -332,12 +332,78 @@ static uint32_t lanAddressOf(uint32_t gameAddress)
     return 0;
 }
 
+// Dead Heat Riders takes another cabinet's packets only from a source whose last number has its two last digits at 4
+// or less (clNet::isResionCheck: .4, .41, .42 pass, .5 not): its cabinets' own addresses, 192.168.G.(10 * TOTAL + PCB
+// ID), always do, the PCs' not (racecab2, 192.168.1.5). An other cabinet is shown to it under its game address, learnt
+// from its status packets (36 bytes, type 0x1903 at +0x14, its PCB ID - 1 at +0x1a and TOTAL at +0x1b), and that
+// address taken back to its PC's for what the game sends it or connects to
+#define LINK_PEERS 8
+static struct
+{
+    uint32_t game, pc; // network order
+} linkPeers[LINK_PEERS];
+static int linkPeerCount = 0;
+static SRWLOCK linkPeerLock = SRWLOCK_INIT;
+
+static void linkPeerLearn(const struct sockaddr_in *from, const WSABUF *bufs, DWORD count, DWORD received)
+{
+    uint32_t own = ownAddress();
+    if (getConfig()->crc32 != DEAD_HEAT_RIDERS || !own || !from || from->sin_family != AF_INET || received != 36 ||
+        isThisPc(from->sin_addr.s_addr))
+        return;
+    unsigned char packet[36];
+    DWORD copied = 0;
+    for (DWORD i = 0; i < count && copied < sizeof(packet); i++)
+    {
+        DWORD part = bufs[i].len < sizeof(packet) - copied ? bufs[i].len : sizeof(packet) - copied;
+        memcpy(packet + copied, bufs[i].buf, part);
+        copied += part;
+    }
+    uint32_t type;
+    memcpy(&type, packet + 0x14, 4);
+    if (copied < sizeof(packet) || type != 0x1903)
+        return;
+    uint32_t game = htonl((ntohl(own) & 0xFFFFFF00) | ((packet[0x1a] + 10u * packet[0x1b] + 1u) & 0xFF));
+    AcquireSRWLockExclusive(&linkPeerLock);
+    int found = 0;
+    for (int i = 0; i < linkPeerCount && !found; i++)
+        if (linkPeers[i].pc == from->sin_addr.s_addr)
+        {
+            found = 1;
+            linkPeers[i].game = game;
+        }
+    if (!found && linkPeerCount < LINK_PEERS)
+    {
+        linkPeers[linkPeerCount].game = game;
+        linkPeers[linkPeerCount++].pc = from->sin_addr.s_addr;
+        char a[16], b[16];
+        InetNtopA(AF_INET, &game, a, sizeof(a));
+        InetNtopA(AF_INET, (void *)&from->sin_addr, b, sizeof(b));
+        log_warn("Link: the cabinet at %s shown to the game as %s", b, a);
+    }
+    ReleaseSRWLockExclusive(&linkPeerLock);
+}
+
+// An other cabinet's address, its PC's to the game's (toGame) or back
+static uint32_t linkPeerSwap(uint32_t address, bool toGame)
+{
+    uint32_t swapped = address;
+    AcquireSRWLockShared(&linkPeerLock);
+    for (int i = 0; i < linkPeerCount; i++)
+        if ((toGame ? linkPeers[i].pc : linkPeers[i].game) == address)
+            swapped = toGame ? linkPeers[i].game : linkPeers[i].pc;
+    ReleaseSRWLockShared(&linkPeerLock);
+    return swapped;
+}
+
 static void fromThisPc(void *address)
 {
     struct sockaddr_in *in = (struct sockaddr_in *)address;
     uint32_t own = ownAddress();
     if (own && in && in->sin_family == AF_INET && isThisPc(in->sin_addr.s_addr))
         in->sin_addr.s_addr = own;
+    else if (own && in && in->sin_family == AF_INET && linkPeerCount)
+        in->sin_addr.s_addr = linkPeerSwap(in->sin_addr.s_addr, true);
 }
 
 // For sysBridge.cpp's getpeername
@@ -350,10 +416,15 @@ static const struct sockaddr *toThisPc(const void *address, struct sockaddr_in *
 {
     const struct sockaddr_in *in = (const struct sockaddr_in *)address;
     uint32_t own = ownAddress();
-    if (!own || !in || in->sin_family != AF_INET || in->sin_addr.s_addr != own)
+    if (!own || !in || in->sin_family != AF_INET)
+        return (const struct sockaddr *)address;
+    uint32_t pc = in->sin_addr.s_addr == own ? htonl(INADDR_LOOPBACK)
+                  : linkPeerCount             ? linkPeerSwap(in->sin_addr.s_addr, false)
+                                              : in->sin_addr.s_addr;
+    if (pc == in->sin_addr.s_addr)
         return (const struct sockaddr *)address;
     *copy = *in;
-    copy->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    copy->sin_addr.s_addr = pc;
     return (const struct sockaddr *)copy;
 }
 
@@ -861,6 +932,7 @@ extern "C" int bridgeRecvmsg(SOCKET fd, LinuxMsghdr *msg, int flags)
         errno = mapWSAErrorToErrno(error);
         return -1;
     }
+    linkPeerLearn((const struct sockaddr_in *)msg->msg_name, bufs, msg->msg_iovlen, received);
     fromThisPc(msg->msg_name);
     const struct sockaddr_in *from = (const struct sockaddr_in *)msg->msg_name;
     unsigned long room = 0;

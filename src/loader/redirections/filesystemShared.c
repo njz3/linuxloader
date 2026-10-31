@@ -803,13 +803,24 @@ int bridgeRecv(SOCKET s, char *buf, int len, int flags);
 static SOCKET socketFds[SOCKET_FD_COUNT]; // 0: free
 static SRWLOCK socketFdLock = SRWLOCK_INIT;
 
+// A C library descriptor's handle, -1 for none, errno kept: _get_osfhandle sets it to EBADF for a free descriptor,
+// and Maximum Tune 3's boost::asio reads errno, not the result, after an accept (an accept taken as failed: its
+// server closed the connection and never listened again)
+static intptr_t osHandleOf(int fd)
+{
+    int saved = errno;
+    intptr_t handle = _get_osfhandle(fd);
+    errno = saved;
+    return handle;
+}
+
 int sharedSocketFdNew(SOCKET s)
 {
     int fd = -1;
     AcquireSRWLockExclusive(&socketFdLock);
     for (int i = 0; i < SOCKET_FD_COUNT && fd < 0; i++)
     {
-        if (!socketFds[i] && _get_osfhandle(SOCKET_FD_BASE + i) == -1)
+        if (!socketFds[i] && osHandleOf(SOCKET_FD_BASE + i) == -1)
         {
             socketFds[i] = s;
             fd = SOCKET_FD_BASE + i;
@@ -1357,23 +1368,30 @@ typedef struct
 // 192.168.GROUP.ID ...) and reads it back: the one it set is kept, as Linux would
 static char eth0Set[16] = "";
 
-// Maximum Heat 3D keeps its network group in 32 to 63 (NET GROUP 32 as it comes, 1 taken as 32), so its address is
-// never in the cabinets' network: 192.168.G.H, H = 105 + 10 * TOTAL MACHINES + PCB ID - 1. Its link takes the other
-// cabinets' status only from its own /24 (clNet::receive<clProtocolStatusData>), and they come from their PCs'
-// addresses (192.168.1.x): each cabinet stays alone ("ID:2 CHECKING..."). On a link (TOTAL MACHINES 2 or more), its
-// address goes into this PC's network, as Dead Heat's with NET GROUP 1: 192.168.32.125 becomes 192.168.1.125. Its
-// group, compared between cabinets only, stays its own
-static void maxHeatAddress(char *address, size_t size)
+// Maximum Heat 3D and Dead Heat Riders keep their network group out of the cabinets' network (32 to 63, NET GROUP 32
+// as it comes; Dead Heat Riders 91 to 99), so their address never is in it: 192.168.G.H, H = 105 + 10 * TOTAL
+// MACHINES + PCB ID - 1 (Maximum Heat 3D), 10 * TOTAL + PCB ID (Dead Heat Riders, its TOTAL set to 4 by its test
+// menu). Their link takes the other cabinets' status only from its own /24 (clNet::receive<clProtocolStatusData>), and
+// they come from their PCs' addresses (192.168.1.x): each cabinet stays alone ("ID:2 CHECKING...", LINKED= 1). On a
+// link (TOTAL MACHINES 2 or more), the address goes into this PC's network, as Dead Heat's with NET GROUP 1:
+// 192.168.32.125 becomes 192.168.1.125. Their group, compared between cabinets only, stays their own
+static void namcoLinkAddress(char *address, size_t size)
 {
     uint32_t game = ntohl(inet_addr(address)), lan, mask;
-    int total = ((int)(game & 0xFF) - 105) / 10;
-    if (gId != MAXIMUM_HEAT_3D || sharedLocalLinkAddress() || (int)(game & 0xFF) < 105 || total < 2 ||
-        !sharedLanAddress(&lan, &mask) || ((ntohl(lan) ^ game) & 0xFFFFFF00) == 0)
+    int low = (int)(game & 0xFF), total;
+    const char *name;
+    if (gId == MAXIMUM_HEAT_3D)
+        name = "Maximum Heat 3D", total = low >= 105 ? (low - 105) / 10 : 0;
+    else if (gId == DEAD_HEAT_RIDERS)
+        name = "Dead Heat Riders", total = (low - 1) / 10;
+    else
+        return;
+    if (sharedLocalLinkAddress() || total < 2 || !sharedLanAddress(&lan, &mask) || ((ntohl(lan) ^ game) & 0xFFFFFF00) == 0)
         return;
     game = (ntohl(lan) & 0xFFFFFF00) | (game & 0xFF);
     char moved[16];
     snprintf(moved, sizeof(moved), "%u.%u.%u.%u", game >> 24, (game >> 16) & 0xFF, (game >> 8) & 0xFF, game & 0xFF);
-    log_warn("Link: Maximum Heat 3D's address %s taken as %s, in this PC's network", address, moved);
+    log_warn("Link: %s's address %s taken as %s, in this PC's network", name, address, moved);
     snprintf(address, size, "%s", moved);
 }
 
@@ -1382,7 +1400,7 @@ void sharedEth0Set(const char *ifconfigArguments)
     char address[16] = "";
     if (sscanf(ifconfigArguments, "%15[0-9.]", address) == 1 && inet_addr(address) != INADDR_NONE)
     {
-        maxHeatAddress(address, sizeof(address));
+        namcoLinkAddress(address, sizeof(address));
         strcpy(eth0Set, address);
     }
 }
@@ -1513,12 +1531,44 @@ const char *sharedLocalLinkAddress(void)
 
 static const uint8_t eth0Mac[6] = {0x00, 0xD0, 0xF1, 0x00, 0x00, 0x01}; // SEGA OUI
 
+// Maximum Tune 3 and 3DX+ run in Namco's debug mode under the loader (started without an argument: seqMain(argc ==
+// 1)), where they set no address (no sudo ifconfig) and only read eth0's from ifconfig.pl: on a link, TOTAL MACHINE 2
+// or more in their test menu (TotalMachine 1 or more in tmp/data/testmode.lua), eth0 is this PC's address on its
+// network. Their link takes the other cabinets' status from its /24 only (clNet::receive<clProtocolStatusData>) and
+// connects to their sources, the other PCs. Alone, it stays as before (no network)
+static bool maximumTuneLinked(void)
+{
+    if ((gId != WANGAN_MIDNIGHT_MT3 && gId != WANGAN_MIDNIGHT_MT3DX) || eth0Set[0] || sharedLocalLinkAddress())
+        return false;
+    FILE *file = writeDirFopen("tmp\\data\\testmode.lua", "r");
+    if (!file)
+        return false;
+    char line[256];
+    int total = 0;
+    while (fgets(line, sizeof(line), file))
+        if (sscanf(line, " TotalMachine = %d", &total) == 1)
+            break;
+    fclose(file);
+    return total >= 1;
+}
+
 // Namco's ifconfig.pl (Dead Heat's engine), which the game runs through sudo perl into a file it reads: eth0 as
-// "interface address mask MAC link", the same as the ioctls below
+// "interface address mask MAC link", the same as the ioctls below. /tmp is the game folder's tmp, as the other calls
+// take it (Maximum Tune 3's /tmp/ifconfig.txt went to the drive's root)
 int sharedNamcoIfconfig(const char *path)
 {
+    uint32_t lan, mask;
+    if (maximumTuneLinked() && sharedLanAddress(&lan, &mask))
+    {
+        struct in_addr in;
+        in.s_addr = lan;
+        snprintf(eth0Set, sizeof(eth0Set), "%s", inet_ntoa(in));
+        log_warn("Link: Maximum Tune's address is this PC's, %s", eth0Set);
+    }
     unsigned a[4] = {127, 0, 0, 1};
     sscanf(eth0Address(), "%u.%u.%u.%u", &a[0], &a[1], &a[2], &a[3]);
+    if (strncmp(path, "/tmp/", 5) == 0)
+        path++;
     char winPath[MAX_PATH];
     ConvertPath(winPath, path, MAX_PATH);
     FILE *file = writeDirFopen(winPath, "w");
@@ -1775,14 +1825,92 @@ static int serialPortSelect(int nfds, fd_set *readfds, fd_set *writefds, fd_set 
 #endif
 
 #ifdef WIN32
+// A pipe of the C library's (pipe()): select takes it with the sockets
+static bool isPipeFd(int fd)
+{
+    intptr_t handle = osHandleOf(fd);
+    return handle != -1 && GetFileType((HANDLE)handle) == FILE_TYPE_PIPE;
+}
+
+// A pipe readable (data waiting, or its other end closed) and writable (always, its buffer being large)
+static bool pipeReady(int fd, int set)
+{
+    if (set != 0)
+        return set == 1;
+    DWORD waiting = 0;
+    return !PeekNamedPipe((HANDLE)osHandleOf(fd), NULL, 0, NULL, &waiting, NULL) || waiting > 0;
+}
+
+// A select with pipes among the sockets: Maximum Tune 3's boost::asio (select_reactor) waits on its sockets and on a
+// pipe written to wake it when it has something to send. Winsock's select knows no pipe: the sockets are polled with
+// it and the pipes with PeekNamedPipe, every millisecond, until one is ready or the time is out (none: no end)
+static int pipeSocketSelect(int *fds, int count, unsigned long **sets, struct timeval *timeout)
+{
+    ULONGLONG deadline = timeout ? GetTickCount64() + (ULONGLONG)timeout->tv_sec * 1000 + timeout->tv_usec / 1000 : 0;
+    for (;;)
+    {
+        fd_set winSets[3];
+        bool sockets = false;
+        for (int i = 0; i < 3; i++)
+        {
+            FD_ZERO(&winSets[i]);
+            for (int k = 0; k < count; k++)
+                if (sets[i] && LINUX_FD_ISSET_BIT(fds[k], sets[i]) && !isPipeFd(fds[k]))
+                {
+                    FD_SET(sharedSocketOf(fds[k]), &winSets[i]);
+                    sockets = true;
+                }
+        }
+        bool pipeWaiting = false;
+        for (int i = 0; i < 2; i++)
+            for (int k = 0; k < count && !pipeWaiting; k++)
+                pipeWaiting = sets[i] && LINUX_FD_ISSET_BIT(fds[k], sets[i]) && isPipeFd(fds[k]) && pipeReady(fds[k], i);
+        struct timeval now = {0, pipeWaiting ? 0 : 1000};
+        if (sockets)
+        {
+            if (select(0, &winSets[0], &winSets[1], &winSets[2], &now) == SOCKET_ERROR)
+                return -1;
+        }
+        else if (!pipeWaiting)
+            Sleep(1);
+        int ready = 0;
+        unsigned long chosen[3][1024 / (8 * sizeof(unsigned long))] = {{0}};
+        for (int i = 0; i < 3; i++)
+            for (int k = 0; k < count && sets[i]; k++)
+            {
+                if (!LINUX_FD_ISSET_BIT(fds[k], sets[i]))
+                    continue;
+                bool isReady = isPipeFd(fds[k]) ? pipeReady(fds[k], i) : FD_ISSET(sharedSocketOf(fds[k]), &winSets[i]) != 0;
+                if (isReady)
+                {
+                    LINUX_FD_SET_BIT(fds[k], chosen[i]);
+                    ready++;
+                }
+            }
+        if (ready || (timeout && GetTickCount64() >= deadline))
+        {
+            for (int i = 0; i < 3; i++)
+                for (int k = 0; k < count && sets[i]; k++)
+                {
+                    if (LINUX_FD_ISSET_BIT(fds[k], chosen[i]))
+                        LINUX_FD_SET_BIT(fds[k], sets[i]);
+                    else
+                        LINUX_FD_CLR_BIT(fds[k], sets[i]);
+                }
+            return ready;
+        }
+    }
+}
+
 // A select on the game's sockets (Initial D's link waits for its datagrams so, cUDPSocket::receiveFrom): their bits in
-// the game's sets as Winsock sockets, Winsock's select, the ready ones set back. -1 when the sets hold no socket
+// the game's sets as Winsock sockets, Winsock's select, the ready ones set back; pipes among them, pipeSocketSelect.
+// -1 when the sets hold no socket nor pipe
 #define SOCKET_SELECT_MAX 64
 static int socketSelect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout)
 {
     unsigned long *sets[3] = {(unsigned long *)readfds, (unsigned long *)writefds, (unsigned long *)exceptfds};
     int fds[SOCKET_SELECT_MAX], count = 0;
-    bool any = false;
+    bool any = false, pipes = false;
     for (int fd = 0; fd < nfds && fd < 1024 && count < SOCKET_SELECT_MAX; fd++)
     {
         bool wanted = false;
@@ -1790,13 +1918,17 @@ static int socketSelect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exc
             wanted = wanted || (sets[i] && LINUX_FD_ISSET_BIT(fd, sets[i]));
         if (!wanted)
             continue;
-        if (!isWinsockHandle(fd))
+        if (isPipeFd(fd))
+            pipes = true;
+        else if (!isWinsockHandle(fd))
             return -1; // a file or a device among them: not this select's
         fds[count++] = fd;
         any = true;
     }
     if (!any)
         return -1;
+    if (pipes)
+        return pipeSocketSelect(fds, count, sets, timeout);
     fd_set winSets[3];
     for (int i = 0; i < 3; i++)
     {

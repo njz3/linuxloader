@@ -92,6 +92,8 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 158 | 31/10 | Commit et push de la demande 157 ; ce qui reste à faire en link | ✅ commité et poussé sur `dev/ffbedition` ; reste : essais de DHR et MT3 / 3DX+ sur les bornes, Nirin, Initial D 4 Japan, Hummer, Race TV et Initial D 4 / 5 Export à refaire sur les bornes |
+| 157 | 31/10 | Le link de Dead Heat Riders et de Maximum Tune 3 / 3DX+ | 🔄 reliés ici à deux copies ; corrections : adresse dans le réseau du PC et pairs traduits (DHR), `ifconfig.txt` au bon endroit, pipes dans `select`, `errno` gardé après `accept` (MT3) ; build `…-linktest4-…` pour Image borne ; commité et poussé à la demande 158, pas encore essayé sur les bornes (voir journal) |
 | 156 | 31/10 | Commit, push, une release, Image borne pour la déployer | ✅ rien à commiter (`e34fe0f` déjà poussé) ; `releases/linuxloader-v3.0.14-ffbedition-20261031-4-njz3-win32.zip` (MinGW : la -3 plus le filtre 155) ; Image borne prévenue pour le déploiement (voir journal) |
 | 155 | 31/10 | Comme windowsloader : avec un dossier d'écriture refusé, des copies temporaires pour les seuls fichiers essentiels, filtre sur les noms (demande relayée par windowsloader) | ✅ `[Paths] TEMP_WRITES` + `writeDirTempWrites` des modules + l'EEPROM et la SRAM du loader ; tout le reste refusé et journalisé (300 chemins) ; neuf jeux essayés dossier refusé : tous démarrent (voir journal) |
 | 154 | 31/10 | R-Tuned en link sur les bornes : cab1 ne prend ni pièce ni Start (essais d'Image borne) ; commit, push, release, déploiement par Image borne | ✅ pas le jeu ni le link : depuis 10:17, le loader de racecab1 n'ouvre plus vJoy (un autre programme le tient, à vérifier sur place) ; l'échec d'ouverture d'une manette est maintenant journalisé (`ae1dd5a`) ; `releases/linuxloader-v3.0.14-ffbedition-20261031-3-njz3-win32.zip` ; Image borne prévenue pour le déploiement (voir journal) |
@@ -185,6 +187,45 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Link de Dead Heat Riders et de Maximum Tune 3 (demande 157)
+- Analyse par deux sous-agents (désassemblage), copies des jeux de racecab1 dans `games\deadheatriders` et
+  `games\mt3` (sans les archives ni l'image disque).
+- **Dead Heat Riders** (essais d'Image borne : multicast reçu, mais LINKED= 1) : son groupe est borné à 91..99
+  (`clTestMode::loadGameOptionsParam`), TOTAL forcé à 4 par son menu GAME OPTIONS (qui ne montre que PCB ID), H = PCB0
+  + 10·TOTAL + 1 : 192.168.91.41 / .42, hors du /24 des PC, donc le statut de l'autre borne est jeté comme chez Maximum
+  Heat 3D. En plus `clNet::isResionCheck` (absent de Dead Heat et de MH3D) n'accepte une source que si les deux
+  derniers chiffres de son dernier nombre sont ≤ 4 : 192.168.1.5 (racecab2) jamais. Corrigé : `namcoLinkAddress`
+  (ex-`maxHeatAddress`) déplace aussi l'adresse de DHR dans le réseau du PC quand TOTAL ≥ 2 ; `networkBridge.cpp`
+  apprend des paquets de statut de l'autre borne (36 octets, type 0x1903, PCB0 en +0x1a, TOTAL en +0x1b) son adresse de
+  jeu, la donne comme source au jeu (`fromThisPc`) et la ramène à celle du PC pour ses envois et connexions
+  (`toThisPc`). Ici à deux copies (PCB 1 / 2, TOTAL 2) : « LINKED= 2 », choix de la moto, photo, départ de la même course
+  ensemble. Seul : boot de 60 s (il attend 4 machines), attract « LINKED= 1 », comme avant.
+- **Maximum Tune 3 / 3DX+** (aucun multicast reçu, « eth0 0.0.0.0 ») : lancé sans argument, il tourne en mode DEBUG de
+  Namco (`seqMain(argc == 1)`), sans `sudo ifconfig` : il lit `/tmp/ifconfig.txt` que `perl etc/ifconfig.pl` écrit.
+  Trois défauts du loader :
+  1. `sharedNamcoIfconfig` écrivait `/tmp/ifconfig.txt` à la racine du disque : le `/` de `/tmp/` est retiré comme
+     ailleurs (dossier `tmp` du jeu). Sur un link (`TotalMachine` ≥ 1 dans `tmp/data/testmode.lua`, soit 2 machines ou
+     plus), son adresse est celle du PC (`sharedLanAddress`) ; seul, comme avant.
+  2. Son boost::asio (`select_reactor`, réveillé par un `pipe`) attendait dans un `select` que le loader rendait vide dès
+     qu'un descripteur n'était pas un socket : aucun envoi. `socketSelect` prend les pipes (`pipeSocketSelect` :
+     `PeekNamedPipe` pour eux, `select` Winsock pour les sockets, par tranches d'1 ms).
+  3. Après un `accept` réussi, `errno` restait à EBADF (`_get_osfhandle` sur les descripteurs libres, dans
+     `sharedSocketFdNew`) ; son asio ne lit que `errno` : chaque connexion fermée aussitôt, le serveur jamais réarmé.
+     `osHandleOf` garde `errno`.
+  Ici à deux copies (`testmode.lua` : PcbId 0 / 1, TotalMachine 1) : boot « PCB ID:1 OK / PCB ID:2 OK », puis « 2 Cars
+  in linked play » sur les deux titres, aussi depuis le zip. Ses réglages : menu de test GAME OPTIONS (mode DEBUG : PCB
+  ID, TOTAL MACHINE, GROUP ID ; Service choisit, Test valide), `tmp/data/testmode.lua` sans CRC. 3DX+ : même moteur,
+  pas essayé (pas de copie).
+- Sans régression ici (dossier d'écriture normal, 2 pièces, Start) : OutRun 2, Dead Heat, Dead Heat Riders, Maximum Tune
+  3, Hummer, Race TV, R-Tuned, Ring Riders, Tuning Race, Tokyo Cop (57 à 60 FPS).
+- Build de test MinGW `releases/linuxloader-v3.0.14-ffbedition-20261031-linktest4-njz3-win32.zip`, SHA-256
+  `e641b6efcc77c5258cf61d30a768ec694dd8cdca7df4f87293722d8119583f51`, exe `5fb684632520180d9bdc8e07451b2426931aa7658813cc8a54d5d156741289c6` ;
+  réglages des deux bornes dans `linktest-logs\seeds-namco` ; protocole envoyé à Image borne (dont DHR seul sur les
+  deux bornes avec le même PCB ID, qui se voient maintenant sur le réseau).
+- À 11:13:01, tous les dossiers `ll-deps` de mon espace de travail (`%TEMP%\claude\…\scratchpad`) ont été effacés en
+  60 ms par un autre programme (pas le loader, qui n'efface que ses `linuxloader-nosave-*`) ; le premier zip linktest4
+  en manquait, refait depuis la -4. Les releases et les builds du dépôt sont intacts.
 
 ### Release 3.0.14 -4 du 31/10 (demande 156)
 - Arbre propre, `e34fe0f` déjà poussé. Release MinGW, `RELEASE_SUFFIX` « -4 », 50 avertissements :
