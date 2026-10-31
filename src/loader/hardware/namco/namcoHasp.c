@@ -8,6 +8,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -143,6 +144,37 @@ static int haspSetRtc(uint32_t handle, uint32_t timeLow, uint32_t timeHigh)
     return HASP_STATUS_OK;
 }
 
+// Maximum Tune 3DX+ (clHasp2::open) asks the session's information after its reads, frees it, then asks the main
+// memory's size
+static int haspGetSessionInfo(uint32_t handle, const char *format, char **info)
+{
+    (void)handle;
+    (void)format;
+    static const char text[] = "<?xml version=\"1.0\" encoding=\"UTF-8\" ?><hasp_info><haspid>270620010001</haspid>"
+                               "</hasp_info>";
+    if (!info)
+        return HASP_STATUS_OK;
+    *info = malloc(sizeof(text));
+    if (*info)
+        memcpy(*info, text, sizeof(text));
+    return HASP_STATUS_OK;
+}
+
+static void haspFree(char *info)
+{
+    free(info);
+}
+
+static int haspGetSize(uint32_t handle, uint32_t file, uint32_t *size)
+{
+    (void)handle;
+    if (file != HASP_FILEID_MAIN)
+        return HASP_INV_FILEID;
+    if (size)
+        *size = sizeof(memory);
+    return HASP_STATUS_OK;
+}
+
 static void replace(const char *name, void *function)
 {
     void *address = findStaticFnAddr(name);
@@ -161,5 +193,8 @@ void namcoHaspInstall(void)
     replace("hasp_decrypt", haspCrypt);
     replace("hasp_get_rtc", haspGetRtc);
     replace("hasp_legacy_set_rtc", haspSetRtc);
+    replace("hasp_get_sessioninfo", haspGetSessionInfo);
+    replace("hasp_free", haspFree);
+    replace("hasp_get_size", haspGetSize);
     log_info("HASP key emulated (%s)", HASP_IMAGE);
 }

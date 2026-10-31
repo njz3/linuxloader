@@ -400,6 +400,29 @@ const char *sharedBinaryMode(const char *mode, char *buffer, size_t size)
     buffer[length] = 0;
     return buffer;
 }
+
+// The USB bus as Linux lists it, for Namco's HASP key code: Maximum Tune 3DX+'s clHasp and clHasp2 look for
+// "Product=HASP" in /proc/bus/usb/devices before each use of the key (Maximum Tune 3 asks clHasp::isAvail, which
+// namcoHasp.c answers), and give "HASP ERR feature failed", no serial and a "USB DONGLE ERROR" box without it. A file
+// of this PC's temporary folder lists that one key; the key itself is namcoHasp.c's
+static FILE *usbDevicesFile(const char *mode)
+{
+    char path[MAX_PATH];
+    DWORD length = GetTempPathA(sizeof(path), path);
+    if (length == 0 || length + 32 > sizeof(path))
+        return NULL;
+    strcat(path, "linuxloader-usb-devices.txt");
+    FILE *file = fopen(path, "rb");
+    if (!file && (file = fopen(path, "wb")) != NULL)
+        fputs("T:  Bus=01 Lev=01 Prnt=01 Port=00 Cnt=01 Dev#=  2 Spd=12  MxCh= 0\n"
+              "P:  Vendor=0529 ProdID=0001 Rev= 1.00\n"
+              "S:  Manufacturer=AKS\n"
+              "S:  Product=HASP HL 3.25\n",
+              file);
+    if (file)
+        fclose(file);
+    return fopen(path, mode);
+}
 #endif
 
 FILE *sharedFopen(const char *restrict pathname, const char *restrict mode)
@@ -413,6 +436,11 @@ FILE *sharedFopen(const char *restrict pathname, const char *restrict mode)
 #ifdef _WIN32
     char binary[16];
     mode = sharedBinaryMode(mode, binary, sizeof(binary));
+#endif
+
+#ifdef _WIN32
+    if (strcmp(pathname, "/proc/bus/usb/devices") == 0)
+        return usbDevicesFile(mode);
 #endif
 
     if (strcmp(pathname, "/proc/net/route") == 0)
@@ -645,6 +673,11 @@ FILE *sharedFopen64(const char *pathname, const char *mode)
 #ifdef _WIN32
     char binary[16];
     mode = sharedBinaryMode(mode, binary, sizeof(binary));
+#endif
+
+#ifdef _WIN32
+    if (strcmp(pathname, "/proc/bus/usb/devices") == 0)
+        return usbDevicesFile(mode);
 #endif
 
     if (strcmp(pathname, "/proc/sys/kernel/osrelease") == 0)

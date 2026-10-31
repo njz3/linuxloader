@@ -271,6 +271,61 @@ static void mt3RivalFeatureFix(void)
     log_warn("Maximum Tune: GetStoryRivalFeature's start position read not recognized, not patched");
 }
 
+// Maximum Tune 3 and 3DX+ write their traces ("[mseqEntry] ...", the link's join steps) to clMain's stream, whose
+// clLogBuf::sync cuts them in lines and drops them in this build: they go to the log. libstdc++'s streambuf keeps the
+// written text from pbase (+0x10) to pptr (+0x14); sync empties it and gives the stream its priority back (+0x24, 7)
+static int mt3LogBufSync(char *buffer)
+{
+    char *begin = *(char **)(buffer + 0x10), *end = *(char **)(buffer + 0x14);
+    while (begin && begin < end)
+    {
+        const char *newline = memchr(begin, '\n', (size_t)(end - begin));
+        int length = (int)((newline ? newline : end) - begin);
+        if (length > 0)
+            log_info("Maximum Tune: %.*s", length, begin);
+        begin += length + 1;
+    }
+    *(char **)(buffer + 0x14) = *(char **)(buffer + 0x10);
+    *(int *)(buffer + 0x24) = 7;
+    return 0;
+}
+
+// Their menus take a choice when the accelerator goes above 0.7 (clMenuInput::exec: the event at +0x14, 1 for the
+// accelerator, 2 for the brake, as the pedals cross it; the pedals are clInputDevice +0x30 and +0x34). Each crossing
+// of the pedals and each event is logged, to tell a press of the cabinet's from one the game sees on its own
+static void (*mt3MenuInputExecOriginal)(void *input);
+static void *(*mt3InputDeviceOf)(int player);
+
+static void mt3MenuInputExec(void *input)
+{
+    static int gasAbove, brakeAbove;
+    mt3MenuInputExecOriginal(input);
+    const char *device = mt3InputDeviceOf ? mt3InputDeviceOf(0) : NULL;
+    float gas = device ? *(const float *)(device + 0x30) : 0, brake = device ? *(const float *)(device + 0x34) : 0;
+    if ((gas > 0.7f) != gasAbove || (brake > 0.7f) != brakeAbove)
+    {
+        gasAbove = gas > 0.7f;
+        brakeAbove = brake > 0.7f;
+        log_info("Maximum Tune: menu pedals, accelerator %.3f, brake %.3f", gas, brake);
+    }
+    int event = *(const int *)((const char *)input + 0x14);
+    if (event == 1 || event == 2)
+        log_info("Maximum Tune: menu input, %s", event == 1 ? "accelerator (decide)" : "brake (cancel)");
+}
+
+static void mt3LogBufInstall(void)
+{
+    void *sync = findStaticFnAddr("_ZN8clLogBuf4syncEv");
+    if (sync)
+        detourFunction((size_t)sync, mt3LogBufSync);
+    else
+        log_warn("Maximum Tune: clLogBuf::sync not found, its traces not logged");
+    void *exec = findStaticFnAddr("_ZN11clMenuInput4execEv");
+    mt3InputDeviceOf = findStaticFnAddr("_ZN13clInputDevice11getInstanceEi");
+    if (exec && mt3InputDeviceOf)
+        mt3MenuInputExecOriginal = trampolineHook(exec, mt3MenuInputExec, 0);
+}
+
 int amDongleInit()
 {
     return 0;
@@ -2983,6 +3038,7 @@ int initPatch()
             deadHeatIoInstall(); // the N2 I/O board as Nirin's, the Kickback wheel board as Dead Heat's
             n2CardPrinterInstall(); // the card reader-printer on its serial port, its cards in files
             mt3RivalFeatureFix();   // the real-time movie's rival without a character: no garbage start position
+            mt3LogBufInstall();     // its traces in the log
             // [Game.mt3] NO_CARD_READER: played as with the test menu's CARD R/W OFF (clTestMode::isNoUseCardDevice);
             // isEnableCardDevice gives 0 then, as it does with CARD R/W OFF (3DX+ asks it for its card screens)
             void *noCardDevice = findStaticFnAddr("_ZNK10clTestMode17isNoUseCardDeviceEv");

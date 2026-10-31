@@ -92,7 +92,8 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
-| 161 | 31/10 | Maximum Tune 3DX+ en link (les deux bornes se disent ID:1) ; un pull ; commit, push, une release si nécessaire | 🔄 3DX+ lit `/tmp/data/etc/testmode.lua` (Maximum Tune 3 : `/tmp/data/testmode.lua`) : le loader y lit TotalMachine pour 3DX+, ses réglages pour les bornes à refaire ; pull des demandes 159 et 160 ; `2d7b304` poussé ; `releases/linuxloader-v3.0.14-ffbedition-20261031-5-njz3-win32.zip` (MinGW : la -4 plus le link DHR / MT3, les demandes 159 et 160, le correctif 3DX+) ; 3DX+ pas encore essayé (voir journal) |
+| 162 | 31/10 | Continuer à étudier le code de 3DX+ pour son duel en link | 🔄 traces internes du jeu dans le log (`clLogBuf::sync` remplacé, `patch.c`), build `…-linktest5-…` : l'écran du duel s'ouvre sur les bornes mais se valide seul (front de l'accélérateur) ; clé HASP de 3DX+ corrigée (`/proc/bus/usb/devices`), build `…-linktest7-…` (traces des pédales vues par le jeu) envoyé à Image borne (voir journal de la demande 161) |
+| 161 | 31/10 | Maximum Tune 3DX+ en link (les deux bornes se disent ID:1) ; un pull ; commit, push, une release si nécessaire | 🔄 3DX+ lit `/tmp/data/etc/testmode.lua` (Maximum Tune 3 : `/tmp/data/testmode.lua`) : le loader y lit TotalMachine pour 3DX+, ses réglages pour les bornes à refaire ; pull des demandes 159 et 160 ; `2d7b304` poussé ; `releases/linuxloader-v3.0.14-ffbedition-20261031-5-njz3-win32.zip` (MinGW : la -4 plus le link DHR / MT3, les demandes 159 et 160, le correctif 3DX+) ; 3DX+ relié ici à deux copies (PCB ID lus, sessions établies, partie lancée), réglages des bornes refaits ; -5 déployée par Image borne, 3DX+ relié sur les bornes au démarrage, le duel (Accepting VS / Buy in race and challenge) vérifié ici ; sur les bornes l'écran du duel n'apparaît pas (getConnectCount < 2 après une première connexion refermée), l'ordre de démarrage n'y est pour rien (mt3dx4), cause pas trouvée, duel en pause (voir journal) |
 | 160 | 31/10 | Un fichier journal texte, avec une case dans l'interface (au lancement suivant), à côté de l'exe ou à la racine de WRITE_DIR, le précédent gardé en .old.log ; et les noms de sorties que BFF connaît (`RawLamps` inchangé) | ✅ `LOG_FILE` ([System], coché par défaut) : `linuxloader.log` + `linuxloader.old.log`, case dans À propos ; `LampStart`, `LampView1`, `LampLeader`, `LampDriverL`, `LampDriverR` pour OutRun 2 ; essayé sur Hummer (write-dir, à côté de l'exe, désactivé) ; lampes nommées non essayées (pas d'OutRun 2 ici) |
 | 159 | 31/10 | (second retour du testeur d'OutRun 2, version 20261030) OUTPUT TEST → `lampN`, lampe arrière, où est le journal, ressort « progressif » selon le type de borne | ⚠️ lampes : notre table était juste (Start lamp0, View lamp4, pilote G lamp2, pilote D lamp5) ; ses lumières sont branchées autrement dans son outil de sorties ; noms G et D ajoutés ; lampe arrière sur aucune sortie JVS (question posée) ; pas de fichier journal (console seulement) ; ressort présent en DX/SDX, absent en standard : le jeu |
 | 158 | 31/10 | Commit et push de la demande 157 ; ce qui reste à faire en link | ✅ commité et poussé sur `dev/ffbedition` ; reste : essais de DHR et MT3 / 3DX+ sur les bornes, Nirin, Initial D 4 Japan, Hummer, Race TV et Initial D 4 / 5 Export à refaire sur les bornes |
@@ -209,6 +210,84 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   journal (159, 160), le correctif 3DX+.
 - Vérifié depuis le zip : `--version` « …-20261031-5-njz3 », Maximum Tune 3 à deux copies : « 2 Cars in linked play »
   sur les deux (50 FPS à deux). 3DX+ pas encore essayé (copie en cours).
+- 3DX+ à deux copies ici (build `build-msvc`, `tmp/data/etc/testmode.lua` écrit avec ses clés : PcbId 0 / 1,
+  TotalMachine 1) : la seconde copie se dit d'abord maître (« マスター 4 -> 1 », son PCB ID lu) puis prend la première
+  (« マスター 1 -> 0 ») ; sessions TCP établies dans les deux sens, pas d'écran « Could not read Ghost Battle data »,
+  attract « 1P 2P available » sur les deux ; 2 pièces et Start : « Select brand » sur les deux. Les coupures « receive
+  error 104 » viennent de la fin de l'essai (la première copie quitte). 3DX+ n'écrit `testmode.lua` qu'en sortant du
+  menu de test (au premier lancement : `bookkeeping.lua` et `cardbackup.lua` seulement). Ses traces « [net] LINK
+  COUNT » ne passent pas par syslog (rien dans les logs). Réglages des bornes refaits dans
+  `linktest-logs\seeds-namco\cabN\mt3dx\tmp\data\etc\testmode.lua` ; course reliée pas essayée (menus à parcourir).
+- Essais d'Image borne avec la -5 installée (`linktest-logs\mt3dx2`) : -5 déployée sur les deux bornes
+  (`C:\Racecab\Emulators\linuxloader`, la -4 sauvegardée) ; 3DX+ relié au démarrage (« マスター 4 -> 0 » / « 4 -> 1 »
+  puis « 1 -> 0 », sessions TCP vers 192.168.1.4 et .5, attract « 1P/2P play available », pas de « Ghost Battle »), le
+  lien tenu tout l'essai (seule coupure à 285 s, quand cab1 quitte). Chaque borne a joué son histoire seule : dans 3DX+
+  le volant choisit, l'accélérateur valide (Start ne fait que lancer la partie), et l'écran « Please select challenge
+  mode » (après la transmission) reste par défaut sur « Refusing VS ». Il n'y a pas de duel dans le menu des modes : une
+  borne choisit « Accepting VS », l'autre, pendant sa course, reçoit « Buy in race and challenge » (adversaire « GUEST
+  GT-R ») et choisit YES. Vérifié ici à deux copies : « A new challenger! » puis « Select a course » 2P sur la première,
+  « Please wait! Waiting on other player(s) » sur la seconde ; la course à deux pas vue (essai arrêté au choix du
+  circuit). Procédure envoyée à Image borne (`linktest-logs\mt3dx3`).
+- Essai d'Image borne (`linktest-logs\mt3dx3`) : sur cab1, pas d'écran « challenge mode », directement « Select game
+  mode ». Dans `mseqPlay`, le bloc du duel (`seqJoinModeSelectWait`, puis `seqJoinSelect` si une autre borne accepte,
+  sinon `seqJoinModeSelect`) ne passe que si `clNet::getConnectCount()` ≥ 2 (la borne elle-même et l'autre, compté par
+  `clNet::updateClient`). Sur les bornes, dans les deux essais, la première connexion de cab1 vers cab2 est refermée
+  aussitôt par cab2 pas encore prêt (« End of file » chez cab1, « disconnecting / error 125 » chez cab2), puis rétablie :
+  cette session ne semble pas comptée. Ici, la copie qui accepte s'était connectée une fois l'autre prête. Essai demandé à
+  Image borne en démarrant cab2 d'abord (`linktest-logs\mt3dx4`) ; reproduction ici remise (carte graphique prise par
+  la session Hikaruloader).
+- `mt3dx4` (cab2 démarrée 80 s avant cab1) : toujours pas d'écran du duel, et plus d'« End of file » : l'hypothèse de
+  l'ordre de démarrage tombe. Ici, la seconde copie lancée 4 s après la première : écran du duel présent. Ce que le code
+  montre : `clNet::connect` (serveur) cherche l'adresse distante dans la table des bornes (`+0x1480 + 8·i`, la sienne
+  en `+0x4`) et marque la borne connectée (`+0x1484 + 8·i`), sinon ferme la session (les « accepted / disconnecting /
+  stop » vus sur les bornes) ; `updateClient` compte chaque session client i en marche dont la borne est marquée. cab1 a
+  pourtant accepté sa propre connexion et celle de cab2. Reste à voir `seqJoinModeSelectWait` (requête au maître,
+  retour 0x24 qui saute le duel) et les écarts entre le chemin LAN du loader et celui d'un seul PC. Le jeu écrit
+  `tmp/ping-targets.txt` (pour `etc/pinger.pl`, que rien ne lance) ; ses traces internes (`[mseqEntry]…`) passent par
+  un flux qui n'arrive pas dans les logs. Une fois ici, « [lan] server error Permission denied » sur les deux copies
+  (port 50765 libre ensuite, pas dans les plages réservées), passé au lancement suivant. Duel 3DX+ en pause chez Image
+  borne.
+- Suite (demande 162, « continue à étudier le code du jeu pour le link ») : la piste du MAC tombe (les deux bornes ont
+  le même, `00:D0:F1:00:00:01`, mais `clNet::setInterfaceAddress` ne garde d'`ifconfig.txt` que l'adresse et le masque).
+  Le flux de traces de `clMain` passe par `clLogBuf::sync`, qui coupe les lignes et les jette dans cette version :
+  `mt3LogBufInstall` (`patch.c`) le remplace pour Maximum Tune 3 et 3DX+, et les traces du jeu arrivent dans le log en
+  INFO, « Maximum Tune: … » (démarrage `[seqBoot] PCBn CONNECTED`, `[net] LINK COUNT 2`, écrans `４－１０．乱入モード選択
+  画面`…). Ici, après la transmission : `[seqEntry] カードなし`, `[net.s] 乱入選択要求 0`, `[mseqEntry] 乱入可能グループ
+  bit:0`, puis l'écran du duel. Build de test `releases/linuxloader-v3.0.14-ffbedition-20261031-linktest5-njz3-win32.zip`
+  (SHA-256 `b5b1d30eb33d398504945538344ab44fb0cf8b156803154be692c5ba287822a8`, exe
+  `a03979234c6f6e7c9cffb522b6a5412d317fbec8b5ce482db40c58bd184a9603`, mêmes fichiers que la -5, traces vérifiées depuis
+  le zip) envoyé à Image borne pour comparer sur les bornes (`linktest-logs\mt3dx5`).
+- Résultats `mt3dx5` / `mt3dx6` (linktest5) : les traces de cab1 sont celles d'ici jusqu'à l'écran du duel
+  (`４－１０．乱入モード選択画面`), qui se ferme seul 2,3 s plus tard (`[seqMain] 乱入設定 0`, « Refusing »). Dans
+  `clSeqJoinModeSelectThread::run`, le choix se valide au compte à rebours (10 s, 1/60 par image) ou par
+  `clMenuInput::chkSW(0x10)` : l'accélérateur qui passe au-dessus de 0,7 (`clMenuInput::exec`, front montant) ;
+  `setEnable` note l'état de la pédale à l'ouverture, un accélérateur tenu ne compte pas. Donc l'axe d'accélérateur des
+  bornes est repassé au-dessus de 0,7 dans ces 2,3 s : à voir avec Image borne (sa façon d'appuyer, vjoydffb qui écrit
+  aussi dans vJoy). Ici, l'écran reste jusqu'au choix.
+- Le cadre « USB DONGLE ERROR » vu sur cab1 : vrai défaut, déjà là avec la -5 (« [seqMain] HASP ERR feature failed »
+  partout, S/N en tirets). 3DX+ (`clHasp` et `clHasp2`, 12 endroits) cherche lui-même « Product=HASP » dans
+  `/proc/bus/usb/devices` avant chaque usage de la clé ; Maximum Tune 3 passe par `clHasp::isAvail`, déjà remplacé.
+  `/proc/bus/usb/devices` est maintenant un fichier du dossier temporaire du PC (`linuxloader-usb-devices.txt`, une
+  clé HASP HL, `filesystemShared.c`, `fopen` et `fopen64`) ; `namcoHasp.c` répond en plus à `hasp_get_sessioninfo`,
+  `hasp_free` et `hasp_get_size` (`clHasp2::open`). Ici : « HASP: login to feature 0xFFFF0000 », « [seqMain] HASP CLOCK
+  … », S/N sur le titre.
+- Build de test `releases/linuxloader-v3.0.14-ffbedition-20261031-linktest6-njz3-win32.zip` (SHA-256
+  `caea3697985884b3d8456f0c230e1269f87a87b1ca6a62d5a8b5e63579d40364`, exe
+  `ca278d518e4063b9bfb256d741527c7aa92a501766033a8d4f9c5ad806f8e10b`, mêmes fichiers que la -5). Vérifié depuis le zip :
+  Maximum Tune 3 à deux copies « 2 Cars in linked play » et S/N ; 3DX+ à deux copies, Accepting VS sur l'une, « Buy in
+  race and challenge » YES sur l'autre, puis les deux au choix commun de la rampe et de l'heure (« Waiting on other
+  player(s) »). Le `ll-deps` de mon dossier d'emballage a de nouveau disparu (vers 22:02, cf. demande 157) : le premier
+  zip linktest6 en manquait, refait depuis la -5. Envoyé à Image borne avec la marche à suivre (`linktest-logs\mt3dx7`).
+- Image borne : un seul programme écrit vJoy (pas de BFF ni de pédale), accélérateur sur l'axe Y côté négatif, une
+  pression = Y à 0,0 pendant 600 ms puis 0,5. Rejoué ici (36 images à fond puis relâché, rien ensuite) : l'écran du
+  duel reste ses 10 s et ne se ferme qu'au compte à rebours ; la différence est donc dans le chemin SDL / vJoy des
+  bornes. Trace ajoutée (`patch.c`, `clMenuInput::exec` accroché par `trampolineHook`) : « Maximum Tune: menu pedals,
+  accelerator X, brake Y » à chaque passage d'une pédale par 0,7 (valeurs de `clInputDevice`, +0x30 / +0x34) et « menu
+  input, accelerator (decide) / brake (cancel) » à chaque choix. Build `…-linktest7-…` (SHA-256 du zip
+  `d7039d04ad14d0a60a2010ba4ee7ce0a3ba6584c36547c855a8ec58eadfc573b`, exe
+  `81f92bfc6f4a7d17166b0c3216989369d626e3979df9164cef5d61427d6ec808`, mêmes fichiers que la -5, à la place de la
+  linktest6 que l'Image borne n'avait pas encore installée) ; vérifié depuis le zip, le duel à deux copies jusqu'à
+  `９－４－１．スタートランプ決定画面` et `１－１．時間帯選択画面`.
 
 ### Fichier journal et sorties nommées (demande 160)
 - `[System] LOG_FILE` (vrai par défaut) : les lignes de la console d'un lancement de jeu aussi dans
