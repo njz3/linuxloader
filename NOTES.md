@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 163 | 31/10 | Commit, push, une release, Image borne prévenue | ✅ `adbf179` poussé (clé HASP de 3DX+, traces des Maximum Tune) ; `releases/linuxloader-v3.0.14-ffbedition-20261031-6-njz3-win32.zip` ; Image borne prévenue (voir journal) |
 | 162 | 31/10 | Continuer à étudier le code de 3DX+ pour son duel en link | 🔄 traces internes du jeu dans le log (`clLogBuf::sync` remplacé, `patch.c`), build `…-linktest5-…` : l'écran du duel s'ouvre sur les bornes mais se valide seul (front de l'accélérateur) ; clé HASP de 3DX+ corrigée (`/proc/bus/usb/devices`), build `…-linktest7-…` (traces des pédales vues par le jeu) envoyé à Image borne (voir journal de la demande 161) |
 | 161 | 31/10 | Maximum Tune 3DX+ en link (les deux bornes se disent ID:1) ; un pull ; commit, push, une release si nécessaire | 🔄 3DX+ lit `/tmp/data/etc/testmode.lua` (Maximum Tune 3 : `/tmp/data/testmode.lua`) : le loader y lit TotalMachine pour 3DX+, ses réglages pour les bornes à refaire ; pull des demandes 159 et 160 ; `2d7b304` poussé ; `releases/linuxloader-v3.0.14-ffbedition-20261031-5-njz3-win32.zip` (MinGW : la -4 plus le link DHR / MT3, les demandes 159 et 160, le correctif 3DX+) ; 3DX+ relié ici à deux copies (PCB ID lus, sessions établies, partie lancée), réglages des bornes refaits ; -5 déployée par Image borne, 3DX+ relié sur les bornes au démarrage, le duel (Accepting VS / Buy in race and challenge) vérifié ici ; sur les bornes l'écran du duel n'apparaît pas (getConnectCount < 2 après une première connexion refermée), l'ordre de démarrage n'y est pour rien (mt3dx4), cause pas trouvée, duel en pause (voir journal) |
 | 160 | 31/10 | Un fichier journal texte, avec une case dans l'interface (au lancement suivant), à côté de l'exe ou à la racine de WRITE_DIR, le précédent gardé en .old.log ; et les noms de sorties que BFF connaît (`RawLamps` inchangé) | ✅ `LOG_FILE` ([System], coché par défaut) : `linuxloader.log` + `linuxloader.old.log`, case dans À propos ; `LampStart`, `LampView1`, `LampLeader`, `LampDriverL`, `LampDriverR` pour OutRun 2 ; essayé sur Hummer (write-dir, à côté de l'exe, désactivé) ; lampes nommées non essayées (pas d'OutRun 2 ici) |
@@ -191,6 +192,18 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Release 3.0.14 -6 du 31/10 (demande 163)
+- `adbf179` poussé (demande 162 : la clé HASP de 3DX+ par `/proc/bus/usb/devices`, les traces des Maximum Tune et de
+  leurs pédales de menu). Release MinGW, `RELEASE_SUFFIX` « -6 », 53 avertissements :
+  `emulateurs/releases/linuxloader-v3.0.14-ffbedition-20261031-6-njz3-win32.zip`, 19 053 317 octets, SHA-256 du zip
+  `8be3cd09ad72e322d3997b11baa3ddd7ed53fe90358b92433a94e7017a7b9cc0`, de `linuxloader.exe`
+  `833015150f8cc5702dc75637ff724a7c51b3f55dd61bef6631f64dfb8eaef35f` ; mêmes fichiers que la -5 (`ll-deps` identiques).
+  Même code que le build de test linktest7. Par rapport à la -5 : la clé HASP de 3DX+ (plus de « USB DONGLE ERROR »,
+  S/N sur le titre), les traces du jeu et des pédales de menu dans le log (Maximum Tune 3 et 3DX+).
+- Vérifié depuis le zip : `--version` « …-20261031-6-njz3 » ; Maximum Tune 3 à deux copies (« LINK COUNT 2 », HASP) ;
+  3DX+ à deux copies, duel jusqu'à la rampe de départ ; OutRun 2 en mode agent avec un dossier d'écriture : 60 FPS.
+  Image borne prévenue.
 
 ### Maximum Tune 3DX+ en link, et la release 3.0.14 -5 (demande 161)
 - Essais d'Image borne (journal de la demande 157) : 3DX+ prend bien l'adresse de chaque PC, mais les deux bornes se
