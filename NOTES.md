@@ -92,7 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
-| 161 | 31/10 | Maximum Tune 3DX+ en link (les deux bornes se disent ID:1) ; un pull ; commit, push, une release si nécessaire | 🔄 3DX+ lit `/tmp/data/etc/testmode.lua` (Maximum Tune 3 : `/tmp/data/testmode.lua`) : le loader y lit TotalMachine pour 3DX+, ses réglages pour les bornes à refaire ; pull des demandes 159 et 160 ; release 3.0.14 -5 (voir journal) |
+| 161 | 31/10 | Maximum Tune 3DX+ en link (les deux bornes se disent ID:1) ; un pull ; commit, push, une release si nécessaire | 🔄 3DX+ lit `/tmp/data/etc/testmode.lua` (Maximum Tune 3 : `/tmp/data/testmode.lua`) : le loader y lit TotalMachine pour 3DX+, ses réglages pour les bornes à refaire ; pull des demandes 159 et 160 ; `2d7b304` poussé ; `releases/linuxloader-v3.0.14-ffbedition-20261031-5-njz3-win32.zip` (MinGW : la -4 plus le link DHR / MT3, les demandes 159 et 160, le correctif 3DX+) ; 3DX+ pas encore essayé (voir journal) |
 | 160 | 31/10 | Un fichier journal texte, avec une case dans l'interface (au lancement suivant), à côté de l'exe ou à la racine de WRITE_DIR, le précédent gardé en .old.log ; et les noms de sorties que BFF connaît (`RawLamps` inchangé) | ✅ `LOG_FILE` ([System], coché par défaut) : `linuxloader.log` + `linuxloader.old.log`, case dans À propos ; `LampStart`, `LampView1`, `LampLeader`, `LampDriverL`, `LampDriverR` pour OutRun 2 ; essayé sur Hummer (write-dir, à côté de l'exe, désactivé) ; lampes nommées non essayées (pas d'OutRun 2 ici) |
 | 159 | 31/10 | (second retour du testeur d'OutRun 2, version 20261030) OUTPUT TEST → `lampN`, lampe arrière, où est le journal, ressort « progressif » selon le type de borne | ⚠️ lampes : notre table était juste (Start lamp0, View lamp4, pilote G lamp2, pilote D lamp5) ; ses lumières sont branchées autrement dans son outil de sorties ; noms G et D ajoutés ; lampe arrière sur aucune sortie JVS (question posée) ; pas de fichier journal (console seulement) ; ressort présent en DX/SDX, absent en standard : le jeu |
 | 158 | 31/10 | Commit et push de la demande 157 ; ce qui reste à faire en link | ✅ commité et poussé sur `dev/ffbedition` ; reste : essais de DHR et MT3 / 3DX+ sur les bornes, Nirin, Initial D 4 Japan, Hummer, Race TV et Initial D 4 / 5 Export à refaire sur les bornes |
@@ -201,6 +201,14 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   refaire à partir du fichier qu'il écrit lui-même.
 - Pull de `dev/ffbedition` (demandes 159 et 160 d'une autre session, en avance rapide) ; `build-msvc` à reconfigurer
   (nouveau `src/loader/log/logFile.c`).
+- `2d7b304` poussé. Release MinGW, `RELEASE_SUFFIX` « -5 », 53 avertissements :
+  `emulateurs/releases/linuxloader-v3.0.14-ffbedition-20261031-5-njz3-win32.zip`, 19 052 524 octets, SHA-256 du zip
+  `5ad9268d2de331a832509a3a70b1f3c3aedad3c16a0df16b0f8f5b90c540f972`, de `linuxloader.exe`
+  `b51a8fd9b4e1420e6b79c346d424d1acabdd66062b3fd4df0cbd9cf6d9acb8c8` ; mêmes fichiers que la -4. Par rapport à la -4 :
+  le link de Dead Heat Riders et de Maximum Tune 3 (157, relié sur les bornes), les voyants d'OutRun 2 et le fichier
+  journal (159, 160), le correctif 3DX+.
+- Vérifié depuis le zip : `--version` « …-20261031-5-njz3 », Maximum Tune 3 à deux copies : « 2 Cars in linked play »
+  sur les deux (50 FPS à deux). 3DX+ pas encore essayé (copie en cours).
 
 ### Fichier journal et sorties nommées (demande 160)
 - `[System] LOG_FILE` (vrai par défaut) : les lignes de la console d'un lancement de jeu aussi dans
@@ -712,8 +720,10 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 - Mode agent : `menu outputs on|off` fait ce que fait la case (`guiOutputsSwitch`, Windows) et répond `ok MESSAGE`
   ou `err MESSAGE` (l'état et où le choix est enregistré) ; sous Linux, `err`.
 - Vérifié (MSVC, Hummer Extreme en mode agent, `-c` vers un `linuxloader.ini` d'essai et `--write-dir`, récepteur
-  UDP sur 8001 et client TCP sur 8000), 14 points : activation → `ok`, annonce « mame_start = hummer-exttcp =
-  8000 », `mame_start` puis les lampes à la connexion, « 1 client(s) » dans l'état ; arrêt → `ok`, `RawDrive`
+  UDP sur 8001 et client TCP sur 8000), 14 points : activation → `ok`, annonce « mame_start = hummer-ext
+tcp =
+  8000
+ », `mame_start` puis les lampes à la connexion, « 1 client(s) » dans l'état ; arrêt → `ok`, `RawDrive`
   puis `mame_stop = 1` en dernier et connexion fermée, port fermé ; réactivation → port rouvert, `mame_start` ;
   port tenu par un autre programme → `err … déjà pris…`, puis `ok` une fois libéré ; argument faux → `err`. Le
   fichier lu (la copie du dossier d'écriture) suit chaque choix, l'original n'est pas touché. La case elle-même
