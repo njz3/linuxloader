@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 159 | 31/10 | (second retour du testeur d'OutRun 2, version 20261030) OUTPUT TEST → `lampN`, lampe arrière, où est le journal, ressort « progressif » selon le type de borne | ⚠️ lampes : notre table était juste (Start lamp0, View lamp4, pilote G lamp2, pilote D lamp5) ; ses lumières sont branchées autrement dans son outil de sorties ; noms G et D ajoutés ; lampe arrière sur aucune sortie JVS (question posée) ; pas de fichier journal (console seulement) ; ressort présent en DX/SDX, absent en standard : le jeu |
 | 158 | 31/10 | Commit et push de la demande 157 ; ce qui reste à faire en link | ✅ commité et poussé sur `dev/ffbedition` ; reste : essais de DHR et MT3 / 3DX+ sur les bornes, Nirin, Initial D 4 Japan, Hummer, Race TV et Initial D 4 / 5 Export à refaire sur les bornes |
 | 157 | 31/10 | Le link de Dead Heat Riders et de Maximum Tune 3 / 3DX+ | 🔄 reliés ici à deux copies ; corrections : adresse dans le réseau du PC et pairs traduits (DHR), `ifconfig.txt` au bon endroit, pipes dans `select`, `errno` gardé après `accept` (MT3) ; build `…-linktest4-…` pour Image borne ; commité et poussé à la demande 158, pas encore essayé sur les bornes (voir journal) |
 | 156 | 31/10 | Commit, push, une release, Image borne pour la déployer | ✅ rien à commiter (`e34fe0f` déjà poussé) ; `releases/linuxloader-v3.0.14-ffbedition-20261031-4-njz3-win32.zip` (MinGW : la -3 plus le filtre 155) ; Image borne prévenue pour le déploiement (voir journal) |
@@ -187,6 +188,25 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Second retour du testeur d'OutRun 2 (demande 159)
+- OUTPUT TEST du menu de test, avec la 20261030 : Start → `lamp0`, View change → `lamp4`, Driver lamp L → `lamp2`,
+  Driver lamp R → `lamp5`. C'est la table de la demande 118 : les noms étaient justes. Chez lui, `lamp4` allume le
+  carré rouge de la vue 1, `lamp2` le carré jaune de la vue 4, `lamp5` le bouton Start rond jaune, et `lamp0` rien :
+  le branchement de ses lumières dans son outil de sorties est à refaire (Start sur `lamp0`, vue sur `lamp4`).
+  « Lampe de pilote » devient « Lampe de pilote G » (`lamp2`) et « D » (`lamp5`) dans Tab > Sorties et réseau.
+- TAIL LAMP : aucune `lampN` ne bouge. Elle ne passe par aucune des 20 sorties JVS ; peut-être par la carte servo
+  (`RawDrive`) ou une autre carte. Demandé : regarder `RawDrive` et `RawLamps` pendant TAIL LAMP ON/OFF.
+- Journal : le loader n'écrit aucun fichier, tout va à la console (le jeu tourne dans un second processus qui en
+  hérite). Pour le garder : depuis une invite de commandes, `linuxloader.exe "…\jeu.elf" > journal.txt 2>&1`.
+  Un fichier journal écrit par le loader lui-même est proposé au propriétaire.
+- Ressort : en type de borne DX puis SDX (menu de test), un rappel faible au centre qui croît avec l'angle, et plus
+  rien en dérapage ; la veille, en standard, aucun. Un ressort est par nature proportionnel à l'angle, et c'est le
+  jeu qui envoie (ou non) la commande de rappel à la carte servo selon le type de borne et la glisse : le modèle de
+  la carte suit ce qu'il reçoit. Explique le « volant mou » de la demande 143 (borne en standard). Conseil : DX
+  (SDX attend aussi la carte de mouvement). Les réglages du menu de test ont l'air de rester (type de borne gardé
+  d'un jour à l'autre), à confirmer.
+- MSVC compile ; pas d'essai en jeu (pas d'OutRun 2 sur ce PC).
 
 ### Link de Dead Heat Riders et de Maximum Tune 3 (demande 157)
 - Analyse par deux sous-agents (désassemblage), copies des jeux de racecab1 dans `games\deadheatriders` et
