@@ -21,6 +21,7 @@
 
 #include "guiCommon.h"
 #include "../config/config.h"
+#include "../redirections/writeDir.h"
 extern "C"
 {
 #include "../config/iniParser.h"
@@ -533,7 +534,8 @@ void load()
     // controllers' GUIDs in the game's folder): the game uses its built-in bindings, which have no row here to map.
     // They are written to the file first, as a new controls.ini has them, keeping what the file held.
     IniConfig *ini = g_file.empty() ? nullptr : iniLoad(g_file.c_str());
-    if (!g_file.empty() && !(ini && iniGetSection(ini, "Common")) && createDefaultControlsIni(g_file.c_str()) > 0)
+    if (!g_file.empty() && !writeDirRefused() && !(ini && iniGetSection(ini, "Common")) &&
+        createDefaultControlsIni(g_file.c_str()) > 0)
     {
         IniConfig *defaults = iniLoad(g_file.c_str());
         if (defaults && ini)

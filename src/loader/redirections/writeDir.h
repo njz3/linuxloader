@@ -9,6 +9,10 @@
 // The seed folder (--seed-dir PATH, or [Paths] SEED_DIR), with a write folder only: <seed>\<game> holds the files
 // WRITE_DIR\<game> starts with in place of the game folder's (a link cabinet's NVRAM, its LINK ID set in the test
 // menu), copied there when the game starts, a file already in WRITE_DIR\<game> never replaced.
+// A write folder that cannot be made or written in (checked at start with a file written and removed) is refused:
+// nothing is kept, and nothing is ever written in the loader's or the game's folder instead (the cabinet's templates).
+// The files are read where they are; one written goes to a copy in %TEMP%\linuxloader-nosave-<pid>, read back during
+// the run and removed after it. A notice says so over the game for 20 s (graphics/overlayMsgs.c).
 // Windows only: elsewhere the paths go through unchanged.
 
 #include <stddef.h>
@@ -27,6 +31,10 @@ extern "C"
     // copied there where it has none of theirs.
     void writeDirEnterGame(const char *gameName);
     int writeDirActive(void);
+    // WRITE_DIR asked for but unusable (it cannot be made, or a file cannot be written in it): its path, else NULL.
+    // Nothing is then written anywhere: the settings and the game's files are read where they are, every write is
+    // lost (never made in the loader's or the game's folder)
+    const char *writeDirRefused(void);
     // The game's folder, the current one before writeDirEnterGame: 0 when the write folder is not in use
     int writeDirGameFolder(char *buffer, size_t size);
     // The root of the Linux disk image the game's folder is in (Gaelco's games): its files outside the game's folder

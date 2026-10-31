@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lindbergh Loader\n"
 "Report-Msgid-Bugs-To: https://github.com/njz3/linuxloader/issues\n"
-"POT-Creation-Date: 2026-10-30 23:23+0100\n"
+"POT-Creation-Date: 2026-10-31 10:01+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1041,6 +1041,16 @@ msgstr ""
 msgid ""
 "Each line goes as \"name = value\" on the TCP port, at each change; a client "
 "that connects gets every known value first. Value: the last sent."
+msgstr ""
+
+#: src/loader/gui/guiOverlay.cpp
+msgid "Cannot write to the write folder"
+msgstr ""
+
+#: src/loader/gui/guiOverlay.cpp
+msgid ""
+"Nothing is saved: the settings and the game saves are read from the usual "
+"folders and not written."
 msgstr ""
 
 #: src/loader/gui/guiOverlay.cpp

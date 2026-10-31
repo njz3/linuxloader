@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 152 | 31/10 | Dossier d'écriture inutilisable : règle du propriétaire commune aux émulateurs (relayée par la session Flycast) ; commit de la 151 d'abord | ✅ `4a20866` (151) commité ; sonde au démarrage, rien écrit dans les dossiers modèles ni gardé, lectures aux endroits habituels, notification de 20 s traduite ; OutRun 2 essayé avec un dossier interdit en écriture, impossible à créer, et normal (voir journal) |
 | 151 | 31/10 | Le link pour tous les jeux Lindbergh (avec le Server Box), aussi en local (plusieurs copies sur un PC), et les jeux pas encore marqués link (Namco, Gaelco) ; essais sur les bornes par Image borne | 🔄 link sur un PC (`LOCAL_LINK_ADDRESS`) : OutRun 2, Hummer, Race TV, Initial D 5, R-Tuned et Dead Heat reliés ici ; R-Tuned réparé (SRAM, `bind`) ; moteur Dead Heat : multicast sur la carte du réseau des bornes, `ifconfig.pl` de Maximum Tune 3 ; Gaelco (Ring Riders, Tuning Race, Tokyo Cop) reliés ici : SIGIO émulé, MII, `SOCK_PACKET` ; dossier d'écriture pour les images disque ; Nirin et Initial D 4 Japon (faux Server Box) pas encore ; builds de test `…-20261031-linktest-…` et `…-linktest2-…` pour Image borne ; rien de commité (voir journal) |
 | 150 | 31/10 | Une release, prévenir Image borne | ✅ `releases/linuxloader-v3.0.14-ffbedition-20261031-njz3-win32.zip` (MinGW, `8f1a94c` : la -5 plus la correction de la demande 149) ; Image borne prévenue |
 | 149 | 31/10 | Boost, GearUp et GearDown sans effet dans les jeux Namco et Gaelco (trouvé par Image borne) : corriger | ✅ `fixPlayerForAction` ne les envoie plus au joueur 2 pour les groupes Dead Heat et Gaelco ; essayé sur Nirin avec vJoy (voir journal) ; commité et poussé |
@@ -180,6 +181,35 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Dossier d'écriture inutilisable (demande 152)
+- Règle du propriétaire pour tous ses émulateurs (relayée par la session Flycast ; Supermodel et Flycast l'appliquent) :
+  si `--write-dir` / `WRITE_DIR` ne peut pas servir, ne jamais écrire dans les dossiers modèles (à côté de l'exe, le
+  dossier du jeu), les écritures sont perdues, la lecture des fichiers habituels reste permise ; pas de fichier de log,
+  même temporaire ; une notification de 20 s au démarrage, texte imposé. Avant : W impossible à créer → le loader
+  écrivait dans le dossier du jeu ; W en lecture seule → utilisé sans contrôle.
+- `writeDirSettings` crée W puis y crée, écrit et efface un fichier sonde (`usable`) ; `writeDirEnterGame` fait de même
+  pour `W\<jeu>`. Si l'un échoue : log_error avec la raison (« it cannot be made (error 3) », « a file cannot be
+  created in it (error 5) »), le dossier est « refusé » (`writeDirRefused`). Alors : pas de copie des réglages ni de
+  graines, le dossier courant reste celui du jeu, les lectures prennent les fichiers habituels ; un fichier écrit va
+  dans une copie à lui (`shadowOf`) dans `%TEMP%\linuxloader-nosave-<pid>`, faite depuis l'original quand le mode le
+  garde (r+, a), relue jusqu'à la fin de la partie et effacée ensuite (`atexit`, et au lancement suivant les dossiers
+  des processus finis : la sortie de l'agent passe par `_exit`). Il le fallait : le loader écrit l'`eeprom.bin` au
+  démarrage (adresse IP, région) et s'arrêtait sur « Error setting the new IP address » quand l'écriture échouait, et
+  des jeux relisent ce qu'ils écrivent (`ifconfig.txt` de Namco). `mkdir`, `remove`, `rename` sans effet sur le
+  disque (rename recopie dans la copie de la cible). Aussi refusés : les dossiers `tmp` du démarrage, les GUID des
+  manettes dans `controls.ini`, l'enregistrement des réglages et des contrôles par le menu Tab.
+- Notification : `overlayInit` affiche 20 s en haut à gauche « Cannot write to the write folder », le chemin de W, puis
+  « Nothing is saved: the settings and the game saves are read from the usual folders and not written. » (en
+  français par `lang/fr.po` selon `LANGUAGE`, `guiWriteFolderNotice`). La surcouche de messages fait maintenant
+  plusieurs lignes, coupées à la largeur de l'écran du jeu (`TTF_RenderText_Blended_Wrapped`, 512 caractères) ; la
+  commande `screen` de l'agent la montre (ce que voit le joueur).
+- Essayé avec OutRun 2 en mode agent : W interdit en écriture (icacls), W sous un fichier (impossible à créer) et W
+  normal. Les deux premiers : le jeu tourne (60 FPS, pièce), notification à l'écran, rien de modifié à côté de l'exe
+  ni dans le dossier du jeu, dossier de copies du lancement précédent effacé. Le normal : comme avant
+  (`linuxloader.ini`, `controls.ini`, `eeprom.bin`, `sram.bin` dans W), pas de notification. MSVC et MinGW compilent.
+- Pas de fichier de log du loader de toute façon (console seulement). Le fichier d'OpenAL (`%TEMP%\linuxloader-
+  alsoft.ini`, Namco N2) et les commandes explicites (`--create config`, le sélecteur de jeux) ne changent pas.
 
 ### Link pour tous les jeux, et sur un seul PC (demande 151)
 - Demande : le link de tous les jeux Lindbergh qu'on a (avec le Server Box d'Initial D japonais, sans ALL.Net), aussi

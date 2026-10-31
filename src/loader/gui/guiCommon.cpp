@@ -27,6 +27,7 @@
 
 #include "gui.h"
 #include "../config/config.h"
+#include "../redirections/writeDir.h"
 #include "../hardware/lindbergh/netOutputs.h"
 extern "C"
 {
@@ -372,6 +373,8 @@ void applyScale()
 
 bool settingsUpdate(const std::string &configFile, const std::vector<IniValue> &values)
 {
+    if (writeDirRefused()) // the write folder refused: linuxloader.ini only read
+        return false;
     // A file not there yet starts as a new linuxloader.ini, with the comments of each setting
     std::error_code error;
     if (!std::filesystem::exists(configFile, error))
@@ -381,6 +384,8 @@ bool settingsUpdate(const std::string &configFile, const std::vector<IniValue> &
 
 bool iniUpdate(const std::string &path, const std::vector<IniValue> &values)
 {
+    if (writeDirRefused()) // the write folder refused: the settings files only read
+        return false;
     std::vector<std::string> lines;
     {
         std::ifstream in(path);
@@ -400,6 +405,11 @@ bool iniUpdate(const std::string &path, const std::vector<IniValue> &values)
     for (const std::string &line : lines)
         out << line << "\r\n";
     return (bool)out;
+}
+
+void useLanguage(const char *language)
+{
+    selectLanguage(language);
 }
 
 const char *tr(const char *text)

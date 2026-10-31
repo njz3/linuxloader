@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lindbergh Loader\n"
 "Report-Msgid-Bugs-To: https://github.com/njz3/linuxloader/issues\n"
-"POT-Creation-Date: 2026-10-30 23:23+0100\n"
+"POT-Creation-Date: 2026-10-31 10:01+0100\n"
 "PO-Revision-Date: 2026-10-28 15:00+0100\n"
 "Last-Translator: njz3\n"
 "Language-Team: French\n"
@@ -231,7 +231,9 @@ msgstr "Agrandissement"
 msgid ""
 "Sharp pixels: square and crisp, but uneven unless the picture is enlarged a "
 "whole number of times."
-msgstr "Pixels nets : carrés et francs, mais inégaux sauf si l'image est agrandie un nombre entier de fois."
+msgstr ""
+"Pixels nets : carrés et francs, mais inégaux sauf si l'image est agrandie un "
+"nombre entier de fois."
 
 #: src/loader/gui/guiCommon.cpp
 msgid "Limit the frame rate"
@@ -1099,6 +1101,18 @@ msgstr ""
 "Chaque ligne part en « nom = valeur » sur le port TCP, à chaque changement ; "
 "un client qui se connecte reçoit d'abord toutes les valeurs connues. "
 "Valeur : la dernière envoyée."
+
+#: src/loader/gui/guiOverlay.cpp
+msgid "Cannot write to the write folder"
+msgstr "Impossible d'écrire dans le dossier d'écriture"
+
+#: src/loader/gui/guiOverlay.cpp
+msgid ""
+"Nothing is saved: the settings and the game saves are read from the usual "
+"folders and not written."
+msgstr ""
+"Rien n'est sauvegardé : les réglages et les sauvegardes des jeux sont lus "
+"dans les dossiers habituels et ne sont pas écrits."
 
 #: src/loader/gui/guiOverlay.cpp
 msgid "Game paused - Tab: close the settings"

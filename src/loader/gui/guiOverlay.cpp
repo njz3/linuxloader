@@ -44,6 +44,14 @@ extern "C" void guiOverlayInit(SDL_Window *window)
     gui::setControlsFile((controlsPath && controlsPath[0]) ? controlsPath : "controls.ini");
 }
 
+extern "C" void guiWriteFolderNotice(char *text, size_t size, const char *folder)
+{
+    if (!g_ready)
+        gui::useLanguage(getConfig()->language);
+    snprintf(text, size, "%s\n%s\n%s", gui::tr("Cannot write to the write folder"), folder,
+             gui::tr("Nothing is saved: the settings and the game saves are read from the usual folders and not written."));
+}
+
 extern "C" int guiOutputsSwitch(int on, char *status, size_t size)
 {
     if (g_configFile.empty())

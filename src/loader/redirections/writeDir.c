@@ -21,6 +21,13 @@ static char gameDir[MAX_PATH] = "";      // the game's folder, only read
 static char currentSub[MAX_PATH] = "";   // where the game's chdir took it, in WRITE_DIR\<game> ("": its root)
 static char imageRoot[MAX_PATH] = "";    // a Linux disk image's root (Gaelco's), gameDir being inside it
 static int active = 0;
+// WRITE_DIR asked for but unusable (not made, or a file not written in it): nothing is kept. The settings and the
+// game's files are read where they are (the loader's folder, the game's, the current one staying the game's), and
+// never written there, those folders being the cabinet's templates (two emulators started at once by accident must
+// not change them). A file written goes to a copy of its own in Windows' temporary folder (shadowOf), read back for
+// the rest of the run (an EEPROM's settings the loader writes at start, Namco's ifconfig.txt) and removed when the
+// loader ends; folders are neither made, removed nor renamed
+static int refused = 0;
 
 // A Linux disk image's files outside the game's folder (Gaelco's /home/save0/switch.bin, the image's root being the
 // one of their absolute paths): in WRITE_DIR\<game>\linuxroot, as in the image
@@ -121,6 +128,191 @@ static const char *inside(const char *path, const char *folder)
     return path[length] == '\0' ? path + length : NULL;
 }
 
+// A folder that can be written: made, and a file created, written and removed in it. Else the reason, for the log
+static int usable(const char *folder, char *reason, size_t size)
+{
+    if (!isFolder(folder))
+    {
+        snprintf(reason, size, "it cannot be made (error %lu)", GetLastError());
+        return 0;
+    }
+    char probe[MAX_PATH];
+    snprintf(probe, sizeof(probe), "%s\\.linuxloader-probe-%lu.tmp", folder, GetCurrentProcessId());
+    HANDLE file = CreateFileA(probe, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY, NULL);
+    if (file == INVALID_HANDLE_VALUE)
+    {
+        snprintf(reason, size, "a file cannot be created in it (error %lu)", GetLastError());
+        return 0;
+    }
+    DWORD written = 0;
+    BOOL wrote = WriteFile(file, "linuxloader", 11, &written, NULL) && written == 11;
+    DWORD error = GetLastError();
+    CloseHandle(file);
+    if (!DeleteFileA(probe))
+    {
+        snprintf(reason, size, "a file written in it cannot be removed (error %lu)", GetLastError());
+        return 0;
+    }
+    if (!wrote)
+    {
+        snprintf(reason, size, "a file cannot be written in it (error %lu)", error);
+        return 0;
+    }
+    return 1;
+}
+
+static char refusedFolder[MAX_PATH] = "";
+
+static void refuse(const char *folder, const char *reason)
+{
+    refused = 1;
+    snprintf(refusedFolder, sizeof(refusedFolder), "%s", folder);
+    log_error("write folder %s refused: %s. Nothing is written: the settings and the game saves are read from the usual "
+              "folders and not written",
+              folder, reason);
+}
+
+static void refusedWrite(const char *what, const char *path)
+{
+    log_warn("write folder refused: %s %s not written", what, path);
+}
+
+// The copies of the files written while the write folder is refused, by full path
+#define SHADOW_FILES 256
+static struct
+{
+    char path[MAX_PATH];
+    char copy[MAX_PATH];
+} shadows[SHADOW_FILES];
+static int shadowCount = 0;
+static SRWLOCK shadowLock = SRWLOCK_INIT;
+static char shadowFolder[MAX_PATH] = ""; // %TEMP%\linuxloader-nosave-<pid>
+
+#define SHADOW_PREFIX "linuxloader-nosave-"
+
+// A folder of copies and what is in it removed
+static void shadowFolderRemove(const char *folder)
+{
+    char pattern[MAX_PATH], file[MAX_PATH];
+    snprintf(pattern, sizeof(pattern), "%s\\*", folder);
+    WIN32_FIND_DATAA found;
+    HANDLE search = FindFirstFileA(pattern, &found);
+    if (search != INVALID_HANDLE_VALUE)
+    {
+        do
+        {
+            if (!(found.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+            {
+                snprintf(file, sizeof(file), "%s\\%s", folder, found.cFileName);
+                DeleteFileA(file);
+            }
+        } while (FindNextFileA(search, &found));
+        FindClose(search);
+    }
+    RemoveDirectoryA(folder);
+}
+
+static void shadowsRemove(void)
+{
+    if (shadowFolder[0])
+        shadowFolderRemove(shadowFolder);
+}
+
+// The folders of copies a loader left when it ended without its atexit (the agent's quit, a crash): those whose
+// process is no longer running
+static void shadowFoldersStale(const char *temp)
+{
+    char pattern[MAX_PATH], folder[MAX_PATH];
+    snprintf(pattern, sizeof(pattern), "%s" SHADOW_PREFIX "*", temp);
+    WIN32_FIND_DATAA found;
+    HANDLE search = FindFirstFileA(pattern, &found);
+    if (search == INVALID_HANDLE_VALUE)
+        return;
+    do
+    {
+        DWORD pid = (DWORD)strtoul(found.cFileName + strlen(SHADOW_PREFIX), NULL, 10);
+        HANDLE process = pid ? OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid) : NULL;
+        DWORD code = 0;
+        int running = process && GetExitCodeProcess(process, &code) && code == STILL_ACTIVE;
+        if (process)
+            CloseHandle(process);
+        if (!running && (found.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+        {
+            snprintf(folder, sizeof(folder), "%s%s", temp, found.cFileName);
+            shadowFolderRemove(folder);
+        }
+    } while (FindNextFileA(search, &found));
+    FindClose(search);
+}
+
+// %TEMP%\linuxloader-nosave-<pid>, made the first time; the stale ones removed then
+static const char *shadowFolderMade(void)
+{
+    if (shadowFolder[0])
+        return shadowFolder;
+    char temp[MAX_PATH];
+    DWORD length = GetTempPathA(sizeof(temp), temp);
+    if (!length || length >= sizeof(temp) - 40)
+        return NULL;
+    shadowFoldersStale(temp);
+    snprintf(shadowFolder, sizeof(shadowFolder), "%s" SHADOW_PREFIX "%lu", temp, GetCurrentProcessId());
+    if (!CreateDirectoryA(shadowFolder, NULL) && GetLastError() != ERROR_ALREADY_EXISTS)
+    {
+        shadowFolder[0] = '\0';
+        return NULL;
+    }
+    atexit(shadowsRemove);
+    return shadowFolder;
+}
+
+// The copy of a file written: made the first time when create (from the file itself when keep, empty otherwise), in
+// %TEMP%\linuxloader-nosave-<pid>. NULL: none (not made, or none could be)
+static const char *shadowOf(const char *path, int create, int keep)
+{
+    char full[MAX_PATH];
+    if (!path || !_fullpath(full, path, sizeof(full)))
+        return NULL;
+    const char *copy = NULL;
+    AcquireSRWLockExclusive(&shadowLock);
+    for (int i = 0; i < shadowCount && !copy; i++)
+        if (shadows[i].copy[0] && _stricmp(shadows[i].path, full) == 0)
+            copy = shadows[i].copy;
+    if (!copy && create && shadowCount < SHADOW_FILES)
+    {
+        const char *folder = shadowFolderMade();
+        char *slot = shadows[shadowCount].copy;
+        if (folder && GetTempFileNameA(folder, "w", 0, slot))
+        {
+            if (keep && exists(full) && !isFolder(full))
+                CopyFileA(full, slot, FALSE);
+            SetFileAttributesA(slot, FILE_ATTRIBUTE_TEMPORARY);
+            snprintf(shadows[shadowCount].path, MAX_PATH, "%s", full);
+            shadowCount++;
+            copy = slot;
+            log_warn("write folder refused: %s written in a copy, %s, removed when the loader ends", full, copy);
+        }
+        else
+            slot[0] = '\0';
+    }
+    ReleaseSRWLockExclusive(&shadowLock);
+    return copy;
+}
+
+static void shadowForget(const char *path)
+{
+    char full[MAX_PATH];
+    if (!_fullpath(full, path, sizeof(full)))
+        return;
+    AcquireSRWLockExclusive(&shadowLock);
+    for (int i = 0; i < shadowCount; i++)
+        if (shadows[i].copy[0] && _stricmp(shadows[i].path, full) == 0)
+        {
+            DeleteFileA(shadows[i].copy);
+            shadows[i].copy[0] = '\0';
+        }
+    ReleaseSRWLockExclusive(&shadowLock);
+}
+
 // The game's side of a part relativePart gives: in the game's folder, or in the Linux disk image
 static void gameSideOf(char *out, size_t size, const char *relative)
 {
@@ -188,6 +380,11 @@ int writeDirActive(void)
     return active;
 }
 
+const char *writeDirRefused(void)
+{
+    return refused ? refusedFolder : NULL;
+}
+
 int writeDirGameFolder(char *buffer, size_t size)
 {
     if (!active)
@@ -206,6 +403,11 @@ void writeDirImageRoot(const char *root)
 const char *writeDirForRead(const char *path, char *buffer, size_t size)
 {
     char relative[MAX_PATH], gameSide[MAX_PATH];
+    if (refused)
+    {
+        const char *copy = shadowOf(path, 0, 0);
+        return copy ? copy : path;
+    }
     if (!relativePart(path, relative, sizeof(relative)))
         return path;
     join(buffer, size, gameWriteDir, relative);
@@ -220,6 +422,13 @@ const char *writeDirForRead(const char *path, char *buffer, size_t size)
 const char *writeDirForWrite(const char *path, int keep, char *buffer, size_t size)
 {
     char relative[MAX_PATH], gameSide[MAX_PATH];
+    if (refused)
+    {
+        const char *copy = shadowOf(path, 1, keep);
+        if (!copy)
+            refusedWrite("file", path);
+        return copy ? copy : "NUL";
+    }
     if (!relativePart(path, relative, sizeof(relative)))
         return path;
     join(buffer, size, gameWriteDir, relative);
@@ -239,7 +448,7 @@ const char *writeDirForWrite(const char *path, int keep, char *buffer, size_t si
 int writeDirSides(const char *path, char *writeSide, char *gameSide, size_t size)
 {
     char relative[MAX_PATH];
-    if (!relativePart(path, relative, sizeof(relative)))
+    if (refused || !relativePart(path, relative, sizeof(relative)))
         return 0;
     join(writeSide, size, gameWriteDir, relative);
     gameSideOf(gameSide, size, relative);
@@ -252,6 +461,12 @@ FILE *writeDirFopen(const char *path, const char *mode)
     if (!active)
         return fopen(path, mode);
     int write = strchr(mode, 'w') || strchr(mode, 'a') || strchr(mode, '+');
+    // Refused: r+ needs the file, as anywhere (EEPROM code makes it with w+ when r+ fails)
+    if (refused && write && strchr(mode, 'r') && !exists(path) && !shadowOf(path, 0, 0))
+    {
+        errno = ENOENT;
+        return NULL;
+    }
     const char *target = write ? writeDirForWrite(path, strchr(mode, 'w') == NULL, buffer, sizeof(buffer))
                                : writeDirForRead(path, buffer, sizeof(buffer));
     return fopen(target, mode);
@@ -263,6 +478,11 @@ int writeDirOpen(const char *path, int flags, int mode)
     if (!active)
         return _open(path, flags, mode);
     int write = (flags & (_O_WRONLY | _O_RDWR | _O_CREAT | _O_APPEND)) != 0;
+    if (refused && write && !(flags & _O_CREAT) && !exists(path) && !shadowOf(path, 0, 0))
+    {
+        errno = ENOENT;
+        return -1;
+    }
     const char *target = write ? writeDirForWrite(path, (flags & _O_TRUNC) == 0, buffer, sizeof(buffer))
                                : writeDirForRead(path, buffer, sizeof(buffer));
     return _open(target, flags, mode);
@@ -271,6 +491,16 @@ int writeDirOpen(const char *path, int flags, int mode)
 int writeDirMkdir(const char *path)
 {
     char buffer[MAX_PATH];
+    if (refused)
+    {
+        if (exists(path))
+        {
+            errno = EEXIST;
+            return -1;
+        }
+        refusedWrite("folder", path);
+        return 0;
+    }
     return _mkdir(writeDirForWrite(path, 0, buffer, sizeof(buffer)));
 }
 
@@ -280,7 +510,7 @@ int writeDirMkdir(const char *path)
 int writeDirChdir(const char *path)
 {
     char relative[MAX_PATH], writeSide[MAX_PATH], gameSide[MAX_PATH];
-    if (!relativePart(path, relative, sizeof(relative)))
+    if (refused || !relativePart(path, relative, sizeof(relative)))
         return _chdir(path);
     join(writeSide, sizeof(writeSide), gameWriteDir, relative);
     gameSideOf(gameSide, sizeof(gameSide), relative);
@@ -296,6 +526,18 @@ int writeDirChdir(const char *path)
 int writeDirRemove(const char *path)
 {
     char writeSide[MAX_PATH], gameSide[MAX_PATH];
+    if (refused)
+    {
+        int had = shadowOf(path, 0, 0) != NULL;
+        shadowForget(path);
+        if (!had && !exists(path))
+        {
+            errno = ENOENT;
+            return -1;
+        }
+        refusedWrite("removal of", path);
+        return 0;
+    }
     if (!writeDirSides(path, writeSide, gameSide, sizeof(writeSide)))
         return remove(path);
     if (exists(writeSide))
@@ -312,6 +554,19 @@ int writeDirRename(const char *from, const char *to)
     char source[MAX_PATH], target[MAX_PATH];
     if (!active)
         return rename(from, to);
+    if (refused)
+    {
+        // The target's copy gets the content; the source stays as it is
+        const char *copy = shadowOf(from, 0, 0);
+        const char *read = copy ? copy : exists(from) ? from : NULL;
+        const char *written = read ? shadowOf(to, 1, 0) : NULL;
+        if (!read || !written || !CopyFileA(read, written, FALSE))
+        {
+            errno = read ? EACCES : ENOENT;
+            return -1;
+        }
+        return 0;
+    }
     const char *readFrom = writeDirForRead(from, source, sizeof(source));
     const char *writeTo = writeDirForWrite(to, 0, target, sizeof(target));
     int fromGame = ((gameDir[0] && inside(readFrom, gameDir)) || (imageRoot[0] && inside(readFrom, imageRoot))) &&
@@ -458,10 +713,10 @@ void writeDirSettings(const char *writeDir, const char *seedDir, char **configPa
     }
     absoluteFolder(rootDir, sizeof(rootDir), writeDir);
     makeFolders(rootDir, 1);
-    if (!isFolder(rootDir))
+    char reason[128];
+    if (!usable(rootDir, reason, sizeof(reason)))
     {
-        log_error("write folder: cannot make %s; the game's folder is written as before", rootDir);
-        rootDir[0] = '\0';
+        refuse(rootDir, reason);
         return;
     }
     overlaySettings(configPath, "linuxloader.ini");
@@ -493,11 +748,25 @@ void writeDirEnterGame(const char *gameName)
         if (!isalnum((unsigned char)*c) && *c != '-' && *c != '_' && *c != '.')
             *c = '_';
     GetCurrentDirectoryA(MAX_PATH, gameDir);
+    if (refused)
+    {
+        active = 1; // the writes go through the write folder's functions, to be lost
+        return;
+    }
     join(gameWriteDir, sizeof(gameWriteDir), rootDir, name);
     makeFolders(gameWriteDir, 1);
-    if (!isFolder(gameWriteDir) || _chdir(gameWriteDir) != 0)
+    char reason[128];
+    if (!usable(gameWriteDir, reason, sizeof(reason)))
     {
-        log_error("write folder: cannot use %s; the game's folder is written as before", gameWriteDir);
+        refuse(gameWriteDir, reason);
+        active = 1;
+        return;
+    }
+    if (_chdir(gameWriteDir) != 0)
+    {
+        snprintf(reason, sizeof(reason), "it cannot be made the current folder (errno %d)", errno);
+        refuse(gameWriteDir, reason);
+        active = 1;
         return;
     }
     active = 1;
@@ -550,6 +819,11 @@ int writeDirGameFolder(char *buffer, size_t size)
 void writeDirImageRoot(const char *root)
 {
     (void)root;
+}
+
+const char *writeDirRefused(void)
+{
+    return NULL;
 }
 
 const char *writeDirForRead(const char *path, char *buffer, size_t size)

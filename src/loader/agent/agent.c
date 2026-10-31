@@ -74,6 +74,7 @@
 #include "../config/config.h"
 #include "../graphics/sdlCalls.h"
 #include "../graphics/blitStretching.h"
+#include "../graphics/overlayMsgs.h"
 #include "../hardware/lindbergh/forceFeedback.h"
 #include "../hardware/lindbergh/jvs.h"
 #include "../input/sdlInput.h"
@@ -379,6 +380,8 @@ static void commandScreen(const char *path)
         return;
     }
     blitAgentPresent(); // the picture placed in the window's back buffer, as at each swap
+    overlayInit();      // the loader's messages over it, as at each swap
+    overlayRender();
     writeBmp(path, readPicture(0, drawableW, drawableH), drawableW, drawableH);
 }
 

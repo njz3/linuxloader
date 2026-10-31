@@ -11,6 +11,8 @@
 
 #include "overlayMsgs.h"
 #include "../config/config.h"
+#include "../gui/gui.h"
+#include "../redirections/writeDir.h"
 #include "blitStretching.h"
 
 extern const unsigned char LiberationMonoRegular_ttf[];
@@ -58,7 +60,7 @@ typedef struct
 {
     bool inUse;
     bool visible;
-    char text[256];
+    char text[512];
     int durationMs;
     int remainingMs;
     OverlayPosition position;
@@ -205,7 +207,8 @@ static void createOverlayGeometry(GLuint vao, GLuint vbo, int w, int h)
     glad_glBindVertexArray(0);
 }
 
-static GLuint bakeTextToTexture(const char *text, TTF_Font *font, int padX, int padY,
+// The text on as many lines as it has, each cut to wrapW pixels when it is wider (0: never cut)
+static GLuint bakeTextToTexture(const char *text, TTF_Font *font, int wrapW, int padX, int padY,
                                  int minW, int minH, int bgR, int bgG, int bgB, int bgA,
                                  int cornerR, int textR, int textG, int textB,
                                  int *outW, int *outH)
@@ -215,7 +218,7 @@ static GLuint bakeTextToTexture(const char *text, TTF_Font *font, int padX, int 
 
     SDL_Color fg = {(Uint8)textR, (Uint8)textG, (Uint8)textB, 255};
     size_t tlen = strlen(text);
-    SDL_Surface *textSurf = TTF_RenderText_Blended(font, text, tlen, fg);
+    SDL_Surface *textSurf = TTF_RenderText_Blended_Wrapped(font, text, tlen, fg, wrapW > 0 ? wrapW : 0);
     if (!textSurf)
         return 0;
 
@@ -364,7 +367,7 @@ static int getScaledValue(int base, float scale)
     return val > 0 ? val : 1;
 }
 
-static void rebuildSlotTexture(OverlaySlot *slot, float scale)
+static void rebuildSlotTexture(OverlaySlot *slot, float scale, int areaW)
 {
     if (!gTtfOk || !gFont)
         return;
@@ -387,7 +390,8 @@ static void rebuildSlotTexture(OverlaySlot *slot, float scale)
 
     destroySlotGlResources(slot);
 
-    GLuint newTex = bakeTextToTexture(slot->text, gFont,
+    int margin = getScaledValue(OVERLAY_MARGIN, scale);
+    GLuint newTex = bakeTextToTexture(slot->text, gFont, areaW - 2 * (margin + padX),
                                        padX, padY, minW, minH,
                                        OVERLAY_BG_R, OVERLAY_BG_G, OVERLAY_BG_B, OVERLAY_BG_A,
                                        cornerR,
@@ -544,6 +548,15 @@ void overlayInit(void)
         gSlots[i].texture = 0;
         gSlots[i].vao = 0;
         gSlots[i].vbo = 0;
+    }
+
+    // A write folder refused (redirections/writeDir.c): said for 20 s as the game starts, nothing being saved
+    const char *refused = writeDirRefused();
+    if (refused)
+    {
+        char notice[512];
+        guiWriteFolderNotice(notice, sizeof(notice), refused);
+        overlayShowMessage(notice, 20000, OVERLAY_TOP_LEFT);
     }
 }
 
@@ -854,7 +867,7 @@ void overlayRender(void)
             glad_glGetIntegerv(GL_ACTIVE_TEXTURE, &prevActiveTex);
             glad_glActiveTexture(GL_TEXTURE0);
 
-            rebuildSlotTexture(slot, scale);
+            rebuildSlotTexture(slot, scale, areaW);
 
             glad_glBindTexture(GL_TEXTURE_2D, (GLuint)prevTexBind);
             glad_glPixelStorei(GL_UNPACK_ALIGNMENT, prevUnpackAlign);

@@ -22,6 +22,8 @@ void renderFrame(int width, int height);
 // The text in the interface's language: the English text itself, or its translation in lang/<language>.po (LANGUAGE
 // = auto: the system's language). The pointer stays valid until the program ends.
 const char *tr(const char *text);
+// The language tr() translates into, without the interface (the loader's notices over a game): LANGUAGE's
+void useLanguage(const char *language);
 // A text tr() translates later, marked for xgettext (scripts/i18n/update-translations.sh)
 #ifndef N_
 #define N_(text) text

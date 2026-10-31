@@ -26,6 +26,7 @@
 #include "sdlInput.h"
 #include "../hardware/lindbergh/jvs.h"
 #include "../log/log.h"
+#include "../redirections/writeDir.h"
 #include "../hardware/lindbergh/touchScreen.h"
 #include "../graphics/sdlCalls.h"
 #include "../mainShared.h"
@@ -2542,6 +2543,12 @@ void saveGuidsToIni()
     // only the GUIDs, in the game's folder, was then found by the settings' Controls page, without a binding to map.
     if (!gLoadedControlsPath[0])
         return;
+    // A write folder refused: controls.ini is the loader's own, only read
+    if (writeDirRefused())
+    {
+        log_warn("write folder refused: the controllers' GUIDs not written into %s", gLoadedControlsPath);
+        return;
+    }
     printf("Saving updated controller GUIDs to %s...\n", gLoadedControlsPath);
     IniConfig *ini = iniLoad(gLoadedControlsPath);
     if (!ini)

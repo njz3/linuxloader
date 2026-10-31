@@ -371,9 +371,10 @@ int main(int argc, char *argv[], char *envp[])
     initConfig(configPath);
     writeDirEnterGame(getConfig()->gameShortTitle); // from now on the current folder
 
-    if (!std::filesystem::exists("tmp"))
+    // The game's tmp folder, in the write folder; not made when it is refused (the current folder is then the game's)
+    if (!writeDirRefused() && !std::filesystem::exists("tmp"))
         std::filesystem::create_directory("tmp");
-    if (!std::filesystem::exists("tmp\\segaboot"))
+    if (!writeDirRefused() && !std::filesystem::exists("tmp\\segaboot"))
         std::filesystem::create_directory("tmp\\segaboot");
 
     if (agentHidden()) // --agent: a window never shown, frames as fast as they go
