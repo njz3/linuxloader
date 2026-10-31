@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 
 static std::mutex g_net_mutex;
 
@@ -290,11 +291,14 @@ namespace NetworkBridge
 // the group refused (linuxSockopt). Its boot sees itself so, as a cabinet alone on its link
 static uint32_t ownAddress()
 {
+    // The link on one PC: the game's address is this copy's (eth0Address), nothing to answer for
+    if (sharedLocalLinkAddress())
+        return 0;
     const char *address = sharedEth0SetAddress();
     return address ? inet_addr(address) : 0;
 }
 
-static bool isThisPc(uint32_t address)
+static const std::vector<uint32_t> &thisPcAddresses()
 {
     static std::vector<uint32_t> local;
     static std::once_flag once;
@@ -310,7 +314,22 @@ static bool isThisPc(uint32_t address)
             freeaddrinfo(list);
         }
     });
+    return local;
+}
+
+static bool isThisPc(uint32_t address)
+{
+    const std::vector<uint32_t> &local = thisPcAddresses();
     return std::find(local.begin(), local.end(), address) != local.end();
+}
+
+// This PC's address in the /24 of the game's own (Namco's 192.168.GROUP.x): the cabinets' network. 0 for none
+static uint32_t lanAddressOf(uint32_t gameAddress)
+{
+    for (uint32_t address : thisPcAddresses())
+        if (address != htonl(INADDR_LOOPBACK) && ((address ^ gameAddress) & htonl(0xFFFFFF00)) == 0)
+            return address;
+    return 0;
 }
 
 static void fromThisPc(void *address)
@@ -336,6 +355,169 @@ static const struct sockaddr *toThisPc(const void *address, struct sockaddr_in *
     *copy = *in;
     copy->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     return (const struct sockaddr *)copy;
+}
+
+// The link on one PC (sharedLocalLinkAddress): each copy of the loader has its own loopback address, 127.0.0.2,
+// 127.0.0.3... Its sockets are bound to it, those the game binds to any address and those it sends from unbound (Windows
+// would send them from 127.0.0.1), so that the copies share their ports and know each other's packets. Windows'
+// loopback carries no broadcast: one goes to each of the LOCAL_LINK_COPIES addresses from 127.0.0.2, the sender's too,
+// as a broadcast comes back on Linux. A multicast the same (Namco's 225.0.0.1), its group joined without Winsock
+#define LOCAL_LINK_COPIES 8
+
+static uint32_t localLinkAddress()
+{
+    const char *address = sharedLocalLinkAddress();
+    return address ? inet_addr(address) : 0;
+}
+
+static bool isLocalLinkBroadcast(const struct sockaddr *address)
+{
+    const struct sockaddr_in *in = (const struct sockaddr_in *)address;
+    return in && in->sin_family == AF_INET && localLinkAddress() &&
+           (in->sin_addr.s_addr == htonl(INADDR_BROADCAST) || (ntohl(in->sin_addr.s_addr) & 0xFF) == 0xFF ||
+            (ntohl(in->sin_addr.s_addr) >> 28) == 0xE);
+}
+
+// A socket not bound yet, before it sends: bound to this copy's address
+static void bindToLocalLink(SOCKET s)
+{
+    uint32_t own = localLinkAddress();
+    struct sockaddr_in bound = {};
+    int length = sizeof(bound);
+    if (!own || getsockname(s, (struct sockaddr *)&bound, &length) == 0 || WSAGetLastError() != WSAEINVAL)
+        return;
+    bound.sin_family = AF_INET;
+    bound.sin_addr.s_addr = own;
+    bound.sin_port = 0;
+    if (bind(s, (const struct sockaddr *)&bound, sizeof(bound)) == SOCKET_ERROR)
+        log_warn("Local link: socket not bound to its copy's address (%d)", WSAGetLastError());
+}
+
+// Gaelco's link broadcasts to the .255 of its Base IP, 90.0.0.255 as the cabinets came (Ring Riders always to that
+// one), which is no network of this PC's: Windows would send it to its gateway. Between cabinets it goes to the
+// broadcast of this PC's network
+static const char *addressText(const void *address, char *text, size_t size);
+
+static const struct sockaddr *toLanBroadcast(const struct sockaddr *address, struct sockaddr_in *copy)
+{
+    const struct sockaddr_in *in = (const struct sockaddr_in *)address;
+    uint32_t lan, mask;
+    if (getConfig()->gameGroup != GROUP_GAELCO || !in || in->sin_family != AF_INET ||
+        (ntohl(in->sin_addr.s_addr) & 0xFF) != 0xFF || lanAddressOf(in->sin_addr.s_addr) || !sharedLanAddress(&lan, &mask))
+        return address;
+    *copy = *in;
+    copy->sin_addr.s_addr = lan | ~mask;
+    static bool told = false;
+    if (!told)
+    {
+        char from[32], to[32];
+        log_warn("Link: the broadcasts to %s go to %s, this PC's network", addressText(address, from, sizeof(from)),
+                 addressText(copy, to, sizeof(to)));
+        told = true;
+    }
+    return (const struct sockaddr *)copy;
+}
+
+// A broadcast on the link on one PC, sent to each copy: the length sent when one copy at least got it
+static int sendToLocalLink(SOCKET s, WSABUF *bufs, DWORD count, int flags, const struct sockaddr *to)
+{
+    struct sockaddr_in copy = *(const struct sockaddr_in *)to;
+    int sent = SOCKET_ERROR, error = 0;
+    for (int n = 2; n < 2 + LOCAL_LINK_COPIES; n++)
+    {
+        copy.sin_addr.s_addr = htonl((INADDR_LOOPBACK & 0xFFFFFF00) | n);
+        DWORD bytes = 0;
+        if (WSASendTo(s, bufs, count, &bytes, flags, (const struct sockaddr *)&copy, sizeof(copy), NULL, NULL) == 0)
+            sent = (int)bytes;
+        else
+            error = WSAGetLastError();
+    }
+    if (sent == SOCKET_ERROR)
+        WSASetLastError(error);
+    return sent;
+}
+
+// Initial D 4 Japan's in-shop server box, which the loader plays (cStoreServerMonitor: UDP 13346, 0x210-byte "IDBP"
+// packets, the command at +4). A seat's search (0x0e, a broadcast to 192.168.37.255) is answered as the server (0x0f,
+// seat 0xff), which the seat then finds at the answer's source, 127.0.0.1; its alives to the server (0x10) are answered,
+// its pairing request (4) goes on to the other seat. The seats then talk to each other: their alives, the match server
+// on the odd seat (UDP 12222), the race (UDP 13349). No in-shop ranking (the box's TCP 9876)
+#define ID4_STORE_PORT 13346
+#define ID4_STORE_PACKET 0x210
+
+static void id4ServerAnswer(const char *request, uint32_t command)
+{
+    static SOCKET server = INVALID_SOCKET;
+    if (server == INVALID_SOCKET)
+    {
+        server = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+        struct sockaddr_in local = {};
+        local.sin_family = AF_INET;
+        local.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        bind(server, (const struct sockaddr *)&local, sizeof(local));
+    }
+    char answer[ID4_STORE_PACKET];
+    memcpy(answer, request, sizeof(answer));
+    uint32_t value = command;
+    memcpy(answer + 0x4, &value, 4);
+    value = (uint32_t)time(NULL);
+    memcpy(answer + 0xc, &value, 4);
+    memcpy(&value, answer + 0x20, 4);
+    value |= 1; // a packet without it is ignored
+    memcpy(answer + 0x20, &value, 4);
+    value = INADDR_LOOPBACK; // the sender's address, host order
+    memcpy(answer + 0x24, &value, 4);
+    answer[0x2a] = (char)0xff; // the server's seat
+    answer[0x2b] = 'X';
+    value = 0;
+    memcpy(answer + 0x2c, &value, 4);
+    // To the seat's socket, bound to any address on a network, to this copy's on one PC
+    struct sockaddr_in seat = {};
+    seat.sin_family = AF_INET;
+    seat.sin_port = htons(ID4_STORE_PORT);
+    seat.sin_addr.s_addr = sharedLocalLinkAddress() ? inet_addr(sharedLocalLinkAddress()) : htonl(INADDR_LOOPBACK);
+    sendto(server, answer, sizeof(answer), 0, (const struct sockaddr *)&seat, sizeof(seat));
+}
+
+// True when the packet is the server box's business, *sent its length
+static bool id4ServerBox(SOCKET s, const char *buf, int len, const struct sockaddr *to, int *sent)
+{
+    const struct sockaddr_in *in = (const struct sockaddr_in *)to;
+    if (getConfig()->gameGroup != GROUP_ID4_JAP || len != ID4_STORE_PACKET || memcmp(buf, "IDBP", 4) != 0 || !in ||
+        in->sin_family != AF_INET || ntohs(in->sin_port) != ID4_STORE_PORT)
+        return false;
+    uint32_t command;
+    memcpy(&command, buf + 4, 4);
+    bool toServer = in->sin_addr.s_addr == htonl(INADDR_LOOPBACK);
+    if (command != 0x0e && !toServer)
+        return false; // to the other seat
+    *sent = len;
+    if (command == 0x0e)
+        id4ServerAnswer(buf, 0x0f);
+    else if (command == 0x10)
+        id4ServerAnswer(buf, 0x10);
+    else if (command == 4)
+    {
+        // The pairing request, on to the other seat: the copies on one PC, or ID_IP_SEAT_1 or 2, the one not this PC's
+        struct sockaddr_in other = *in;
+        if (sharedLocalLinkAddress())
+        {
+            WSABUF buffer = {(ULONG)len, (CHAR *)buf};
+            sendToLocalLink(s, &buffer, 1, 0, (const struct sockaddr *)&other);
+        }
+        else
+        {
+            const char *seats[2] = {getConfig()->idIpSeat1, getConfig()->idIpSeat2};
+            for (const char *seat : seats)
+            {
+                other.sin_addr.s_addr = inet_addr(seat);
+                if (seat[0] && other.sin_addr.s_addr != INADDR_NONE && !isThisPc(other.sin_addr.s_addr))
+                    sendto(s, buf, len, 0, (const struct sockaddr *)&other, sizeof(other));
+            }
+        }
+    }
+    log_info(">>> sendto: Initial D's server box, command 0x%x", command);
+    return true;
 }
 
 // Windows makes a UDP socket's next recvfrom fail with WSAECONNRESET when one of its datagrams found no one listening
@@ -367,6 +549,14 @@ static SOCKET gameSocket(SOCKET fd)
 extern "C" SOCKET bridgeSocket(int af, int type, int protocol)
 {
     log_info(">>> socket called: af=%d, type=%d, protocol=%d", af, type, protocol);
+    // SOCK_PACKET, Linux's raw Ethernet socket: Gaelco's games ask eth0's MAC with it (Ring Riders numbers its cabinets
+    // with it) and set eth0's address, ioctls only (sharedIoctl). A UDP socket stands for it
+    if (af == AF_INET && type == 10)
+    {
+        log_info(">>> socket: SOCK_PACKET, a UDP socket for its ioctls");
+        type = SOCK_DGRAM;
+        protocol = 0;
+    }
     SOCKET s = socket(af, type, protocol);
     if (s == INVALID_SOCKET)
     {
@@ -396,6 +586,7 @@ extern "C" int bridgeConnect(SOCKET fd, const struct sockaddr *name, int namelen
     char text[32];
     log_info(">>> connect called: socket=%lld to %s", (long long)fd, addressText(name, text, sizeof(text)));
     struct sockaddr_in local;
+    bindToLocalLink(s);
     int ret = connect(s, toThisPc(name, &local), namelen);
     if (ret == SOCKET_ERROR)
     {
@@ -420,6 +611,24 @@ extern "C" int bridgeBind(SOCKET fd, const struct sockaddr *name, int namelen)
         any = *in;
         any.sin_addr.s_addr = htonl(INADDR_ANY);
         name = (const struct sockaddr *)&any;
+    }
+    // The link on one PC: any address, or a broadcast one, is this copy's; another copy's is not this PC's, as on a
+    // network (Hummer binds to each cabinet's address, and keeps the one it gets)
+    uint32_t localLink = localLinkAddress();
+    if (localLink && in && in->sin_family == AF_INET && (ntohl(in->sin_addr.s_addr) >> 24) == 127 &&
+        in->sin_addr.s_addr != localLink && in->sin_addr.s_addr != htonl(INADDR_LOOPBACK) && !isLocalLinkBroadcast(name))
+    {
+        log_info(">>> bind EXIT: %s is another copy's address, the link on one PC", text);
+        errno = 99; // EADDRNOTAVAIL
+        return -1;
+    }
+    if (localLink && in && in->sin_family == AF_INET &&
+        (in->sin_addr.s_addr == htonl(INADDR_ANY) || isLocalLinkBroadcast(name)))
+    {
+        any = *in;
+        any.sin_addr.s_addr = localLink;
+        name = (const struct sockaddr *)&any;
+        log_info(">>> bind: on this copy's address, the link on one PC");
     }
     int ret = bind(s, name, namelen);
     // A UDP socket bound to a broadcast address (255.255.255.255, or a.b.c.255 as SIOCGIFBRDADDR gives it) receives
@@ -517,6 +726,7 @@ extern "C" int bridgeRecvfrom(SOCKET fd, char *buf, int len, int flags, struct s
 {
     SOCKET s = gameSocket(fd);
     log_info(">>> recvfrom ENTRY: socket=%lld, len=%d (THIS MAY BLOCK!)", (long long)fd, len);
+    sharedSigioPoll();
     if (flags & 0x40)
         flags &= ~0x40;
     int ret = recvfrom(s, buf, len, flags, from, fromlen);
@@ -537,9 +747,23 @@ extern "C" int bridgeSendto(SOCKET fd, const char *buf, int len, int flags, cons
 {
     SOCKET s = gameSocket(fd);
     log_info(">>> sendto called: socket=%lld, len=%d", (long long)fd, len);
+    sharedSigioPoll();
     flags &= ~(0x4000 | 0x40);
     struct sockaddr_in local;
-    int ret = sendto(s, buf, len, flags, toThisPc(to, &local), tolen);
+    bindToLocalLink(s);
+    int ret;
+    if (id4ServerBox(s, buf, len, to, &ret))
+        ;
+    else if (isLocalLinkBroadcast(to))
+    {
+        WSABUF buffer = {(ULONG)len, (CHAR *)buf};
+        ret = sendToLocalLink(s, &buffer, 1, flags, to);
+    }
+    else
+    {
+        struct sockaddr_in broadcast;
+        ret = sendto(s, buf, len, flags, toThisPc(toLanBroadcast(to, &broadcast), &local), tolen);
+    }
     char text[32];
     if (ret == SOCKET_ERROR)
     {
@@ -594,8 +818,16 @@ extern "C" int bridgeSendmsg(SOCKET fd, const LinuxMsghdr *msg, int flags)
     DWORD sent = 0;
     const struct sockaddr_in *to = (const struct sockaddr_in *)msg->msg_name;
     struct sockaddr_in local;
-    if (WSASendTo(s, bufs, msg->msg_iovlen, &sent, flags & ~(0x4000 | 0x40), toThisPc(msg->msg_name, &local),
-                  msg->msg_name ? (int)msg->msg_namelen : 0, NULL, NULL) == SOCKET_ERROR)
+    bindToLocalLink(s);
+    int ret;
+    if (isLocalLinkBroadcast((const struct sockaddr *)to))
+        ret = sendToLocalLink(s, bufs, msg->msg_iovlen, flags & ~(0x4000 | 0x40), (const struct sockaddr *)to);
+    else
+        ret = WSASendTo(s, bufs, msg->msg_iovlen, &sent, flags & ~(0x4000 | 0x40), toThisPc(msg->msg_name, &local),
+                        msg->msg_name ? (int)msg->msg_namelen : 0, NULL, NULL) == SOCKET_ERROR
+                  ? SOCKET_ERROR
+                  : (int)sent;
+    if (ret == SOCKET_ERROR)
     {
         int error = WSAGetLastError();
         log_info(">>> sendmsg: socket=%lld to %s:%u failed (%d)", (long long)fd, to ? inet_ntoa(to->sin_addr) : "-",
@@ -604,8 +836,8 @@ extern "C" int bridgeSendmsg(SOCKET fd, const LinuxMsghdr *msg, int flags)
         return -1;
     }
     log_info(">>> sendmsg: socket=%lld to %s:%u, %lu bytes", (long long)fd, to ? inet_ntoa(to->sin_addr) : "-",
-             to ? ntohs(to->sin_port) : 0, (unsigned long)sent);
-    return (int)sent;
+             to ? ntohs(to->sin_port) : 0, (unsigned long)ret);
+    return ret;
 }
 
 extern "C" int bridgeRecvmsg(SOCKET fd, LinuxMsghdr *msg, int flags)
@@ -706,7 +938,7 @@ static bool linuxSockopt(int &level, int &optname)
             case 34: optname = IP_MULTICAST_LOOP; break;
             case 35: // IP_ADD_MEMBERSHIP
             case 36: // IP_DROP_MEMBERSHIP
-                if (!ownAddress())
+                if (!ownAddress() && !sharedLocalLinkAddress())
                     return false;
                 optname = optname == 35 ? IP_ADD_MEMBERSHIP : IP_DROP_MEMBERSHIP;
                 break;
@@ -728,11 +960,23 @@ extern "C" int bridgeSetsockopt(SOCKET fd, int level, int optname, const char *o
     SOCKET s = gameSocket(fd);
     log_info(">>> setsockopt called: socket=%lld, level=%d, optname=%d", (long long)fd, level, optname);
 
+    // IP_MTU_DISCOVER (Gaelco's link): Winsock has no such option (its 10 is IP_MULTICAST_TTL)
+    if (level == 0 && optname == 10)
+    {
+        log_info(">>> setsockopt EXIT: IP_MTU_DISCOVER taken");
+        return 0;
+    }
     if (!linuxSockopt(level, optname))
     {
         errno = mapWSAErrorToErrno(WSAENOPROTOOPT);
         log_info(">>> setsockopt EXIT: refused");
         return -1;
+    }
+    // The link on one PC: a group is joined by the copies' fan-out (sendToLocalLink), Winsock's loopback has none
+    if (sharedLocalLinkAddress() && level == 0 && (optname == IP_ADD_MEMBERSHIP || optname == IP_DROP_MEMBERSHIP))
+    {
+        log_info(">>> setsockopt EXIT: group taken, the link on one PC");
+        return 0;
     }
     DWORD dword;
     struct linger linger;
@@ -759,6 +1003,20 @@ extern "C" int bridgeSetsockopt(SOCKET fd, int level, int optname, const char *o
         int interfaceIndex = optname == IP_MULTICAST_IF ? 0 : 1;
         if (ownAddress() && mreq[interfaceIndex] == ownAddress())
             mreq[interfaceIndex] = htonl(INADDR_ANY);
+        // A link between cabinets: the group on the PC's address in the game's /24, and its sends leaving there, not
+        // on whichever adapter Windows picks (a VPN's)
+        uint32_t lan = ownAddress() ? lanAddressOf(ownAddress()) : 0;
+        if (lan && mreq[interfaceIndex] == htonl(INADDR_ANY))
+        {
+            mreq[interfaceIndex] = lan;
+            if (optname == IP_ADD_MEMBERSHIP)
+                setsockopt(s, IPPROTO_IP, IP_MULTICAST_IF, (const char *)&lan, sizeof(lan));
+            char text[32];
+            struct sockaddr_in in = {};
+            in.sin_family = AF_INET;
+            in.sin_addr.s_addr = lan;
+            log_warn("Link: multicast on %s, this PC's address in the game's network", addressText(&in, text, sizeof(text)));
+        }
         optval = (const char *)mreq;
     }
     else if (level == 0 && (optname == IP_MULTICAST_LOOP || optname == IP_MULTICAST_TTL) && optval && optlen == 1)

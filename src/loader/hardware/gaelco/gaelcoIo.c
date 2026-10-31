@@ -290,6 +290,8 @@ static int soundCommand(int command, int *params)
     }
 }
 
+static int gaelcoInport(int port, char *value);
+
 static int gaelcoIntfCommand(int command, int *params)
 {
     logCommand(command, params);
@@ -297,6 +299,17 @@ static int gaelcoIntfCommand(int command, int *params)
         return soundCommand(command, params);
     if (command == COMMAND_SOUND_READY || (command == COMMAND_SOUND_READY_OLD && gId == TOKYO_COP))
         return 1;
+    // Tokyo Cop's older interface reads and writes ports with commands 8 and 9 (params[0] the port): its link's slave
+    // waits for the vertical retrace on 0x3DA (wait_vsync_raw) and moves its own on the CRTC's 0x3D4 (setScanLines),
+    // so that its frames follow the master's. Writes ignored
+    if ((command == COMMAND_READ_REGISTER || command == COMMAND_WRITE_OUTPUT) && gId == TOKYO_COP && params &&
+        params[0] >= 0x100)
+    {
+        char value = 0;
+        if (command == COMMAND_READ_REGISTER)
+            gaelcoInport(params[0], &value);
+        return (unsigned char)value;
+    }
     if (command == COMMAND_READ_REGISTER && params)
         return readRegister(params[0]);
     if (command == COMMAND_WRITE_OUTPUT && params && params[0] >= 0 && params[0] < 16)

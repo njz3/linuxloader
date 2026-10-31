@@ -19,7 +19,12 @@ static char seedRoot[MAX_PATH] = "";     // SEED_DIR: <seed>\<game> holds WRITE_
 static char gameWriteDir[MAX_PATH] = ""; // WRITE_DIR\<game>, the current folder while the game runs
 static char gameDir[MAX_PATH] = "";      // the game's folder, only read
 static char currentSub[MAX_PATH] = "";   // where the game's chdir took it, in WRITE_DIR\<game> ("": its root)
+static char imageRoot[MAX_PATH] = "";    // a Linux disk image's root (Gaelco's), gameDir being inside it
 static int active = 0;
+
+// A Linux disk image's files outside the game's folder (Gaelco's /home/save0/switch.bin, the image's root being the
+// one of their absolute paths): in WRITE_DIR\<game>\linuxroot, as in the image
+#define IMAGE_FOLDER "linuxroot"
 
 static int exists(const char *path)
 {
@@ -116,8 +121,19 @@ static const char *inside(const char *path, const char *folder)
     return path[length] == '\0' ? path + length : NULL;
 }
 
-// The part of path in the game's folder: a relative path, or an absolute one in WRITE_DIR\<game> or in the game's
-// folder. NULL for the others: devices, root-relative Linux paths, other folders.
+// The game's side of a part relativePart gives: in the game's folder, or in the Linux disk image
+static void gameSideOf(char *out, size_t size, const char *relative)
+{
+    size_t length = strlen(IMAGE_FOLDER);
+    if (imageRoot[0] && _strnicmp(relative, IMAGE_FOLDER, length) == 0 && (relative[length] == '\\' || !relative[length]))
+        join(out, size, imageRoot, relative[length] ? relative + length + 1 : "");
+    else
+        join(out, size, gameDir, relative);
+}
+
+// The part of path in the game's folder: a relative path, or an absolute one in WRITE_DIR\<game>, in the game's
+// folder, or in the Linux disk image it is in (IMAGE_FOLDER\...). NULL for the others: devices, root-relative Linux
+// paths, other folders.
 static const char *relativePart(const char *path, char *buffer, size_t size)
 {
     if (!active || !path || !path[0])
@@ -131,11 +147,17 @@ static const char *relativePart(const char *path, char *buffer, size_t size)
         return NULL;
 
     const char *rest;
+    char inImage[MAX_PATH];
     if (isAbsolute(normal))
     {
         rest = inside(normal, gameWriteDir);
         if (!rest)
             rest = inside(normal, gameDir);
+        if (!rest && imageRoot[0] && (rest = inside(normal, imageRoot)) != NULL)
+        {
+            snprintf(inImage, sizeof(inImage), "%s%s%s", IMAGE_FOLDER, rest[0] ? "\\" : "", rest);
+            rest = inImage;
+        }
         if (!rest)
             return NULL;
     }
@@ -174,6 +196,13 @@ int writeDirGameFolder(char *buffer, size_t size)
     return 1;
 }
 
+void writeDirImageRoot(const char *root)
+{
+    snprintf(imageRoot, sizeof(imageRoot), "%s", root);
+    if (active)
+        log_info("write folder: the Linux disk image's files written in %s\\%s", gameWriteDir, IMAGE_FOLDER);
+}
+
 const char *writeDirForRead(const char *path, char *buffer, size_t size)
 {
     char relative[MAX_PATH], gameSide[MAX_PATH];
@@ -182,7 +211,7 @@ const char *writeDirForRead(const char *path, char *buffer, size_t size)
     join(buffer, size, gameWriteDir, relative);
     if (exists(buffer))
         return buffer;
-    join(gameSide, sizeof(gameSide), gameDir, relative);
+    gameSideOf(gameSide, sizeof(gameSide), relative);
     if (exists(gameSide))
         snprintf(buffer, size, "%s", gameSide);
     return buffer;
@@ -197,7 +226,7 @@ const char *writeDirForWrite(const char *path, int keep, char *buffer, size_t si
     makeFolders(buffer, 0);
     if (keep && !exists(buffer))
     {
-        join(gameSide, sizeof(gameSide), gameDir, relative);
+        gameSideOf(gameSide, sizeof(gameSide), relative);
         if (exists(gameSide) && !isFolder(gameSide))
         {
             if (CopyFileA(gameSide, buffer, TRUE))
@@ -213,7 +242,7 @@ int writeDirSides(const char *path, char *writeSide, char *gameSide, size_t size
     if (!relativePart(path, relative, sizeof(relative)))
         return 0;
     join(writeSide, size, gameWriteDir, relative);
-    join(gameSide, size, gameDir, relative);
+    gameSideOf(gameSide, size, relative);
     return 1;
 }
 
@@ -254,7 +283,7 @@ int writeDirChdir(const char *path)
     if (!relativePart(path, relative, sizeof(relative)))
         return _chdir(path);
     join(writeSide, sizeof(writeSide), gameWriteDir, relative);
-    join(gameSide, sizeof(gameSide), gameDir, relative);
+    gameSideOf(gameSide, sizeof(gameSide), relative);
     if (!isFolder(writeSide) && isFolder(gameSide))
         makeFolders(writeSide, 1);
     if (_chdir(writeSide) != 0)
@@ -285,7 +314,8 @@ int writeDirRename(const char *from, const char *to)
         return rename(from, to);
     const char *readFrom = writeDirForRead(from, source, sizeof(source));
     const char *writeTo = writeDirForWrite(to, 0, target, sizeof(target));
-    int fromGame = gameDir[0] && inside(readFrom, gameDir) && !inside(readFrom, gameWriteDir);
+    int fromGame = ((gameDir[0] && inside(readFrom, gameDir)) || (imageRoot[0] && inside(readFrom, imageRoot))) &&
+                   !inside(readFrom, gameWriteDir);
     BOOL done = fromGame ? CopyFileA(readFrom, writeTo, FALSE) : MoveFileExA(readFrom, writeTo, MOVEFILE_REPLACE_EXISTING);
     if (!done)
     {
@@ -515,6 +545,11 @@ int writeDirGameFolder(char *buffer, size_t size)
     (void)buffer;
     (void)size;
     return 0;
+}
+
+void writeDirImageRoot(const char *root)
+{
+    (void)root;
 }
 
 const char *writeDirForRead(const char *path, char *buffer, size_t size)

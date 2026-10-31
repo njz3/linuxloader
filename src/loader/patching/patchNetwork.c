@@ -9,6 +9,7 @@
 #include "../config/config.h"
 #include "../log/log.h"
 #include "../patching/flowControl.h"
+#include "../redirections/writeDir.h"
 
 #ifdef __linux__
 #include <dlfcn.h>
@@ -20,6 +21,9 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
+// The game's bind (elfLoader/networkBridge.cpp): its sockets are the game's descriptors, not Winsock's
+int bridgeBind(SOCKET fd, const struct sockaddr *name, int namelen);
+int bridgeSetsockopt(SOCKET fd, int level, int optname, const char *optval, int optlen);
 #endif
 
 extern uint32_t gId;
@@ -228,7 +232,8 @@ int rtunedGetCabs()
 
 void rtunedGetLinkIdandCabs()
 {
-    FILE *f = fopen(getConfig()->sramPath, "rb");
+    // The cabinet's SRAM: the write folder's (its LINK ID set in the test menu) when there is one
+    FILE *f = writeDirFopen(getConfig()->sramPath, "rb");
     if (f == NULL)
         return;
     fseek(f, 0xc011, SEEK_SET);
@@ -285,9 +290,22 @@ void rtunedSetIPs()
     rtunedRotateIps(rtunedIPs, rtunedSortedIPs, rtunedCabs, rtunedLinkId);
 }
 
+// Nirin's clConfig::getIPString(i): the address of the cabinet with PCB ID i + 1, from data/lua/config.lua (172.19.1.1
+// to 4). With the network patches, IP_CAB1 to 4 when set: the cabinets' own addresses, or the copies' on one PC. The
+// game sets eth0 to its PCB ID's, binds its receiver to each one (its own only succeeds) and sends to the others
+const char *nirinGetIPString(int index)
+{
+    if (index < 0 || index > 3)
+        return (const char *)0x083E4C57;
+    const char *cabs[4] = {getConfig()->IpCab1, getConfig()->IpCab2, getConfig()->IpCab3, getConfig()->IpCab4};
+    if (getConfig()->enableNetworkPatches && cabs[index][0])
+        return cabs[index];
+    return (const char *)(0x083F1000 + 64 * index);
+}
+
 int rtunedBind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 {
-    if (rtunedCabs > 1)
+    if (rtunedCabs > 1 && rtunedLinkId >= 1 && rtunedLinkId <= rtunedCabs && getConfig()->enableNetworkPatches)
     {
         int idx1 = 0;
         int idx2 = 0;
@@ -304,7 +322,15 @@ int rtunedBind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
         setVariable(0x0851bf90, invIp);
         setVariable(0x0851bf98, invIpBcast);
     }
+#ifdef __linux__
     return bind(sockfd, addr, addrlen);
+#else
+    // The link's receive thread waits in recvfrom; on Linux alarm() wakes it to see the stop flag when the link ends,
+    // a stub here: a 2 s timeout instead, or the game would freeze on a link lost (the thread retries on an error)
+    int linuxTimeval[2] = {2, 0};
+    bridgeSetsockopt((SOCKET)sockfd, 1, 20, (const char *)linuxTimeval, sizeof(linuxTimeval)); // SOL_SOCKET, SO_RCVTIMEO
+    return bridgeBind((SOCKET)sockfd, addr, addrlen);
+#endif
 }
 
 #ifdef __linux__

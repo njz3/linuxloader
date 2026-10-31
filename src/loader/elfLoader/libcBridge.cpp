@@ -50,6 +50,7 @@ extern "C"
 }
 
 int segabootExitCode(int status); // mainW.cpp
+static void sigioThreadStart(void);   // the loader's thread of SIGIO, below
 
 namespace LibcBridge
 {
@@ -1071,6 +1072,7 @@ namespace LibcBridge
     int32_t bridgeTime(int32_t *tloc)
     {
         log_trace("Intercepted time");
+        sharedSigioPoll();
         time_t t = time(NULL);
         if (tloc)
         {
@@ -1090,6 +1092,7 @@ namespace LibcBridge
     int bridgeGettimeofday(struct timeval *tv, void *tz)
     {
         log_trace("Intercepted gettimeofday");
+        sharedSigioPoll();
         if (tv)
         {
             FILETIME ft;
@@ -1126,6 +1129,7 @@ namespace LibcBridge
     int bridgeUsleep(uint32_t microseconds)
     {
         log_trace("Intercepted usleep");
+        sharedSigioPoll();
         Sleep(microseconds / 1000);
         return 0;
     }
@@ -1139,6 +1143,7 @@ namespace LibcBridge
 
     int bridgeNanosleep(const struct timespec *req, struct timespec *rem)
     {
+        sharedSigioPoll();
         long long duration_ns = (long long)req->tv_sec * 1000000000LL + req->tv_nsec;
         if (duration_ns <= 0)
             return 0;
@@ -1211,6 +1216,7 @@ namespace LibcBridge
     int bridgeClockGettime(int clk_id, struct timespec *tp)
     {
         log_trace("Intercepted clock_gettime");
+        sharedSigioPoll();
         if (clk_id == CLOCK_REALTIME)
         {
             FILETIME ft;
@@ -1615,12 +1621,18 @@ namespace LibcBridge
             sharedEth0Set(command + 19);
             return 0;
         }
+        if (strncmp(command, "su -c 'ifconfig eth0 ", 21) == 0) // Nirin's, its PCB ID's address
+        {
+            sharedEth0Set(command + 21);
+            return 0;
+        }
         // Hummer's check_ip.sh ADDRESS before its link: arping -D, 0 when no other machine has the address (the
         // cabinet's own, set as IP_CAB<LINK ID>), 1 for a duplicate. Not run (no arping): the address taken as free,
         // or the game stops on "Error 1303, LINK ID SETTING"
         if (strncmp(command, "./check_ip.sh ", 14) == 0)
             return 0;
-        static const char ifconfigPl[] = "perl ./data/ifconfig.pl > ";
+        // Namco's ifconfig.pl: Dead Heat's ./data/ifconfig.pl into ./save0, Maximum Tune 3's etc/ifconfig.pl into /tmp
+        static const char ifconfigPl[] = "ifconfig.pl > ";
         if (const char *redirect = strstr(command, ifconfigPl))
             return sharedNamcoIfconfig(redirect + sizeof(ifconfigPl) - 1);
 
@@ -1936,9 +1948,31 @@ namespace LibcBridge
         return 0;
     }
 
+    // The game's SIGIO handler (signal 29), called by sharedSigioPoll and the loader's thread of SIGIO: Windows has
+    // no SIGIO
+    void (*volatile sigioHandler)(int) = SIG_DFL;
+
     int bridgeSigaction(int signum, const struct linux_sigaction *act, struct linux_sigaction *oldact)
     {
         log_debug("sigaction(%d) called", signum);
+
+        if (signum == 29) // SIGIO
+        {
+            void (*previous)(int) = sigioHandler;
+            if (act)
+            {
+                sigioHandler = act->sa_handler;
+                log_info("sigaction: SIGIO handler %p, called when an O_ASYNC socket has data", (void *)act->sa_handler);
+                if (act->sa_handler != SIG_DFL && act->sa_handler != SIG_IGN)
+                    sigioThreadStart();
+            }
+            if (oldact)
+            {
+                memset(oldact, 0, sizeof(struct linux_sigaction));
+                oldact->sa_handler = previous;
+            }
+            return 0;
+        }
 
         int win_sig = -1;
         switch (signum)
@@ -2222,6 +2256,7 @@ namespace LibcBridge
     int bridgePoll(struct pollfd *fds, int nfds, int timeout)
     {
         log_trace("Intercepted poll");
+        sharedSigioPoll();
 
         for (int i = 0; i < nfds; i++)
         {
@@ -2647,5 +2682,86 @@ namespace LibcBridge
     }
 
 } // namespace LibcBridge
+
+// Linux's SIGIO, for the sockets set O_ASYNC: the game's handler called when one has data. Linux interrupts the game
+// for it, even asleep: the handler of Gaelco's link (Link::onReceiveData) reads the other cabinets' data and sends
+// their acknowledgements at once, and a cabinet waiting for those resends after 17 ms. So two ways: a game's thread
+// calls it as it enters the calls it makes all the time (time, gettimeofday, clock_gettime, the sleeps, poll, select,
+// recvfrom, sendto), at most every 250 us, and a thread of the loader's waits for the data to call it while the game's
+// wait elsewhere (the frame's swap). One at a time, and never from inside the handler (Linux blocks SIGIO while it
+// runs). The handler reads every O_ASYNC socket until it is empty: whether it was called
+static volatile LONG sigioInHandler = 0;
+
+#ifdef _MSC_VER
+static bool sigioDeliver(void)
+#else
+__attribute__((force_align_arg_pointer)) static bool sigioDeliver(void)
+#endif
+{
+    void (*handler)(int) = LibcBridge::sigioHandler;
+    if (handler == SIG_DFL || handler == SIG_IGN || InterlockedCompareExchange(&sigioInHandler, 1, 0) != 0)
+        return false;
+    bool called = sharedSocketsAsyncReadable(0);
+    if (called)
+    {
+        int savedErrno = errno;
+#ifdef _MSC_VER
+        elfCall1((const void *)handler, 29);
+#else
+        handler(29);
+#endif
+        errno = savedErrno;
+    }
+    InterlockedExchange(&sigioInHandler, 0);
+    return called;
+}
+
+extern "C" void sharedSigioPoll(void)
+{
+    static volatile LONG64 lastCheck = 0;
+    static LONG64 interval = 0;
+    if (LibcBridge::sigioHandler == SIG_DFL || !sharedSocketsAsync() || sigioInHandler)
+        return;
+    LARGE_INTEGER now;
+    QueryPerformanceCounter(&now);
+    if (!interval)
+    {
+        LARGE_INTEGER frequency;
+        QueryPerformanceFrequency(&frequency);
+        interval = frequency.QuadPart / 4000;
+    }
+    LONG64 last = lastCheck;
+    if (now.QuadPart - last < interval || InterlockedCompareExchange64(&lastCheck, now.QuadPart, last) != last)
+        return;
+    sigioDeliver();
+}
+
+// The loader's thread of SIGIO: data on an O_ASYNC socket, the handler called. Data left after it (a socket the
+// handler does not read) waits a millisecond, not to turn in a loop
+static unsigned __stdcall sigioThread(void *)
+{
+    for (;;)
+    {
+        if (!sharedSocketsAsync())
+            Sleep(10);
+        else if (sharedSocketsAsyncReadable(20) && !sigioDeliver())
+            Sleep(1);
+        else if (sharedSocketsAsyncReadable(0))
+            Sleep(1);
+    }
+    return 0;
+}
+
+static void sigioThreadStart(void)
+{
+    static volatile LONG started = 0;
+    if (InterlockedCompareExchange(&started, 1, 0) != 0)
+        return;
+    HANDLE thread = (HANDLE)_beginthreadex(NULL, 0, sigioThread, NULL, 0, NULL);
+    if (thread)
+        CloseHandle(thread);
+    else
+        log_error("SIGIO: the loader's thread did not start, the handler only called from the game's calls");
+}
 
 #endif

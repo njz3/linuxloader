@@ -247,6 +247,7 @@ void setDefaultValues(EmulatorConfig *cfg)
     strcpy(cfg->tooSpicyIpCab1, "");
     strcpy(cfg->tooSpicyIpCab2, "");
     strcpy(cfg->srtvIP, "");
+    strcpy(cfg->localLinkIP, "");
     cfg->cpuFreqGhz = 0.0f;
     memset(&cfg->arcadeInputs, 0, sizeof(cfg->arcadeInputs));
     cfg->crc32 = 0;
@@ -565,6 +566,13 @@ void applyIniConfig(EmulatorConfig *config, const IniConfig *ini)
     getString(ini, "Network", "2SPICY_IP_CAB1", config->tooSpicyIpCab1, 16);
     getString(ini, "Network", "2SPICY_IP_CAB2", config->tooSpicyIpCab2, 16);
     getString(ini, "Network", "SRTV_IPADDRESS", config->srtvIP, 16);
+    getString(ini, "Network", "LOCAL_LINK_ADDRESS", config->localLinkIP, 16);
+    // The link on one PC: this copy's address is this cabinet's for the games that take it from their own key
+    if (strncmp(config->localLinkIP, "127.", 4) == 0 && strcmp(config->localLinkIP, "127.0.0.1") != 0)
+    {
+        strcpy(config->or2IP, config->localLinkIP);
+        strcpy(config->srtvIP, config->localLinkIP);
+    }
 
     // [EVDEV]
     getString(ini, "EVDEV", "TEST_BUTTON", config->arcadeInputs.test, INPUT_STRING_LENGTH);

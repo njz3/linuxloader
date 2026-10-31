@@ -154,6 +154,11 @@ int gameDataHasLink(const GameData *game)
         case TOO_SPICY_SBMV:
             return 1;
         default:
-            return game->gameGroup == GROUP_OUTRUN || game->gameGroup == GROUP_HUMMER;
+            // Namco's Dead Heat engine (Dead Heat, Maximum Heat 3D, Dead Heat Riders, Maximum Tune 3 and 3DX+): its
+            // multicast group between cabinets, or between the copies on one PC. Not Nirin, its link not working yet.
+            // Gaelco's: Tuning Race's and Ring Riders' broadcasts (their data read by SIGIO), Tokyo Cop's TCP, set in
+            // their test menus (Ring Riders by itself)
+            return game->gameGroup == GROUP_OUTRUN || game->gameGroup == GROUP_HUMMER ||
+                   (game->gameGroup == GROUP_DEAD_HEAT && game->crc32 != NIRIN) || game->gameGroup == GROUP_GAELCO;
     }
 }

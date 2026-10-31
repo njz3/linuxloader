@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 151 | 31/10 | Le link pour tous les jeux Lindbergh (avec le Server Box), aussi en local (plusieurs copies sur un PC), et les jeux pas encore marqués link (Namco, Gaelco) ; essais sur les bornes par Image borne | 🔄 link sur un PC (`LOCAL_LINK_ADDRESS`) : OutRun 2, Hummer, Race TV, Initial D 5, R-Tuned et Dead Heat reliés ici ; R-Tuned réparé (SRAM, `bind`) ; moteur Dead Heat : multicast sur la carte du réseau des bornes, `ifconfig.pl` de Maximum Tune 3 ; Gaelco (Ring Riders, Tuning Race, Tokyo Cop) reliés ici : SIGIO émulé, MII, `SOCK_PACKET` ; dossier d'écriture pour les images disque ; Nirin et Initial D 4 Japon (faux Server Box) pas encore ; builds de test `…-20261031-linktest-…` et `…-linktest2-…` pour Image borne ; rien de commité (voir journal) |
 | 150 | 31/10 | Une release, prévenir Image borne | ✅ `releases/linuxloader-v3.0.14-ffbedition-20261031-njz3-win32.zip` (MinGW, `8f1a94c` : la -5 plus la correction de la demande 149) ; Image borne prévenue |
 | 149 | 31/10 | Boost, GearUp et GearDown sans effet dans les jeux Namco et Gaelco (trouvé par Image borne) : corriger | ✅ `fixPlayerForAction` ne les envoie plus au joueur 2 pour les groupes Dead Heat et Gaelco ; essayé sur Nirin avec vJoy (voir journal) ; commité et poussé |
 | 148 | 30/10 | Pull, une release, prévenir Image borne | ✅ pull jusqu'à `5237912` (la fusion 3.0.14 et la -4 de la session d'ORION) ; `releases/linuxloader-v3.0.14-ffbedition-20261030-5-njz3-win32.zip` (MinGW, même code que la -4) ; Image borne prévenue (voir journal) |
@@ -179,6 +180,108 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Link pour tous les jeux, et sur un seul PC (demande 151)
+- Demande : le link de tous les jeux Lindbergh qu'on a (avec le Server Box d'Initial D japonais, sans ALL.Net), aussi
+  en local, et le link des jeux pas encore marqués (Namco, Gaelco). Les essais sur les bornes reviennent à Image
+  borne. Jeux Lindbergh à link absents d'ici et de racecab1 (Harley, Too Spicy, Virtua Tennis 3, Virtua Fighter 5,
+  Initial D 5 japonais, After Burner Climax) : laissés de côté (choix du propriétaire). Copiés depuis racecab1 dans
+  `games\` : R-Tuned, Initial D 4 japonais, Hummer Extreme, Race TV, Initial D 4 et 5 Export, Dead Heat ; et les
+  sauvegardes link des deux bornes (`Saves\linuxloader_link_cab1` et `_cab2`) dans le scratchpad. Analyse des
+  exécutables de R-Tuned, Initial D 4 japonais, des jeux Namco et des Gaelco par quatre sous-agents (désassemblage).
+- **Link sur un PC** : `[Network] LOCAL_LINK_ADDRESS` = l'adresse de la copie (127.0.0.2, 127.0.0.3...), une copie du
+  loader par borne, chacune son dossier d'écriture. Elle est l'eth0 du jeu (avant l'adresse qu'un jeu Namco se donne),
+  `OR2_IPADDRESS` et `SRTV_IPADDRESS` ; `IP_CAB1` à 4 et `ID_IP_SEAT_1`/2 listent les adresses des copies. Le pont
+  réseau lie à l'adresse de la copie les sockets liées à toutes les adresses (ou à une adresse de broadcast) et celles
+  qui envoient sans être liées ; refuse comme sur un réseau le `bind` à l'adresse d'une autre copie (Hummer essaie
+  chacune) ; envoie un broadcast (x.x.x.255) ou un multicast (224/4, groupe pris sans Winsock) à chacune des adresses
+  127.0.0.2 à 9, celle de l'envoyeur comprise : le loopback de Windows n'en transporte pas (vérifié). MAC d'eth0 propre
+  à chaque copie. Essayé ici, deux copies en mode agent, NVRAM link des bornes :
+  - OutRun 2 : diffusions de 1248 octets reçues des deux copies, partie à deux, même course (1P rouge, 2P jaune) ;
+  - Hummer : plus d'Error 1303, paquets entre les deux ; Race TV : MAIN « Network Initialize… Success » puis
+    « 2 PLAYERS GAME CAN BE HELD » ; Initial D 5 Export : paquets de 1024 octets entre les sièges (captures noires) ;
+  - R-Tuned : course à deux à Hong Kong (P1/P2) ; Dead Heat : « LINKED= 2 », menus en même temps.
+- **R-Tuned** : la SRAM (LINK ID en `0xc011`, nombre de bornes en `0xc019`, CRC32 sans XOR final de
+  `[0xc004, 0x1c000)` en `0xc000`, doublée en `0x1c000`) est lue maintenant à travers le dossier d'écriture ;
+  `rtunedBind` passe par le pont réseau (il appelait le `bind` de Winsock avec le numéro de socket du jeu) et met
+  2 s de délai de réception (le `recvfrom` du fil de réception attend sinon pour toujours à la fin du link : `alarm`
+  ne fait rien ici) ; gardes pour LINK ID 0 et patches réseau coupés. UDP 10600 en unicast, rien à régler de plus que
+  le menu de test (LINK SETTING) et `IP_CAB1`/2.
+- **Jeux Namco** : Dead Heat, Maximum Heat 3D, Dead Heat Riders, Maximum Tune 3 et 3DX+ ont le même moteur :
+  multicast 225.0.0.1:50765 et TCP 50765, l'adresse du jeu = `ifconfig eth0 192.168.GROUP.H` (menu de test, GAME
+  OPTIONS : PCB ID, TOTAL MACHINES, NET GROUP ; `testmode_game_options.bin`, CRC-16/ARC des quatre entiers au début et
+  à la fin). Entre bornes : le groupe est pris, et les envois partent, sur l'adresse du PC qui est dans le /24 du jeu
+  (NET GROUP = 1 pour le réseau 192.168.1.x des bornes), plus sur la carte que choisit Windows (celle du VPN de
+  TeamViewer) ; `ifconfig.pl` reconnu sous toutes ses formes (Maximum Tune 3 : `perl etc/ifconfig.pl > /tmp/…`,
+  laissé sans réponse jusqu'ici : jamais de link). Les cinq jeux marqués « link » dans la liste des jeux.
+- **Nirin** (pas encore) : ses quatre adresses (`clConfig::getIPString`, `0x08084B80`) sont `IP_CAB1` à 4 avec les
+  patches réseau, `su -c 'ifconfig eth0 …'` reconnu ; en local, `PCB_ID` 1/2 et `IS_BATTLE` dans
+  `save0\testmode\testmode_game.lua` (`CHECK_SUM` = somme des valeurs), son réseau ne démarre pas (une seule socket,
+  pas de `ifconfig`) : à chercher.
+- **Initial D 4 japonais** (pas vérifié) : le VS passe par le Server Box du magasin (UDP 13346, paquets « IDBP » de
+  0x210 octets) ; le loader le joue : il répond à la recherche d'un siège (0x0e, broadcast vers 192.168.37.255) comme
+  le serveur (0x0f, depuis 127.0.0.1), à ses signes de vie (0x10), et passe sa demande d'appairage (4) à l'autre
+  siège (`ID_IP_SEAT_1`/2, ou les copies) ; les sièges se parlent ensuite directement. eth0 = son `ID_IP_SEAT` ;
+  patch de `tickWaitDHCP` en tête de fonction (`0x082cb6bf`). Siège : EEPROM `0x102F` (bloc de 0x70 octets en
+  `0x1000`, CRC32 inversé, doublé en `0x1070`). En local, deux copies avec A1/A2 : son réseau ne démarre pas (pas
+  d'envoi), captures noires : à voir à l'écran sur une borne.
+- **Gaelco** : les trois jeux en link, essayés ici à deux copies (jeux copiés de racecab1 dans `games\` : `home\`,
+  `etc\` et les fichiers de la racine de l'image, `lib\` et `bin\` vides pour que le loader reconnaisse l'image).
+  - **SIGIO** : Tuning Race et Ring Riders ne lisent leurs données (et n'envoient leurs accusés) que dans un
+    gestionnaire SIGIO, sur les sockets mises en `O_ASYNC` par `fcntl`. Le loader garde ce gestionnaire
+    (`sigaction(29)`), note les sockets `O_ASYNC` (`F_GETFL` les rend) et l'appelle quand l'une a des données : depuis
+    les appels que le jeu fait sans cesse (`time`, `gettimeofday`, `clock_gettime`, les sommeils, `poll`, `select`,
+    `recvfrom`, `sendto`, au plus toutes les 250 µs), et depuis un fil à lui qui attend ces données pendant que le jeu
+    attend ailleurs (l'échange d'images) ; un appel à la fois, jamais depuis le gestionnaire lui-même.
+  - `SOCK_PACKET` (type 10) : une socket UDP à la place, pour les ioctls (MAC, adresse d'eth0) ; MII : `SIOCGMIIPHY`
+    et `SIOCGMIIREG` répondent un câble branché (BMSR `0x782D`) ; `IP_MTU_DISCOVER` accepté sans le passer à Winsock
+    (son option 10 y est `IP_MULTICAST_TTL`).
+  - MAC : par copie en local (dernier nombre de l'adresse), et entre bornes les deux derniers octets de l'adresse du
+    PC sur son réseau (la carte qui mène à Internet) : Ring Riders numérote ses bornes dans l'ordre des MAC.
+  - Entre bornes, le broadcast vers le .255 de la Base IP (90.0.0.255 tel que les bornes sont livrées ; Ring Riders
+    toujours celui-là) va au broadcast du réseau du PC : Windows l'enverrait à sa passerelle. Pas essayé sur borne.
+  - **Tokyo Cop** : ses commandes d'interface 8 et 9 lisent et écrivent aussi des ports (`params[0]` ≥ 0x100) :
+    l'esclave attend le retour de trame sur 0x3DA (`wait_vsync_raw`) et décale le sien par le CRTC (0x3D4,
+    `setScanLines`) ; le loader y répondait comme à un registre des commandes (0x80, bit 3 jamais levé) : l'esclave
+    restait bloqué dès la première synchro. Le port 0x3DA est lu maintenant comme par `inb`, les écritures ignorées.
+  - Réglages : `switch.bin` (`/home/save0` et `save1` de l'image) : en-tête de 16 octets (`cd ab 34 12`, 0, ?, somme
+    des octets signés des données), puis `Switch::sw`. Tuning Race : mode link (0, 1 à 4) en +0x5c des données, Base IP
+    en +0x80 (entier, 90.0.0.232 = `0x5a0000e8`), menu de test Link ; Tokyo Cop : mode (0, 1 maître, 2 esclave) en
+    +0x28, l'esclave se connecte à +0x34 (adresse du maître), menu de test Link settings ; Ring Riders : rien à régler.
+  - Essais ici, deux copies : Ring Riders « cable 02 », les deux MAC listées, choix du pilote en même temps (« 1up
+    SELECTING » sur l'autre), course à deux, 57 FPS chacune ; Tuning Race « LINK NOW!! » puis « LINKED!! », témoins
+    1Up et 2Up, chaque copie voit l'autre dans `maskMaquinasLinkadas`, 60 FPS ; Tokyo Cop maître et esclave reliés
+    (`linkStablished`, PLAYER 1 et PLAYER 2), course à deux, 57 FPS. « MOTION SYSTEM ERROR! » de Tokyo Cop : aussi en
+    jeu seul (la plateforme), pas lié au link. Les trois jeux marqués « link » dans la liste des jeux.
+- **Dossier d'écriture et images disque** (défaut trouvé avec les Gaelco) : les chemins absolus d'une image Linux
+  hors du dossier de l'exécutable (`/home/save0/switch.bin`) passaient à côté du dossier d'écriture : le jeu lisait et
+  écrivait dans l'image elle-même (sur les bornes, le partage des jeux). Ils vont maintenant dans
+  `WRITE_DIR\<jeu>\linuxroot\…`, lus d'abord là puis dans l'image (`writeDirImageRoot`).
+- **Maximum Heat 3D** (trouvé aux essais d'Image borne : « ID:2 CHECKING... », LINKED= 1 malgré le multicast reçu
+  des deux côtés) : son groupe est borné à 32..63 (`clTestMode::loadGameOptionsParam`, 1 devient 32), son adresse
+  192.168.G.H avec H = 105 + 10·TOTAL + PCB ID − 1 (`setInterfaceAddress`) ; `clNet::receive<clProtocolStatusData>`
+  jette un statut venu d'un autre /24 que son eth0, et l'IP de l'autre borne est reconstruite par son /24 plus l'octet
+  bas de la source. Celle-ci étant l'adresse du PC (192.168.1.x), rien ne passait. Le loader met son adresse, sur un
+  link (TOTAL ≥ 2), dans le réseau du PC (192.168.32.125 → 192.168.1.125, `maxHeatAddress`), comme Dead Heat avec NET
+  GROUP 1 ; le groupe du jeu ne change pas. `arping.txt` absent = pas de conflit de PCB ID (le laisser absent). Pas
+  essayé ici (pas de copie, un seul PC).
+- Sans régression en jeu seul (mode agent) : OutRun 2, R-Tuned, Dead Heat, Nirin (60 FPS, pièces) ; Ring Riders,
+  Tuning Race et Tokyo Cop (57, 60 et 57 FPS).
+- Build de test MinGW pour Image borne : `emulateurs/releases/linuxloader-v3.0.14-ffbedition-20261031-linktest-njz3-
+  win32.zip`, SHA-256 `78013734c5f791c64b67009f744a83df74448e17db3fd33c0f1b6c8316564d0a`, exe
+  `ba4e607a78d1eb841ce033f135aaee95d33a8edd79e5a0cd3f4843fcd71f0b8c` ; `--version` « …-20261031-linktest-njz3 »,
+  96 « # Default: », OutRun 2 vérifié depuis le zip.
+- Second build de test, avec les Gaelco et le dossier d'écriture des images : `…-20261031-linktest2-njz3-win32.zip`,
+  19 036 351 octets, SHA-256 `b4f206185620c3cea736925e9fbb95cd8dff970b5364fc4b6389a185b68e1131`, exe
+  `5dbec2d17489f6c672302e13e55c4cce35982f986921fc26223142e60226bc7b` ; mêmes fichiers que le premier, `--version`
+  « …-20261031-linktest2-njz3 », 96 « # Default: », Ring Riders à deux copies depuis le zip (57 FPS chacune). Pour
+  Image borne : `emulateurs\linktest-logs\tools` (`namco_options.py`, `gaelco_switch.py`) et
+  `linktest-logs\seeds-gaelco\cab1|cab2` (Tuning Race link 1/2, Tokyo Cop maître/esclave vers 192.168.1.4). Rien de
+  commité.
+- Troisième build, avec Maximum Heat 3D : `…-20261031-linktest3-njz3-win32.zip`, 19 037 122 octets, SHA-256
+  `4530f3ca32ab42d3bcb11c0a39c65651f17386c4ff1f559503b20e442fd96a72`, exe
+  `72d2be9d36261bd3acc24c0d72b0482df23bb175e2b180db2f5088aec59d41ea` ; Tuning Race à deux copies depuis le zip
+  (60 FPS) ; `sharedLanAddress` vérifié ici (192.168.1.134 choisie parmi les cartes VPN et virtuelles).
 
 ### Release 3.0.14 du 31/10 (demande 150)
 - Arbre propre, HEAD `8f1a94c` (= origin) ; `version.h` mis le temps du build à 3.0.14, sans `RELEASE_SUFFIX`

@@ -309,6 +309,10 @@ int createDefaultIni(const char *filePath)
     iniOut(&out, "# 2Spicy link: the address of cabinet 2\n2SPICY_IP_CAB2 = \"192.168.1.3\"\n\n");
     iniOut(&out, "# SEGA Race TV's IP address: one of this PC's for a link, empty for a cabinet alone (127.0.0.1; an address\n");
     iniOut(&out, "# that is not the PC's is replaced by it)\nSRTV_IPADDRESS = \"\"\n\n");
+    iniOut(&out, "# The link on one PC, one copy of linuxloader per cabinet (each its own linuxloader.ini and write folder):\n");
+    iniOut(&out, "# this copy's address, 127.0.0.2 for the first cabinet, 127.0.0.3 for the second... It is also OR2_IPADDRESS and\n");
+    iniOut(&out, "# SRTV_IPADDRESS; IP_CAB1 to 4 and ID_IP_SEAT_1 and 2 list the copies' addresses, the same in every copy. Empty:\n");
+    iniOut(&out, "# a cabinet on the network, or alone\nLOCAL_LINK_ADDRESS = \"\"\n\n");
 
     // [EVDEV]
     iniOut(&out, "[EVDEV]\n");

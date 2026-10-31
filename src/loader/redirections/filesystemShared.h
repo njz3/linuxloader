@@ -7,6 +7,7 @@
 #endif
 #include <dirent.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <sys/stat.h>
 typedef enum
@@ -65,7 +66,19 @@ int sharedSelect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 #ifdef _WIN32
 const char *sharedBinaryMode(const char *mode, char *buffer, size_t size);
 const char *sharedSrtvAddress(void);
+// The link on one PC: the cabinet's address is a loopback one other than 127.0.0.1 (127.0.0.2, 127.0.0.3...), one for
+// each copy of the loader. NULL for a cabinet on the network or a game alone
+const char *sharedLocalLinkAddress(void);
 bool sharedSocketFcntl(int fd, int cmd, int arg, int *result);
+// This PC's address and mask on its network (the adapter to the Internet), network order. False: none
+bool sharedLanAddress(uint32_t *address, uint32_t *mask);
+// The sockets set O_ASYNC: whether there are any, and whether one has data waiting, after waiting for some up to
+// timeoutMs (Linux would send SIGIO)
+bool sharedSocketsAsync(void);
+bool sharedSocketsAsyncReadable(int timeoutMs);
+// The game's SIGIO handler called when an O_ASYNC socket has data (elfLoader/libcBridge.cpp): from the calls a game
+// makes all the time, on its own threads, never inside the handler itself
+void sharedSigioPoll(void);
 // The game's descriptor for a new Winsock socket (-1 when none is left), and the socket behind a descriptor
 // (INVALID_SOCKET: not one of the game's sockets)
 int sharedSocketFdNew(SOCKET s);

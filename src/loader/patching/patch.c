@@ -1398,6 +1398,7 @@ int initPatch()
             detourFunction(0x0821e6dc, stubRetOne);          // isEthLinkUp
             patchMemoryFromString(0x082cb412, "c0270900");   // tickInitStoreNetwork
             patchMemoryFromString(0x082cb6d9, "e950010000"); // tickWaitDHCP
+            patchMemoryFromString(0x082cb6bf, "e96a010000"); // tickWaitDHCP: its success, before the backup record's DHCP bit
             patchMemoryFromString(0x082cce58, "EB");         // Skip Kickback initialization
             patchMemoryFromString(0x08799d8c, "52");         // Skips initialization
             patchMemoryFromString(0x08799d9c, "cf");         // Skips initialization
@@ -2968,6 +2969,7 @@ int initPatch()
             sharedMkdir("save0", 0755);
             sharedMkdir("save1", 0755);
             deadHeatIoInstall(); // the N2 I/O board, as Dead Heat's
+            detourFunction(0x08084B80, nirinGetIPString); // the cabinets' addresses for its link
         }
         break;
         case WANGAN_MIDNIGHT_MT3:

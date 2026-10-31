@@ -102,6 +102,7 @@ static void findLinuxRoot(void)
         {
             strncpy(s_linuxRoot, dir, sizeof(s_linuxRoot) - 1);
             log_info("Linux disk image: absolute paths taken in %s", s_linuxRoot);
+            writeDirImageRoot(s_linuxRoot);
             return;
         }
         char *slash = strrchr(dir, '\\');
@@ -877,13 +878,79 @@ static bool socketNonBlocking(SOCKET s)
     return on;
 }
 
+// The sockets set O_ASYNC, whose data Linux signals with SIGIO (the link of Gaelco's Tuning Race and Ring Riders reads
+// its data channel only in its SIGIO handler): sharedSocketsAsyncReadable tells the loader's SIGIO when to call it
+#define ASYNC_SOCKETS 16
+static SOCKET asyncSockets[ASYNC_SOCKETS];
+static volatile LONG asyncSocketCount = 0;
+static SRWLOCK asyncLock = SRWLOCK_INIT;
+
+static void socketAsyncNote(SOCKET s, bool on)
+{
+    AcquireSRWLockExclusive(&asyncLock);
+    int free = -1, found = -1;
+    for (int i = 0; i < ASYNC_SOCKETS; i++)
+    {
+        if (asyncSockets[i] == s && s != 0)
+            found = i;
+        else if (asyncSockets[i] == 0 && free < 0)
+            free = i;
+    }
+    if (!on && found >= 0)
+    {
+        asyncSockets[found] = 0;
+        InterlockedDecrement(&asyncSocketCount);
+    }
+    else if (on && found < 0 && free >= 0)
+    {
+        asyncSockets[free] = s;
+        InterlockedIncrement(&asyncSocketCount);
+    }
+    ReleaseSRWLockExclusive(&asyncLock);
+}
+
+static bool socketAsync(SOCKET s)
+{
+    bool on = false;
+    AcquireSRWLockShared(&asyncLock);
+    for (int i = 0; i < ASYNC_SOCKETS && !on; i++)
+        on = asyncSockets[i] == s;
+    ReleaseSRWLockShared(&asyncLock);
+    return on;
+}
+
+bool sharedSocketsAsync(void)
+{
+    return asyncSocketCount > 0;
+}
+
+// Whether an O_ASYNC socket has data waiting, after waiting for some up to timeoutMs
+bool sharedSocketsAsyncReadable(int timeoutMs)
+{
+    if (asyncSocketCount <= 0)
+        return false;
+    fd_set readable;
+    FD_ZERO(&readable);
+    AcquireSRWLockShared(&asyncLock);
+    for (int i = 0; i < ASYNC_SOCKETS; i++)
+        if (asyncSockets[i])
+            FD_SET(asyncSockets[i], &readable);
+    ReleaseSRWLockShared(&asyncLock);
+    if (readable.fd_count == 0)
+        return false;
+    struct timeval timeout = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};
+    return select(0, &readable, NULL, NULL, &timeout) > 0;
+}
+
 #define LINUX_O_RDWR 02
 #define LINUX_O_NONBLOCK 04000
+#define LINUX_O_ASYNC 020000
 #define LINUX_F_GETFL 3
 #define LINUX_F_SETFL 4
 
-// fcntl on a socket: F_GETFL its Linux flags, F_SETFL its O_NONBLOCK through FIONBIO. A socket left blocking hangs the
-// games that poll it each frame (OutRun 2's and Hummer's link, set non-blocking this way). False: not a socket
+// fcntl on a socket: F_GETFL its Linux flags, F_SETFL its O_NONBLOCK through FIONBIO and its O_ASYNC. A socket left
+// blocking hangs the games that poll it each frame (OutRun 2's and Hummer's link, set non-blocking this way). False:
+// not a socket
 bool sharedSocketFcntl(int fd, int cmd, int arg, int *result)
 {
     SOCKET s = sharedSocketOf(fd);
@@ -891,7 +958,7 @@ bool sharedSocketFcntl(int fd, int cmd, int arg, int *result)
         return false;
     *result = 0;
     if (cmd == LINUX_F_GETFL)
-        *result = LINUX_O_RDWR | (socketNonBlocking(s) ? LINUX_O_NONBLOCK : 0);
+        *result = LINUX_O_RDWR | (socketNonBlocking(s) ? LINUX_O_NONBLOCK : 0) | (socketAsync(s) ? LINUX_O_ASYNC : 0);
     else if (cmd == LINUX_F_SETFL)
     {
         u_long on = (arg & LINUX_O_NONBLOCK) != 0;
@@ -899,6 +966,9 @@ bool sharedSocketFcntl(int fd, int cmd, int arg, int *result)
             socketNonBlockingNote(s, on != 0);
         else
             *result = -1;
+        if ((arg & LINUX_O_ASYNC) != 0 && !socketAsync(s))
+            log_info("Socket %d set O_ASYNC: its data comes to the game's SIGIO handler", fd);
+        socketAsyncNote(s, (arg & LINUX_O_ASYNC) != 0);
     }
     return true;
 }
@@ -939,6 +1009,7 @@ int sharedClose(int fd)
         log_info(">>> close: socket=%d", fd);
         SOCKET s = sharedSocketOf(fd);
         socketNonBlockingNote(s, false);
+        socketAsyncNote(s, false);
         socketFdFree(fd);
         return closesocket(s) == 0 ? 0 : -1;
     }
@@ -1258,6 +1329,8 @@ ssize_t sharedWrite(int fd, const void *buf, size_t count)
 #define LINUX_SIOCGIFBRDADDR 0x8919
 #define LINUX_SIOCGIFNETMASK 0x891b
 #define LINUX_SIOCGIFHWADDR 0x8927
+#define LINUX_SIOCGMIIPHY 0x89F0
+#define LINUX_SIOCGMIIREG 0x89F1
 
 typedef struct
 {
@@ -1284,11 +1357,34 @@ typedef struct
 // 192.168.GROUP.ID ...) and reads it back: the one it set is kept, as Linux would
 static char eth0Set[16] = "";
 
+// Maximum Heat 3D keeps its network group in 32 to 63 (NET GROUP 32 as it comes, 1 taken as 32), so its address is
+// never in the cabinets' network: 192.168.G.H, H = 105 + 10 * TOTAL MACHINES + PCB ID - 1. Its link takes the other
+// cabinets' status only from its own /24 (clNet::receive<clProtocolStatusData>), and they come from their PCs'
+// addresses (192.168.1.x): each cabinet stays alone ("ID:2 CHECKING..."). On a link (TOTAL MACHINES 2 or more), its
+// address goes into this PC's network, as Dead Heat's with NET GROUP 1: 192.168.32.125 becomes 192.168.1.125. Its
+// group, compared between cabinets only, stays its own
+static void maxHeatAddress(char *address, size_t size)
+{
+    uint32_t game = ntohl(inet_addr(address)), lan, mask;
+    int total = ((int)(game & 0xFF) - 105) / 10;
+    if (gId != MAXIMUM_HEAT_3D || sharedLocalLinkAddress() || (int)(game & 0xFF) < 105 || total < 2 ||
+        !sharedLanAddress(&lan, &mask) || ((ntohl(lan) ^ game) & 0xFFFFFF00) == 0)
+        return;
+    game = (ntohl(lan) & 0xFFFFFF00) | (game & 0xFF);
+    char moved[16];
+    snprintf(moved, sizeof(moved), "%u.%u.%u.%u", game >> 24, (game >> 16) & 0xFF, (game >> 8) & 0xFF, game & 0xFF);
+    log_warn("Link: Maximum Heat 3D's address %s taken as %s, in this PC's network", address, moved);
+    snprintf(address, size, "%s", moved);
+}
+
 void sharedEth0Set(const char *ifconfigArguments)
 {
     char address[16] = "";
-    if (sscanf(ifconfigArguments, "%15s", address) == 1 && inet_addr(address) != INADDR_NONE)
+    if (sscanf(ifconfigArguments, "%15[0-9.]", address) == 1 && inet_addr(address) != INADDR_NONE)
+    {
+        maxHeatAddress(address, sizeof(address));
         strcpy(eth0Set, address);
+    }
 }
 
 const char *sharedEth0SetAddress(void)
@@ -1334,6 +1430,15 @@ const char *sharedSrtvAddress(void)
     return address;
 }
 
+// The link on one PC: LOCAL_LINK_ADDRESS, a loopback address other than 127.0.0.1. NULL otherwise
+static const char *localLinkConfigured(void)
+{
+    const char *address = getConfig()->localLinkIP;
+    return strncmp(address, "127.", 4) == 0 && strcmp(address, "127.0.0.1") != 0 && inet_addr(address) != INADDR_NONE
+               ? address
+               : NULL;
+}
+
 // The cabinet's address on a link of two PCs, as the game's own keys give it ([Network], with the network patches):
 // OR2_IPADDRESS for OutRun 2, the IP_CAB1 to 4 that is this PC's for Hummer, the ID_IP_SEAT_1 or 2 that is this PC's
 // for Initial D 4 Export and Initial D 5. eth0 is then that address, as the game's own on a cabinet. NULL: none is
@@ -1346,6 +1451,13 @@ static const char *linkAddress(void)
         return address[0] ? address : NULL;
     chosen = true;
     EmulatorConfig *config = getConfig();
+    // The link on one PC: every 127.x address is this PC's, LOCAL_LINK_ADDRESS says which one this copy is
+    if (localLinkConfigured())
+    {
+        snprintf(address, sizeof(address), "%s", config->localLinkIP);
+        log_warn("Link on one PC: this copy's address is %s (LOCAL_LINK_ADDRESS)", address);
+        return address;
+    }
     if (!config->enableNetworkPatches)
         return NULL;
     struct
@@ -1361,7 +1473,7 @@ static const char *linkAddress(void)
         for (int i = 0; i < 4; i++)
             candidates[i].key = keys[i], candidates[i].value = cabs[i];
     }
-    else if (gGrp == GROUP_ID4_EXP || gGrp == GROUP_ID5)
+    else if (gGrp == GROUP_ID4_EXP || gGrp == GROUP_ID4_JAP || gGrp == GROUP_ID5)
     {
         candidates[0].key = "ID_IP_SEAT_1", candidates[0].value = config->idIpSeat1;
         candidates[1].key = "ID_IP_SEAT_2", candidates[1].value = config->idIpSeat2;
@@ -1383,12 +1495,20 @@ static const char *linkAddress(void)
 
 static const char *eth0Address(void)
 {
+    // The link on one PC: this copy's address, before the one a Namco game sets (its peers are in that /24)
+    if (localLinkConfigured() && linkAddress())
+        return linkAddress();
     if (getConfig()->crc32 == SEGA_RACE_TV_SBPF && strcmp(getConfig()->srtvIP, "") != 0)
         return sharedSrtvAddress();
     if (eth0Set[0])
         return eth0Set;
     const char *link = linkAddress();
     return link ? link : "127.0.0.1";
+}
+
+const char *sharedLocalLinkAddress(void)
+{
+    return localLinkConfigured() ? linkAddress() : NULL;
 }
 
 static const uint8_t eth0Mac[6] = {0x00, 0xD0, 0xF1, 0x00, 0x00, 0x01}; // SEGA OUI
@@ -1404,8 +1524,9 @@ int sharedNamcoIfconfig(const char *path)
     FILE *file = writeDirFopen(winPath, "w");
     if (!file)
         return 1 << 8;
+    // The copies of the loader on one PC: one MAC each, as SIOCGIFHWADDR gives it
     fprintf(file, "0 %u %u %u %u 255 255 255 0 %u %u %u %u %u %u 1\n", a[0], a[1], a[2], a[3], eth0Mac[0], eth0Mac[1],
-            eth0Mac[2], eth0Mac[3], eth0Mac[4], eth0Mac[5]);
+            eth0Mac[2], eth0Mac[3], eth0Mac[4], sharedLocalLinkAddress() ? a[3] : eth0Mac[5]);
     fclose(file);
     return 0;
 }
@@ -1457,11 +1578,73 @@ static int windowsSocketIoctl(int fd, unsigned long int request, void *argp)
             memset(&ifr->u, 0, sizeof(ifr->u));
             ifr->u.hw.family = 1; // ARPHRD_ETHER
             memcpy(ifr->u.hw.data, eth0Mac, sizeof(eth0Mac));
+            // The copies of the loader on one PC: one MAC each, from the last number of their address. Gaelco's
+            // cabinets on a network: one each, from the PC's address there (Ring Riders numbers its cabinets in the
+            // order of their MACs)
+            uint32_t lan, lanMask;
+            if (sharedLocalLinkAddress())
+                ifr->u.hw.data[5] = (uint8_t)(ntohl(inet_addr(ip)) & 0xFF);
+            else if (gGrp == GROUP_GAELCO && sharedLanAddress(&lan, &lanMask))
+            {
+                ifr->u.hw.data[4] = (uint8_t)(ntohl(lan) >> 8);
+                ifr->u.hw.data[5] = (uint8_t)ntohl(lan);
+            }
+            return 0;
+        }
+        // The cable's state, from the PHY's registers (mii_ioctl_data after the name: phy_id, reg_num, val_in,
+        // val_out). Ring Riders links only with its cable in: BMSR (register 1) with the link up and autonegotiation
+        // done, as a 100 Mb/s PHY gives it. SIOCGMIIPHY reads the register asked as well
+        case LINUX_SIOCGMIIPHY:
+        case LINUX_SIOCGMIIREG:
+        {
+            uint16_t *mii = (uint16_t *)((char *)ifr + 16);
+            if (request == LINUX_SIOCGMIIPHY)
+                mii[0] = 1;
+            mii[3] = mii[1] == 1 ? 0x782D : 0;
             return 0;
         }
         default:
             return 0;
     }
+}
+
+// This PC's address on its network, and its mask: the adapter Windows reaches the Internet through, so not a VPN's
+bool sharedLanAddress(uint32_t *address, uint32_t *mask)
+{
+    static int found = -1;
+    static uint32_t lanAddress, lanMask;
+    if (found < 0)
+    {
+        found = 0;
+        DWORD index = 0;
+        ULONG size = 0;
+        if (GetBestInterface(inet_addr("8.8.8.8"), &index) == NO_ERROR &&
+            GetAdaptersInfo(NULL, &size) == ERROR_BUFFER_OVERFLOW)
+        {
+            IP_ADAPTER_INFO *adapters = (IP_ADAPTER_INFO *)malloc(size);
+            if (adapters && GetAdaptersInfo(adapters, &size) == NO_ERROR)
+            {
+                for (IP_ADAPTER_INFO *adapter = adapters; adapter && !found; adapter = adapter->Next)
+                {
+                    if (adapter->Index != index)
+                        continue;
+                    lanAddress = inet_addr(adapter->IpAddressList.IpAddress.String);
+                    lanMask = inet_addr(adapter->IpAddressList.IpMask.String);
+                    found = lanAddress != 0 && lanAddress != INADDR_NONE;
+                    if (found)
+                        log_info("This PC on its network: %s, mask %s", adapter->IpAddressList.IpAddress.String,
+                                 adapter->IpAddressList.IpMask.String);
+                }
+            }
+            free(adapters);
+        }
+    }
+    if (found)
+    {
+        *address = lanAddress;
+        *mask = lanMask;
+    }
+    return found == 1;
 }
 #endif
 
@@ -1652,6 +1835,7 @@ int sharedSelect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
     }
 
 #ifdef WIN32
+    sharedSigioPoll();
     int serialReady = serialPortSelect(nfds, readfds, writefds, exceptfds, timeout);
     if (serialReady >= 0)
         return serialReady;

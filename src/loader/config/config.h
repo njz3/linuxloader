@@ -389,6 +389,7 @@ typedef struct
     char tooSpicyIpCab1[16];
     char tooSpicyIpCab2[16];
     char srtvIP[16];
+    char localLinkIP[16]; // [Network] LOCAL_LINK_ADDRESS: this copy's address on a link on one PC (127.0.0.2...)
     float cpuFreqGhz;
     ArcadeInputs arcadeInputs;
     int inputMode; // 0 = both, 1 = SDL, 2 = EVDEV only

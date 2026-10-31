@@ -29,6 +29,9 @@ extern "C"
     int writeDirActive(void);
     // The game's folder, the current one before writeDirEnterGame: 0 when the write folder is not in use
     int writeDirGameFolder(char *buffer, size_t size);
+    // The root of the Linux disk image the game's folder is in (Gaelco's games): its files outside the game's folder
+    // are written in WRITE_DIR\<game>\linuxroot
+    void writeDirImageRoot(const char *root);
 
     // The path to read: WRITE_DIR\<game>'s file when it is there, else the game folder's. Paths other than the game's
     // (devices, other folders) come back as they are.
