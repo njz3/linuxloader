@@ -207,6 +207,24 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   en pleine course : « New Challenger! », sélection de course commune, course à 4 (3/4 avec « 1P » chez le challenger).
   Les autres jeux de la -6 (Maximum Tune, OutRun 2…) ne sont plus sur ce disque (demande 166) : pas refaits, le
   reste du code est celui de la -6.
+- Installée par Image borne sur les deux bornes (accord du propriétaire, -5 sauvegardée), 3DX+ ajouté à son link
+  (`RunLinuxLoaderLinkGame.cmd`, graines `tmp\data\etc\testmode.lua`). Essai de l'image (`linktest-logs\mt3dx-image`) :
+  adresses et « 2 Cars in linked play » sur les deux, S/N sur les deux, mais le cadre « USB DONGLE ERROR » sur racecab2
+  seul. Fichier `%TEMP%\linuxloader-usb-devices.txt` complet sur les deux (vérifié par Image borne) ; relancé, le cadre
+  passe sur racecab1 : il vient et va, sur l'une ou l'autre (`linktest-logs\mt3dx-image2`).
+- Cause, reproduite ici (3DX+ recopié du partage de racecab1, deux copies reliées, build MinGW) : vers 60 s d'écran
+  titre, `clHasp2` passe à `status -100 handle -1`, la copie envoie « erreur de clé » au link
+  (`clNet::setHaspError`), l'autre l'affiche aussi (`clCoinDispThread`, bit 4). `clSeqTitleThread::run`, en link
+  (`clWorkSpace::getEvPlay`), recompte toutes les 32 images les clés de `/proc/bus/usb/devices`
+  (`clHasp::getCount`, ses lignes « Product=HASP ») et ferme `clHasp2` s'il y en a moins de deux : la borne en a deux
+  (`clHasp`, `clHasp2`), le fichier n'en listait qu'une.
+- Correctif (pas commité) : `filesystemShared.c` liste deux clés ; le fichier est réécrit une fois par exécution, avant
+  sa première lecture, par un fichier du processus renommé dessus (`MoveFileExA`), lu tel quel si une autre copie
+  empêche le renommage. `patch.c` : `mt3HaspTraceInstall`, l'état des clés (`clHasp2::operator bool`) et l'erreur
+  envoyée au link, en avertissements à chaque changement (le lanceur de l'image ne garde que ceux-là). Vérifié : deux
+  copies reliées 150 s, `clHasp2 status 0` de bout en bout, « HASP error sent to the link: no », pas de cadre.
+- Le build MSVC Debug plante, lui, au démarrage du link de 3DX+ (deux copies, après `doStartUdp`), avec ces
+  changements (pas essayé sans) ; les releases sont MinGW, pas étudié.
 
 ### Nirin en link (demande 165)
 - Le réseau de Nirin ne démarrait jamais : `main` ne met `0x89256c8` à 1 que si un argument contient « netuse »

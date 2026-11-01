@@ -352,6 +352,55 @@ static void mt3MenuInputExec(void *input)
         log_info("Maximum Tune: menu input, %s", event == 1 ? "accelerator (decide)" : "brake (cancel)");
 }
 
+// Maximum Tune 3DX+'s "USB DONGLE ERROR" box (clCoinDispThread::run): its key classes' state (clHasp, clHasp2: a
+// status, 0 when the last call went well, then the handle; clHasp's low battery after them), and in link the other
+// cabinets' errors (clNet::setHaspError, sent with the link's packets). Logged as warnings, on change: the cabinets'
+// launcher logs those only
+static int (*mt3Hasp2BoolOriginal)(const void *hasp2);
+static void (*mt3SetHaspErrorOriginal)(void *net, int error);
+static void *(*mt3HaspOf)(void);
+
+static int mt3Hasp2Bool(const void *hasp2)
+{
+    static char last[128];
+    int valid = mt3Hasp2BoolOriginal(hasp2);
+    const int *state2 = *(const int *const *)hasp2;
+    const void *hasp = mt3HaspOf ? mt3HaspOf() : NULL;
+    const int *state = hasp ? *(const int *const *)hasp : NULL;
+    char text[128];
+    snprintf(text, sizeof(text), "clHasp status %d handle %d battery %s, clHasp2 status %d handle %d",
+             state ? state[0] : 0, state ? state[1] : 0, state && ((const uint8_t *)state)[8] ? "low" : "ok",
+             state2[0], state2[1]);
+    if (strcmp(text, last) != 0)
+    {
+        strcpy(last, text);
+        log_warn("Maximum Tune: HASP %s", text);
+    }
+    return valid;
+}
+
+static void mt3SetHaspError(void *net, int error)
+{
+    static int last = -1;
+    if ((error & 1) != last)
+    {
+        last = error & 1;
+        log_warn("Maximum Tune: HASP error sent to the link: %s", last ? "yes" : "no");
+    }
+    mt3SetHaspErrorOriginal(net, error);
+}
+
+static void mt3HaspTraceInstall(void)
+{
+    void *hasp2Bool = findStaticFnAddr("_ZNK7clHasp2cvbEv");
+    void *setHaspError = findStaticFnAddr("_ZN5clNet12setHaspErrorEb");
+    mt3HaspOf = findStaticFnAddr("_ZN6clHasp11getInstanceEv");
+    if (hasp2Bool && mt3HaspOf)
+        mt3Hasp2BoolOriginal = trampolineHook(hasp2Bool, mt3Hasp2Bool, 0);
+    if (setHaspError)
+        mt3SetHaspErrorOriginal = trampolineHook(setHaspError, mt3SetHaspError, 0);
+}
+
 static void mt3LogBufInstall(void)
 {
     void *sync = findStaticFnAddr("_ZN8clLogBuf4syncEv");
@@ -3079,6 +3128,7 @@ int initPatch()
             n2CardPrinterInstall(); // the card reader-printer on its serial port, its cards in files
             mt3RivalFeatureFix();   // the real-time movie's rival without a character: no garbage start position
             mt3LogBufInstall();     // its traces in the log
+            mt3HaspTraceInstall();  // its key's state and the link's key errors, as warnings
             // [Game.mt3] NO_CARD_READER: played as with the test menu's CARD R/W OFF (clTestMode::isNoUseCardDevice);
             // isEnableCardDevice gives 0 then, as it does with CARD R/W OFF (3DX+ asks it for its card screens)
             void *noCardDevice = findStaticFnAddr("_ZNK10clTestMode17isNoUseCardDeviceEv");

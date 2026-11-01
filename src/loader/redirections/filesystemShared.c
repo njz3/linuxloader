@@ -404,24 +404,57 @@ const char *sharedBinaryMode(const char *mode, char *buffer, size_t size)
 // The USB bus as Linux lists it, for Namco's HASP key code: Maximum Tune 3DX+'s clHasp and clHasp2 look for
 // "Product=HASP" in /proc/bus/usb/devices before each use of the key (Maximum Tune 3 asks clHasp::isAvail, which
 // namcoHasp.c answers), and give "HASP ERR feature failed", no serial and a "USB DONGLE ERROR" box without it. A file
-// of this PC's temporary folder lists that one key; the key itself is namcoHasp.c's
+// of this PC's temporary folder lists the cabinet's two keys; the keys themselves are namcoHasp.c's. Each run
+// writes it again, once, before its first read: whole, through a file of its own renamed over it (the game's threads
+// read it together, other copies of the loader may too), and with what this version lists
+static char usbDevicesPath[MAX_PATH];
+
+static BOOL CALLBACK usbDevicesWrite(PINIT_ONCE once, PVOID parameter, PVOID *context)
+{
+    (void)once;
+    (void)parameter;
+    (void)context;
+    // clHasp's and clHasp2's keys: in link, the title screen counts them every 32 frames (clHasp::getCount, its
+    // "Product=HASP" lines) and closes clHasp2 with fewer than two, a key error then sent to the other cabinets
+    static const char devices[] = "T:  Bus=01 Lev=01 Prnt=01 Port=00 Cnt=01 Dev#=  2 Spd=12  MxCh= 0\n"
+                                  "P:  Vendor=0529 ProdID=0001 Rev= 1.00\n"
+                                  "S:  Manufacturer=AKS\n"
+                                  "S:  Product=HASP HL 3.25\n"
+                                  "\n"
+                                  "T:  Bus=01 Lev=01 Prnt=01 Port=01 Cnt=02 Dev#=  3 Spd=12  MxCh= 0\n"
+                                  "P:  Vendor=0529 ProdID=0001 Rev= 1.00\n"
+                                  "S:  Manufacturer=AKS\n"
+                                  "S:  Product=HASP HL 3.25\n";
+    char path[MAX_PATH], written[MAX_PATH];
+    DWORD length = GetTempPathA(sizeof(path), path);
+    if (length == 0 || length + 48 > sizeof(path))
+    {
+        log_warn("HASP: no temporary folder, the USB bus is not listed (USB DONGLE ERROR)");
+        return TRUE;
+    }
+    strcpy(path + length, "linuxloader-usb-devices.txt");
+    snprintf(written, sizeof(written), "%.*slinuxloader-usb-devices-%lu.tmp", (int)length, path,
+             GetCurrentProcessId());
+    FILE *file = fopen(written, "wb");
+    int done = file && fwrite(devices, 1, sizeof(devices) - 1, file) == sizeof(devices) - 1;
+    if (file && fclose(file) != 0)
+        done = 0;
+    if (!done)
+    {
+        remove(written);
+        log_warn("HASP: %s not written, the USB bus is not listed (USB DONGLE ERROR)", written);
+        return TRUE;
+    }
+    // Another copy of the loader reading it keeps it from being replaced: this run reads its own file then
+    strcpy(usbDevicesPath, MoveFileExA(written, path, MOVEFILE_REPLACE_EXISTING) ? path : written);
+    return TRUE;
+}
+
 static FILE *usbDevicesFile(const char *mode)
 {
-    char path[MAX_PATH];
-    DWORD length = GetTempPathA(sizeof(path), path);
-    if (length == 0 || length + 32 > sizeof(path))
-        return NULL;
-    strcat(path, "linuxloader-usb-devices.txt");
-    FILE *file = fopen(path, "rb");
-    if (!file && (file = fopen(path, "wb")) != NULL)
-        fputs("T:  Bus=01 Lev=01 Prnt=01 Port=00 Cnt=01 Dev#=  2 Spd=12  MxCh= 0\n"
-              "P:  Vendor=0529 ProdID=0001 Rev= 1.00\n"
-              "S:  Manufacturer=AKS\n"
-              "S:  Product=HASP HL 3.25\n",
-              file);
-    if (file)
-        fclose(file);
-    return fopen(path, mode);
+    static INIT_ONCE once = INIT_ONCE_STATIC_INIT;
+    InitOnceExecuteOnce(&once, usbDevicesWrite, NULL, NULL);
+    return usbDevicesPath[0] ? fopen(usbDevicesPath, mode) : NULL;
 }
 #endif
 
