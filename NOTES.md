@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 170 | 01/11 | Commit, push, release (2D et caméra), Image borne prévenu pour la déployer ; le link de R-Tuned sur les bornes (essai d'Image borne) | ✅ `2714677` poussé ; release 3.0.14 -3 du 01/11 vérifiée depuis le zip (voir journal) ; Image borne prévenu (déploiement avec l'accord du propriétaire). R-Tuned relié sur les bornes : les `sram.bin` des dossiers d'écriture étaient ceux d'une borne seule, remplacés par les modèles |
 | 169 | 01/11 | Faire les deux : Maximum Heat 3D en 2D, et la caméra de Dead Heat et Maximum Heat 3D (demandes du propriétaire via Image borne) | ✅ `[Game.maxheat3d] STEREO_3D` (2D par défaut) ; caméra V4L2 émulée (`CAMERA` AUTO / PICTURE / OFF / nom, `CAMERA_PICTURE`) : image fixe et webcam du PC vérifiées ici (voir journal) |
 | 168 | 01/11 | Le cadre « USB DONGLE ERROR » de 3DX+ en link (essai d'Image borne) ; commit, push, release, déploiement par Image borne | ✅ la borne a deux clés HASP, le loader n'en listait qu'une : en link l'écran titre ferme la seconde ; `1e97a9f` poussé ; release 3.0.14 -2 du 01/11 (voir journal) ; Image borne prévenu pour la déployer |
 | 167 | 01/11 | Continuer le link de Nirin ; puis commit, push, release, envoi à Image borne | ✅ bataille engagée à deux copies (voir demande 165) ; `0ffc628` poussé ; release 3.0.14 du 01/11 (`…-20261101-njz3`, voir journal) ; Image borne prévenu |
@@ -198,6 +199,25 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Release 3.0.14 -3 du 01/11 (demande 170)
+- `2714677` poussé (demande 169 : Maximum Heat 3D en 2D, caméra de Dead Heat et Maximum Heat 3D). Release MinGW, 54
+  avertissements : `emulateurs/releases/linuxloader-v3.0.14-ffbedition-20261101-3-njz3-win32.zip`, 18 430 410 octets,
+  SHA-256 du zip `69eab41f8ad89071fc3e4bf7639d8dc17b4cc31dbccd3879cfb7b9b4d1236e43`, de `linuxloader.exe`
+  `f6ca59d5f09a6b19f6730a83472b6b9157991b0c8b7f0c1c6ae6f7772f51320e` ; mêmes fichiers que la -2 (`ll-deps`
+  identiques, mieux compressés). Par rapport à elle : le 2D de Maximum Heat 3D et la caméra.
+- Vérifié depuis le zip : `--version` « linuxloader-v3.0.14-ffbedition-20261101-3-njz3 » ; Maximum Heat 3D,
+  `CAMERA = PICTURE` et l'image de test : « drawn in 2D », image nette, l'image de test à l'écran de prise de vue
+  (156 images données) et en portrait P1 en course ; Dead Heat, `CAMERA = AUTO` : la webcam de ce PC à « CAMERA
+  LIVE », trois fois en 200 s d'attract.
+- **R-Tuned relié sur les bornes** (Image borne, release -2) : au premier essai chaque borne courait seule. Les
+  `sram.bin` lus, ceux des dossiers d'écriture `Saves\linuxloader_link_cabN\r-tuned`, disaient LINK ID 1 et 1 borne
+  sur les deux (`0xc011` / `0xc019`) ; les modèles de `saves\r-tuned` étaient justes (1 / 2 et 2 / 2, CRC valides).
+  Les fichiers lus dataient d'une partie du 31/10 à 22:02 : `--seed-dir` ne remplace jamais un fichier déjà là.
+  Avec l'accord du propriétaire, anciens fichiers gardés (`C:\Racecab\_sauvegardes\rtuned-sram-avant-20261101`),
+  modèles recopiés par-dessus : une course commune à Hong Kong, P1 et P2 au classement sur les deux écrans, l'une dans
+  l'aspiration de l'autre (`linktest-logs\rtuned-link2`). Les sept jeux essayés en link par Image borne courent
+  ensemble.
 
 ### Maximum Heat 3D en 2D, et la caméra de Dead Heat et Maximum Heat 3D (demande 169)
 - Demandes du propriétaire (Image borne) : l'image de Maximum Heat 3D est illisible sur les bornes (rayée, doublée),
