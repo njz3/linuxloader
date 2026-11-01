@@ -4,7 +4,8 @@
 // the still picture in its place (10 s at the start): the game always has a working camera, as a cabinet needs for
 // its link.
 // The PC's camera is read by Media Foundation (loaded when needed: Windows N has none), its pictures in RGB32 turned
-// into the game's YUYV at its size; the still picture is read and scaled once by WIC.
+// into the game's YUYV at its size; the still picture is read and scaled once by WIC. Their brightness is logged (a
+// dark room or black pictures), and LL_CAMERA_BMP=<file> saves one of them as it comes.
 
 // Media Foundation's capture (MFEnumDeviceSources, the source reader) is declared for Windows 7 and later
 #undef WINVER
@@ -20,6 +21,7 @@
 #include <wincodec.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <string>
 #include <vector>
@@ -90,6 +92,74 @@ static std::string narrow(const wchar_t *text)
     WideCharToMultiByte(CP_UTF8, 0, text, -1, &result[0], length, NULL, NULL);
     result.resize(length - 1);
     return result;
+}
+
+// The brightness of a camera's picture as it comes, before the game's YUYV: the average and the brightest of R, G, B
+// (every 8th pixel), to tell a dark room from black pictures
+static void brightness(const uint8_t *bgrx, int pitch, int width, int height, int *average, int *brightest)
+{
+    unsigned long long sum = 0, count = 0;
+    int top = 0;
+    for (int y = 0; y < height; y += 8)
+        for (int x = 0; x < width; x += 8)
+        {
+            const uint8_t *p = bgrx + (ptrdiff_t)pitch * y + 4 * x;
+            int value = (p[0] + p[1] + p[2]) / 3;
+            sum += value;
+            count++;
+            for (int c = 0; c < 3; c++)
+                if (p[c] > top)
+                    top = p[c];
+        }
+    *average = count ? (int)(sum / count) : 0;
+    *brightest = top;
+}
+
+// LL_CAMERA_BMP=<file>: a picture of the PC's camera as it comes, saved there (32-bit BMP)
+static void savePicture(const char *path, const uint8_t *bgrx, int pitch, int width, int height)
+{
+    FILE *file = fopen(path, "wb");
+    if (!file)
+    {
+        log_warn("camera: LL_CAMERA_BMP %s not written", path);
+        return;
+    }
+    uint32_t size = (uint32_t)width * height * 4;
+    uint8_t header[54] = {'B', 'M'};
+    uint32_t fields[] = {54 + size, 0, 54, 40, (uint32_t)width, (uint32_t)-height, 1 | (32u << 16), 0, size, 2835, 2835,
+                         0, 0};
+    memcpy(header + 2, fields, sizeof(fields));
+    fwrite(header, 1, sizeof(header), file);
+    for (int y = 0; y < height; y++)
+        fwrite(bgrx + (ptrdiff_t)pitch * y, 1, (size_t)width * 4, file);
+    fclose(file);
+    log_warn("camera: a picture of the PC's camera saved in %s", path);
+}
+
+// A video subtype's name: its FOURCC (MJPG, YUY2, NV12...) or its number (RGB32 is 22)
+static std::string formatName(const GUID &subtype)
+{
+    char text[16];
+    const char *c = (const char *)&subtype.Data1;
+    if (c[0] >= ' ' && c[0] <= 'z' && c[1] >= ' ' && c[1] <= 'z' && c[2] >= ' ' && c[2] <= 'z' && c[3] >= ' ' &&
+        c[3] <= 'z')
+        snprintf(text, sizeof(text), "%.4s", c);
+    else
+        snprintf(text, sizeof(text), "%lu", (unsigned long)subtype.Data1);
+    return text;
+}
+
+static std::string typeName(IMFMediaType *type)
+{
+    GUID subtype = GUID_NULL;
+    UINT32 w = 0, h = 0, numerator = 0, denominator = 0;
+    type->GetGUID(MF_MT_SUBTYPE, &subtype);
+    MFGetAttributeSize(type, MF_MT_FRAME_SIZE, &w, &h);
+    MFGetAttributeRatio(type, MF_MT_FRAME_RATE, &numerator, &denominator);
+    char text[64];
+    snprintf(text, sizeof(text), "%s %ux%u %.1f fps", formatName(subtype).c_str(), (unsigned)w, (unsigned)h,
+             denominator ? (double)numerator / denominator : 0.0);
+    return text;
 }
 
 template <class T> static void release(T *&object)
@@ -226,19 +296,23 @@ static void readCamera(void)
     UINT32 width = 0, height = 0;
     LONG stride = 0;
     bool ready = false;
+    std::string native = "its own";
     if (source && SUCCEEDED(createAttributes(&readerAttributes, 1)) &&
         SUCCEEDED(readerAttributes->SetUINT32(MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, TRUE)) &&
         SUCCEEDED(createReader(source, readerAttributes, &reader)))
     {
+        bool matched = false;
         for (DWORD i = 0; SUCCEEDED(reader->GetNativeMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, i, &type)); i++)
         {
             UINT32 w = 0, h = 0;
-            bool match = SUCCEEDED(MFGetAttributeSize(type, MF_MT_FRAME_SIZE, &w, &h)) && (int)w == frameWidth &&
-                         (int)h == frameHeight &&
+            log_info("camera: the PC's camera \"%s\", picture type %u: %s", name.c_str(), (unsigned)i,
+                     typeName(type).c_str());
+            bool match = !matched && SUCCEEDED(MFGetAttributeSize(type, MF_MT_FRAME_SIZE, &w, &h)) &&
+                         (int)w == frameWidth && (int)h == frameHeight &&
                          SUCCEEDED(reader->SetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, NULL, type));
-            release(type);
             if (match)
-                break;
+                matched = true, native = typeName(type);
+            release(type);
         }
         if (SUCCEEDED(createMediaType(&type)) && SUCCEEDED(type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video)) &&
             SUCCEEDED(type->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB32)) &&
@@ -260,12 +334,17 @@ static void readCamera(void)
     }
     release(readerAttributes);
     if (ready)
-        log_warn("camera: the PC's camera \"%s\", %ux%u for the game's %dx%d", name.c_str(), (unsigned)width,
-                 (unsigned)height, frameWidth, frameHeight);
+        log_warn("camera: the PC's camera \"%s\", %ux%u for the game's %dx%d (read as %s)", name.c_str(), (unsigned)width,
+                 (unsigned)height, frameWidth, frameHeight, native.c_str());
 
     std::vector<uint8_t> yuyv((size_t)frameWidth * frameHeight * 2);
     int failures = 0;
     bool first = true;
+    // Its brightness logged at its first picture, 5 s later, then every minute; LL_CAMERA_BMP saved 5 s in
+    const char *bmp = getenv("LL_CAMERA_BMP");
+    bool saved = !bmp || !bmp[0];
+    DWORD firstTick = 0, nextReport = 0;
+    unsigned pictures = 0;
     while (ready && !stopping)
     {
         DWORD stream = 0, flags = 0;
@@ -285,25 +364,44 @@ static void readCamera(void)
         LONG pitch = stride;
         DWORD length = 0;
         bool copied = false;
+        DWORD now = GetTickCount();
+        bool report = pictures == 0 || (int)(now - nextReport) >= 0;
+        bool save = !saved && pictures && now - firstTick >= 5000;
+        int average = 0, brightest = 0;
+        // Each picture's first line and pitch (a negative stride: the picture from its last line up)
+        auto use = [&](const uint8_t *picture, LONG picturePitch) {
+            toYuyv(picture, picturePitch, (int)width, (int)height, yuyv.data());
+            if (report)
+                brightness(picture, picturePitch, (int)width, (int)height, &average, &brightest);
+            if (save)
+                savePicture(bmp, picture, picturePitch, (int)width, (int)height), saved = true;
+            copied = true;
+        };
         if (sample && SUCCEEDED(sample->ConvertToContiguousBuffer(&buffer)))
         {
             if (SUCCEEDED(buffer->QueryInterface(IID_IMF2DBuffer, (void **)&buffer2d)) &&
                 SUCCEEDED(buffer2d->Lock2D(&data, &pitch)))
             {
-                toYuyv(data, pitch, (int)width, (int)height, yuyv.data());
+                use(data, pitch);
                 buffer2d->Unlock2D();
-                copied = true;
             }
             else if (SUCCEEDED(buffer->Lock(&data, NULL, &length)))
             {
-                // A negative stride: the picture from its last line up
                 if (length >= (DWORD)(labs(stride) * height))
-                {
-                    toYuyv(stride < 0 ? data + (size_t)(-stride) * (height - 1) : data, stride, (int)width, (int)height,
-                           yuyv.data());
-                    copied = true;
-                }
+                    use(stride < 0 ? data + (size_t)(-stride) * (height - 1) : data, stride);
                 buffer->Unlock();
+            }
+        }
+        if (copied)
+        {
+            if (!pictures)
+                firstTick = now;
+            pictures++;
+            if (report)
+            {
+                log_warn("camera: the PC's camera \"%s\", picture %u: brightness %d on average, %d at most (of 255)",
+                         name.c_str(), pictures, average, brightest);
+                nextReport = now + (pictures == 1 ? 5000 : 60000);
             }
         }
         release(buffer2d);
