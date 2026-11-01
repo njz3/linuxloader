@@ -100,6 +100,16 @@ static bool maximumTune3(void)
     return crc() == WANGAN_MIDNIGHT_MT3 || crc() == WANGAN_MIDNIGHT_MT3DX;
 }
 
+static bool maximumHeat3d(void)
+{
+    return crc() == MAXIMUM_HEAT_3D;
+}
+
+bool gameHasCamera(void)
+{
+    return crc() == DEAD_HEAT_US || crc() == MAXIMUM_HEAT_3D;
+}
+
 static const char *const phModes[] = {"0", "1", "2", "3", "4", NULL};
 static const char *const phModeLabels[] = {N_("Default (no scaling)"), N_("No touch screen"), N_("Side by side"),
                                            N_("Touch screen on the right"), N_("Touch screen below"), NULL};
@@ -112,6 +122,10 @@ const GameOption gameOptionTable[] = {
         "decides; with CARD R/W ON the card reader-printer is emulated, its card in [Cards] CARDFILE_01 (the card key "
         "inserts it), and the start waits for the link check (about 5 minutes)."),
      GAME_OPTION_SWITCH, FIELD(noCardReader), false, NULL, NULL, 0, 1, true, maximumTune3},
+    {"STEREO_3D", N_("Stereoscopic 3D"),
+     N_("For the cabinet's 3D monitor: each eye's picture on every other line. Unticked, the game is drawn in 2D, as "
+        "on an ordinary screen."),
+     GAME_OPTION_SWITCH, FIELD(stereo3d), false, NULL, NULL, 0, 1, true, maximumHeat3d},
     {"SKIP_OUTRUN_CABINET_CHECK", N_("Skip the cabinet checks"),
      N_("For a cabinet without a drive board: the drive board and tower checks of the start skipped, the wheel then "
         "without force feedback. Ignored with the emulated drive board, which passes them."),

@@ -401,6 +401,27 @@ static void mt3HaspTraceInstall(void)
         mt3SetHaspErrorOriginal = trampolineHook(setHaspError, mt3SetHaspError, 0);
 }
 
+// Maximum Heat 3D drawn for its cabinet's stereoscopic monitor (data/csv/monitor_3d.csv USE_3D, TYPE LINE_BY_LINE:
+// each eye on every other line), unreadable on an ordinary screen, and its test menu has no 2D setting. Unless
+// [Game.maxheat3d] STEREO_3D, clMonitor3D::Use3D answers no: the game draws in 2D, as with USE_3D FALSE
+static int maximumHeat3dUse3d(const void *monitor)
+{
+    (void)monitor;
+    return 0;
+}
+
+static void maximumHeat3dFlat(void)
+{
+    void *use3d = findStaticFnAddr("_ZNK11clMonitor3D5Use3DEv");
+    if (!use3d)
+    {
+        log_warn("Maximum Heat 3D: clMonitor3D::Use3D not found, its picture stays in 3D");
+        return;
+    }
+    detourFunction((size_t)use3d, maximumHeat3dUse3d);
+    log_info("Maximum Heat 3D: drawn in 2D ([Game.maxheat3d] STEREO_3D for the 3D monitor)");
+}
+
 static void mt3LogBufInstall(void)
 {
     void *sync = findStaticFnAddr("_ZN8clLogBuf4syncEv");
@@ -3168,6 +3189,8 @@ int initPatch()
             patchMemoryFromString(0x08536480, "c3"); // the network object's teardown
             patchMemoryFromString(0x0853E830, "c3"); // the audio object's teardown
             deadHeatIoInstall();
+            if (!getConfig()->stereo3d)
+                maximumHeat3dFlat();
         }
         break;
         case R_TUNED_SBQW:

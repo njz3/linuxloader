@@ -26,6 +26,7 @@
 #include <stdint.h>
 
 #include "deadHeatIo.h"
+#include "v4l2Camera.h"
 #include "../../config/config.h"
 #include "../lindbergh/forceFeedback.h"
 #include "../lindbergh/jvs.h"
@@ -402,7 +403,9 @@ static int n2Init(int jamma, int restart)
     if (game->config && CONFIG_INSTANCE)
     {
         CONFIG_INSTANCE[1] = 1;
-        CONFIG_INSTANCE[2] = 0; // USE_CAMERA_DEVICE: no /dev/video0 here (Maximum Heat 3D's config.csv has it on)
+        // USE_CAMERA_DEVICE: Dead Heat and Maximum Heat 3D's camera emulated (v4l2Camera.c), unless CAMERA = OFF; the
+        // others' off
+        CONFIG_INSTANCE[2] = v4l2CameraEnabled() ? 1 : 0;
     }
     n2Update();
     *N2_INIT_FLAG = 1;

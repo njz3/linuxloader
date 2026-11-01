@@ -405,6 +405,12 @@ typedef struct
     int gsevoCrosshairAlwaysOn;
     int gsevoCrosshairAlwaysOff;
     int noCardReader; // Maximum Tune 3: played as with CARD R/W OFF (its card reader-printer is not emulated)
+    // Dead Heat and Maximum Heat 3D's camera, [Game.<short name>] CAMERA: AUTO (the PC's first camera, else the still
+    // picture), PICTURE (always the still picture), OFF (no camera, as before), or a camera's name; CAMERA_PICTURE: the
+    // still picture, a JPG or PNG (none: black)
+    char camera[MAX_PATH_LENGTH];
+    char cameraPicture[MAX_PATH_LENGTH];
+    int stereo3d; // Maximum Heat 3D: its stereoscopic picture (lines for each eye in turn), off: 2D
     char p1CrossHairPath[MAX_PATH_LENGTH];
     char p2CrossHairPath[MAX_PATH_LENGTH];
     int customCrossHairWidth;

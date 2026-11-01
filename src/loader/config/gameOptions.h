@@ -42,6 +42,8 @@ extern const int gameOptionCount;
 
 // [Game.<short name>] of the game being run, or "" for no game
 const char *gameOptionSection(void);
+// A game whose camera the loader emulates (Dead Heat, Maximum Heat 3D): [Game.<short name>] CAMERA, CAMERA_PICTURE
+bool gameHasCamera(void);
 int gameOptionValue(const GameOption *option);
 void gameOptionSetValue(const GameOption *option, int value);
 // The value as the settings file writes it; and read from it (false when the text is not one)

@@ -264,6 +264,9 @@ void setDefaultValues(EmulatorConfig *cfg)
     cfg->gsevoCrosshairAlwaysOn = 0;
     cfg->gsevoCrosshairAlwaysOff = 0;
     cfg->noCardReader = 1;
+    strcpy(cfg->camera, "AUTO");
+    strcpy(cfg->cameraPicture, "");
+    cfg->stereo3d = 0;
     strcpy(cfg->p1CrossHairPath, "");
     strcpy(cfg->p2CrossHairPath, "");
     cfg->customCrossHairWidth = 64;
@@ -716,6 +719,17 @@ static void applyGameOptions(const IniConfig *ini)
         char emulate[64], path[MAX_PATH_LENGTH];
         gameBoardLoad(board, rawEmulate ? cleanValue(rawEmulate, emulate, sizeof(emulate)) : NULL,
                       rawPath ? cleanValue(rawPath, path, sizeof(path)) : NULL);
+    }
+    // The camera's two keys, texts: not on the Tab window's page
+    if (section[0] && gameHasCamera())
+    {
+        EmulatorConfig *cfg = getConfig();
+        const char *raw = getValue(ini, section, "CAMERA");
+        if (raw)
+            cleanValue(raw, cfg->camera, sizeof(cfg->camera));
+        raw = getValue(ini, section, "CAMERA_PICTURE");
+        if (raw)
+            cleanValue(raw, cfg->cameraPicture, sizeof(cfg->cameraPicture));
     }
     gameOptionsRemember();
 }

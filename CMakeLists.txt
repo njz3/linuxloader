@@ -151,6 +151,7 @@ elseif(WIN32 OR MINGW OR CMAKE_C_COMPILER MATCHES "mingw")
         src/loader/graphics/*.c
         src/loader/hardware/lindbergh/*.c
         src/loader/hardware/namco/*.c
+        src/loader/hardware/namco/*.cpp
         src/loader/hardware/gaelco/*.c
         src/loader/input/*.c
         src/loader/log/*.c
@@ -227,6 +228,7 @@ elseif(WIN32 OR MINGW OR CMAKE_C_COMPILER MATCHES "mingw")
             minhook xdiff
             SDL3::SDL3-static SDL3_ttf::SDL3_ttf-static SDL3_image::SDL3_image-static FAudio::FAudio-static
             gdi32 winmm ole32 ws2_32 psapi usp10 rpcrt4 setupapi version imm32 hid dbghelp iphlpapi opengl32
+            mfuuid windowscodecs
         )
     else()
         # Guest code is i386 SysV and needs a 16-byte aligned ESP at every call;
@@ -256,6 +258,7 @@ elseif(WIN32 OR MINGW OR CMAKE_C_COMPILER MATCHES "mingw")
         target_link_directories(${PROJECT_NAME} PRIVATE "libs/win32")
         target_link_libraries(${PROJECT_NAME}
             minhook xdiff -Wl,-Bstatic SDL3 SDL3_ttf SDL3_image FAudio freetype harfbuzz winpthread stdc++ gcc gcc_eh -Wl,-Bdynamic gdi32 winmm ole32 ws2_32 psapi usp10 rpcrt4 setupapi version imm32 hid delayimp iphlpapi
+            mfuuid windowscodecs
         )
     endif()
 

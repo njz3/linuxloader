@@ -33,6 +33,9 @@
 #include "filesystemShared.h"
 #include "writeDir.h"
 #include "../hardware/lindbergh/serialPort.h"
+#ifdef _WIN32
+#include "../hardware/namco/v4l2Camera.h"
+#endif
 
 #ifdef __linux__
 #include <dlfcn.h>
@@ -355,6 +358,10 @@ int sharedOpen(const char *pathname, int flags, ...)
 #ifdef _WIN32
     if (strcmp(pathname, "/proc/sys/kernel/osrelease") == 0)
         return -1;
+
+    // Dead Heat and Maximum Heat 3D's camera (v4l2Camera.c)
+    if (strcmp(pathname, "/dev/video0") == 0)
+        return v4l2CameraOpen();
 
     char winPath[MAX_PATH];
     ConvertPath(winPath, pathname, MAX_PATH);
@@ -1062,6 +1069,8 @@ int sharedClose(int fd)
         return sysVirtualClose(fd);
     if (serialPortIs(fd))
         return serialPortClose(fd);
+    if (v4l2CameraIs(fd))
+        return v4l2CameraClose(fd);
 #endif
     // The standard streams stay the loader's: the agent's commands and answers, the log. Dead Heat Riders' camera
     // library closes descriptor 0 when no camera opened (its descriptor still at 0); Ring Riders closes stdout
@@ -1780,6 +1789,8 @@ int sharedIoctl(int fd, unsigned long int request, ...)
 #else
     if (serialPortIs(fd))
         return serialPortIoctl(fd, request, argp);
+    if (v4l2CameraIs(fd))
+        return v4l2CameraIoctl(fd, request, argp);
 #endif
 
     if (fd == hooks[EEPROM])

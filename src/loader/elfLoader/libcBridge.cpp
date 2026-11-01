@@ -8,6 +8,7 @@
 #include "gccBridge.hpp"
 #include "symbolResolver.hpp"
 #include "elfCall.h"
+#include "../hardware/namco/v4l2Camera.h"
 #include <csignal>
 #ifdef _MSC_VER
 #include <intrin.h> // _ReturnAddress
@@ -2086,6 +2087,10 @@ namespace LibcBridge
     {
         log_trace("Intercepted mmap: addr=%p, len=%zu, prot=%d, flags=%d, fd=%d, offset=%ld", addr, length, prot, flags, fd, (long)offset);
 
+        // The emulated camera's buffers (Dead Heat, Maximum Heat 3D)
+        if (v4l2CameraIs(fd))
+            return v4l2CameraMmap(length, (long)offset);
+
         if (flags & L_MAP_ANONYMOUS)
         {
             DWORD winProt = PAGE_READWRITE;
@@ -2112,6 +2117,8 @@ namespace LibcBridge
     int bridgeMunmap(void *addr, size_t length)
     {
         log_trace("Intercepted munmap: addr=%p, len=%zu", addr, length);
+        if (v4l2CameraMunmap(addr))
+            return 0;
         if (VirtualFree(addr, 0, MEM_RELEASE))
         {
             return 0;

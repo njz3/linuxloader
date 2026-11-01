@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 169 | 01/11 | Faire les deux : Maximum Heat 3D en 2D, et la caméra de Dead Heat et Maximum Heat 3D (demandes du propriétaire via Image borne) | ✅ `[Game.maxheat3d] STEREO_3D` (2D par défaut) ; caméra V4L2 émulée (`CAMERA` AUTO / PICTURE / OFF / nom, `CAMERA_PICTURE`) : image fixe et webcam du PC vérifiées ici (voir journal) |
 | 168 | 01/11 | Le cadre « USB DONGLE ERROR » de 3DX+ en link (essai d'Image borne) ; commit, push, release, déploiement par Image borne | ✅ la borne a deux clés HASP, le loader n'en listait qu'une : en link l'écran titre ferme la seconde ; `1e97a9f` poussé ; release 3.0.14 -2 du 01/11 (voir journal) ; Image borne prévenu pour la déployer |
 | 167 | 01/11 | Continuer le link de Nirin ; puis commit, push, release, envoi à Image borne | ✅ bataille engagée à deux copies (voir demande 165) ; `0ffc628` poussé ; release 3.0.14 du 01/11 (`…-20261101-njz3`, voir journal) ; Image borne prévenu |
 | 166 | 01/11 | Disque presque plein : effacer les fichiers temporaires de la session et les jeux déjà reliés et fonctionnels | ✅ scratchpad 3,5 Go → 13 Mo (scripts, réglages des bornes et outils gardés) ; effacés de `games\` (tous présents sur `\\racecab1\C\racecab\Games`) : Maximum Tune 3 et 3DX+, Hummer, Dead Heat, Dead Heat Riders, R-Tuned, OutRun 2, Tuning Race, Tokyo Cop, Ring Riders ; gardés : Nirin, Initial D 4 japonais, Initial D 4 et 5 Export, Race TV. C: 29 Go libres → 56 Go |
@@ -198,6 +199,39 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 
 ## Journal de développement
 
+### Maximum Heat 3D en 2D, et la caméra de Dead Heat et Maximum Heat 3D (demande 169)
+- Demandes du propriétaire (Image borne) : l'image de Maximum Heat 3D est illisible sur les bornes (rayée, doublée),
+  et les portraits des joueurs de Dead Heat et Maximum Heat 3D sont noirs. Les deux jeux recopiés du partage de
+  racecab1 (`games\deadheat` 2,5 Go, `games\maxheat3d` 3 Go). Image borne : Maximum Heat 3D relié sur les bornes
+  (« P2 » / « P1 » vus en course), son menu de test n'a aucun réglage 3D/2D.
+- **Maximum Heat 3D en 2D** : `data/csv/monitor_3d.csv` (`USE_3D TRUE`, `TYPE LINE_BY_LINE`) le dessine pour l'écran
+  3D de sa borne, chaque œil une ligne sur deux. `[Game.maxheat3d] STEREO_3D` (case « Stereoscopic 3D » de la page
+  du jeu, décochée par défaut) : sans elle, `clMonitor3D::Use3D` répond non (`maximumHeat3dFlat`, `patch.c`) et le
+  jeu dessine en 2D. Vérifié : attract net sans elle, rayé et doublé avec.
+- **La caméra** : les deux jeux lisent une webcam UVC par V4L2 avec le code `nmUVCCamera` de Namco (`/dev/video0`
+  O_RDWR | O_NONBLOCK ; QUERYCAP, CROPCAP, S_CROP, S_FMT 640x480 YUYV, REQBUFS d'au moins 2, QUERYBUF + mmap, QBUF,
+  STREAMON, puis DQBUF / QBUF à chaque image, EAGAIN sans image). Le loader coupait `USE_CAMERA_DEVICE`
+  (`deadHeatIo.c`). Fait, Windows seulement :
+  - `v4l2Camera.c` : le périphérique (descripteur `0x7D000000`), branché dans `sharedOpen`, `sharedIoctl`,
+    `sharedClose`, `bridgeMmap` / `bridgeMunmap`. Les tampons font une page de plus qu'une image : `nmUVCCamera`
+    refuse un tampon de 0x96000 octets ou moins (ce que `DH_CAMERAFIX` de dh_emu contournait).
+  - `cameraSource.cpp` : les images, comme la caméra de Daytona 3 de windowsloader (sa description, pas son code) :
+    `[Game.<nom>] CAMERA` = AUTO (défaut, la première caméra du PC), PICTURE (toujours l'image fixe), OFF (pas de
+    caméra, comme avant) ou le nom exact d'une caméra ; `CAMERA_PICTURE` = un JPG ou PNG (WIC, mis à 640x480, Fant ;
+    sans lui, du noir). La webcam par Media Foundation (chargé à la demande), son format natif 640x480 s'il existe,
+    en RGB32 converti en YUYV. Une caméra absente, qui ne s'ouvre pas, ne donne rien en 10 s au départ ou plus rien
+    pendant 3 s : l'image fixe, pour la suite. Messages « camera: … » en avertissements (le lanceur des bornes les
+    garde).
+  - `USE_CAMERA_DEVICE` mis à 1 pour ces deux jeux, sauf `CAMERA = OFF`. Les clés `CAMERA` / `CAMERA_PICTURE` sont des
+    textes : dans le fichier de réglages seulement, pas sur la page du jeu.
+- Vérifié ici (build MinGW, mode agent) :
+  - Maximum Heat 3D, `CAMERA = PICTURE` et une image de test : l'écran de prise de vue la montre (155 images
+    données), puis elle sert de portrait P1 en course.
+  - Dead Heat, `CAMERA = AUTO` : la webcam de ce PC (« Integrated Webcam », 640x480 natif), « CAMERA LIVE » de
+    l'attract avec son image, couleurs et sens justes.
+  - Pas essayé : les webcams des bornes, le link avec la caméra, une caméra débranchée en cours de partie. MSVC
+    compile ; Linux inchangé (caméra coupée comme avant).
+
 ### Release 3.0.14 -2 du 01/11 (demande 168)
 - `1e97a9f` poussé (3DX+ : deux clés HASP sur le bus USB, traces des clés en avertissements ; voir la demande 167
   pour la cause). Release MinGW, 53 avertissements :
@@ -208,6 +242,10 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 - Vérifié depuis le zip : `--version` « linuxloader-v3.0.14-ffbedition-20261101-2-njz3 » ; 3DX+ à deux copies
   reliées, 150 s d'attract, `clHasp2 status 0` et « HASP error sent to the link: no » sur les deux ; Nirin à deux
   copies, bataille engagée (`member 1100`). `games\mt3dx` recopié du partage de racecab1 (5,7 Go) pour ces essais.
+- Déployée par Image borne sur les deux bornes (accord du propriétaire, celle du matin sauvegardée). 3DX+ relié par
+  le lanceur de l'image, 3 min 30 d'attract : **plus de cadre « USB DONGLE ERROR »** (contrôlé à 60, 120, 180 et 190 s sur racecab2, 60 et 120 s sur racecab1),
+  « 2 Cars in linked play » sur les deux, logs « clHasp2 status 0 » et « HASP error sent to the link: no » sur les
+  deux, sans autre ligne de clé ; `%TEMP%\linuxloader-usb-devices.txt` à 301 octets (`linktest-logs\mt3dx-image3`).
 
 ### Release 3.0.14 du 01/11 (demande 167)
 - `0ffc628` poussé (Nirin : `-netuse`, traces de la bataille). Release MinGW, première du jour donc sans suffixe,
@@ -268,6 +306,12 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   (`1208`), même course (`course 2 2`), scènes qui avancent ensemble. Script `try_nrnbattle.py` (scratchpad).
 - Pour les bornes : `-netuse` (ce correctif), `PCB_ID` 1 et 2 et `IS_BATTLE` au menu de test, `[Network]`
   `IP_CAB1` / `IP_CAB2` (les adresses que `nirinGetIPString` rend au jeu).
+- **Relié sur les bornes** (Image borne, release 20261101-2, dossiers d'écriture `linuxloader_link_cab1/2`,
+  `LL_LOG=info`) : menu de test PCB ID 1 / 2, OPERATION TYPE MULTI ; racecab1 court (« Challenger wanted! »),
+  racecab2 « Challenge rivals? » YES, sélection de course commune (You / 2P, 1P / You), même course à 4 (2 joueurs, 2
+  COM), le marqueur 1P sur la moto de racecab1 chez racecab2. Traces `me 0` / `me 1`, `member 1100`
+  (`linktest-logs\nir2`). Rien d'anormal ; avec `LL_LOG=info` les logs font 33 à 41 Mo (traces de `sendto` /
+  `recvfrom` à chaque paquet) : à ne pas garder en service. Image borne l'ajoute au lanceur de link de l'image.
 
 ### Release 3.0.14 -6 du 31/10 (demande 163)
 - `adbf179` poussé (demande 162 : la clé HASP de 3DX+ par `/proc/bus/usb/devices`, les traces des Maximum Tune et de
