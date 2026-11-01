@@ -215,6 +215,45 @@ static void nirinHandleRead(void)
     log_info("Nirin: handlebar calibration %d (left) to %d (right)", *leftMax, *rightMax);
 }
 
+// Nirin's battle (clBattle, at 0x091C64A0, made with -netuse): each frame clBattle::update reads what the other
+// cabinets sent. Its own state word (+0x2C: the PCB index in bits 0-1, the entry in 2-4, a challenger's entry in 5,
+// the scene in 6-10, the master in 12, accepting challengers in 13) goes to the others, whose words land at
+// +0x56C + 0x10 * their index; the course of each (+0x550) comes from the master. The race's challenger counts the
+// others accepting (clBattle::getBattlePlayer) for two seconds before it gives up (clSeqIncursionSelectThread::
+// waitBattle). Each change of these, of the connections (clNetwork's slots) and of the work space's incursion flags is
+// logged, to see where a battle stops
+static void (*nirinBattleUpdateOriginal)(void *battle);
+
+static void nirinBattleUpdate(void *battle)
+{
+    static char last[256];
+    nirinBattleUpdateOriginal(battle);
+    const uint8_t *b = battle;
+    const uint8_t *network = *(const uint8_t *const *)0x0892571C;
+    const uint8_t *link = network ? *(const uint8_t *const *)network : NULL;
+    const uint8_t *work = *(const uint8_t *const *)0x089256D8;
+    char state[256];
+    int length = snprintf(state, sizeof(state), "me %d state %04x course %d %d %d %d member %d%d%d%d",
+                          *(const int *)(b + 0x28D08), *(const uint16_t *)(b + 0x2C), (int8_t)b[0x550],
+                          (int8_t)b[0x551], (int8_t)b[0x552], (int8_t)b[0x553], b[0x28CEC], b[0x28CED], b[0x28CEE],
+                          b[0x28CEF]);
+    for (int i = 0; i < 4 && length > 0 && length < (int)sizeof(state); i++)
+    {
+        const uint8_t *slot = link ? link + 0x20 + 12 * i : NULL;
+        int connected = slot && link[0x0C] && slot[4] && !slot[5] && !slot[6] && !*(const int *)(link + 0x58);
+        length += snprintf(state + length, sizeof(state) - length, ", %d:%s%04x", i, connected ? "" : "off ",
+                           *(const uint16_t *)(b + 0x56C + 0x10 * i));
+    }
+    if (work && length > 0 && length < (int)sizeof(state))
+        snprintf(state + length, sizeof(state) - length, ", incursion %d switch %d guest %d", work[0x141], work[0x58],
+                 work[0x14D]);
+    if (strcmp(state, last) != 0)
+    {
+        strcpy(last, state);
+        log_info("Nirin: battle %s", state);
+    }
+}
+
 // Initial D 4's feedback board (cFeedbackSCI): the Sega servo board's 4-byte frames (84 torque, 85 vibration, 86
 // viscosity...), written to its serial port by _sSCI::send, which only that board uses. The port is never opened
 // (its initPolling is skipped): the frames go to the loader's FFB model, the agent and the network outputs, as the
@@ -3025,6 +3064,7 @@ int initPatch()
             sharedMkdir("save1", 0755);
             deadHeatIoInstall(); // the N2 I/O board, as Dead Heat's
             detourFunction(0x08084B80, nirinGetIPString); // the cabinets' addresses for its link
+            nirinBattleUpdateOriginal = trampolineHook((void *)0x080DD510, nirinBattleUpdate, 0); // its battle's traces
         }
         break;
         case WANGAN_MIDNIGHT_MT3:

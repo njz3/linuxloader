@@ -92,8 +92,11 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 166 | 01/11 | Disque presque plein : effacer les fichiers temporaires de la session et les jeux déjà reliés et fonctionnels | ✅ scratchpad 3,5 Go → 13 Mo (scripts, réglages des bornes et outils gardés) ; effacés de `games\` (tous présents sur `\\racecab1\C\racecab\Games`) : Maximum Tune 3 et 3DX+, Hummer, Dead Heat, Dead Heat Riders, R-Tuned, OutRun 2, Tuning Race, Tokyo Cop, Ring Riders ; gardés : Nirin, Initial D 4 japonais, Initial D 4 et 5 Export, Race TV. C: 29 Go libres → 56 Go |
+| 165 | 01/11 | Étudier le code de Nirin pour son link | 🔄 cause principale trouvée : la borne lance `a.elf -netuse` (`exec/init`), le loader sans argument ; sans `-netuse`, ni `clNetwork` ni `clBattle`. `mainW.cpp` ajoute `-netuse` à Nirin. Ici à deux copies : « Network Checking » MINE / LINK, paquets UDP 10001 dans les deux sens ; **bataille engagée à deux copies** (« New Challenger! », course choisie ensemble, course à 4 avec 2P) : la cause du blocage était ma graine `PCB_ID = 2`, refusée pour sa somme de contrôle (les deux copies étaient la borne 1) ; traces de la bataille dans le log (`patch.c`) ; rien de commité |
+| 164 | 31/10 | Demander à Image borne d'essayer le link de Hummer, Race TV, Initial D 4 Export et Initial D 5 Export | 🔄 Hummer relié sur les bornes (« NETWORK PLAY FOR UP TO 2 MACHINES », course à deux, chacun voit l'autre) ; Race TV et Initial D 4 Export : adresses prises (« Link: this cabinet's address is … »), mais le duel pas atteint (menus à minuterie, commandes à distance trop lentes : à essayer au volant) ; Initial D 5 Export pas lancé. Le script des bornes passe déjà les clés [Network] par --set |
 | 163 | 31/10 | Commit, push, une release, Image borne prévenue | ✅ `adbf179` poussé (clé HASP de 3DX+, traces des Maximum Tune) ; `releases/linuxloader-v3.0.14-ffbedition-20261031-6-njz3-win32.zip` ; Image borne prévenue (voir journal) |
-| 162 | 31/10 | Continuer à étudier le code de 3DX+ pour son duel en link | 🔄 traces internes du jeu dans le log (`clLogBuf::sync` remplacé, `patch.c`), build `…-linktest5-…` : l'écran du duel s'ouvre sur les bornes mais se valide seul (front de l'accélérateur) ; clé HASP de 3DX+ corrigée (`/proc/bus/usb/devices`), build `…-linktest7-…` (traces des pédales vues par le jeu) envoyé à Image borne (voir journal de la demande 161) |
+| 162 | 31/10 | Continuer à étudier le code de 3DX+ pour son duel en link | ✅ relié en duel sur les bornes (linktest7, voir journal de la demande 163) ; traces internes du jeu dans le log (`clLogBuf::sync` remplacé, `patch.c`), build `…-linktest5-…` : l'écran du duel s'ouvre sur les bornes mais se valide seul (front de l'accélérateur) ; clé HASP de 3DX+ corrigée (`/proc/bus/usb/devices`), build `…-linktest7-…` (traces des pédales vues par le jeu) envoyé à Image borne (voir journal de la demande 161) |
 | 161 | 31/10 | Maximum Tune 3DX+ en link (les deux bornes se disent ID:1) ; un pull ; commit, push, une release si nécessaire | 🔄 3DX+ lit `/tmp/data/etc/testmode.lua` (Maximum Tune 3 : `/tmp/data/testmode.lua`) : le loader y lit TotalMachine pour 3DX+, ses réglages pour les bornes à refaire ; pull des demandes 159 et 160 ; `2d7b304` poussé ; `releases/linuxloader-v3.0.14-ffbedition-20261031-5-njz3-win32.zip` (MinGW : la -4 plus le link DHR / MT3, les demandes 159 et 160, le correctif 3DX+) ; 3DX+ relié ici à deux copies (PCB ID lus, sessions établies, partie lancée), réglages des bornes refaits ; -5 déployée par Image borne, 3DX+ relié sur les bornes au démarrage, le duel (Accepting VS / Buy in race and challenge) vérifié ici ; sur les bornes l'écran du duel n'apparaît pas (getConnectCount < 2 après une première connexion refermée), l'ordre de démarrage n'y est pour rien (mt3dx4), cause pas trouvée, duel en pause (voir journal) |
 | 160 | 31/10 | Un fichier journal texte, avec une case dans l'interface (au lancement suivant), à côté de l'exe ou à la racine de WRITE_DIR, le précédent gardé en .old.log ; et les noms de sorties que BFF connaît (`RawLamps` inchangé) | ✅ `LOG_FILE` ([System], coché par défaut) : `linuxloader.log` + `linuxloader.old.log`, case dans À propos ; `LampStart`, `LampView1`, `LampLeader`, `LampDriverL`, `LampDriverR` pour OutRun 2 ; essayé sur Hummer (write-dir, à côté de l'exe, désactivé) ; lampes nommées non essayées (pas d'OutRun 2 ici) |
 | 159 | 31/10 | (second retour du testeur d'OutRun 2, version 20261030) OUTPUT TEST → `lampN`, lampe arrière, où est le journal, ressort « progressif » selon le type de borne | ⚠️ lampes : notre table était juste (Start lamp0, View lamp4, pilote G lamp2, pilote D lamp5) ; ses lumières sont branchées autrement dans son outil de sorties ; noms G et D ajoutés ; lampe arrière sur aucune sortie JVS (question posée) ; pas de fichier journal (console seulement) ; ressort présent en DX/SDX, absent en standard : le jeu |
@@ -193,6 +196,37 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 
 ## Journal de développement
 
+### Nirin en link (demande 165)
+- Le réseau de Nirin ne démarrait jamais : `main` ne met `0x89256c8` à 1 que si un argument contient « netuse »
+  (options `-full`, `-window`, `netuse`, `-nolog`, `-nodongle`, `-testdrive`) ; sans lui, pas de `clNetwork`
+  (`0x892571c`), pas de `clBattle::create` (`clSeqControl`), et `clSeqMainThread::initSeq` n'appelle
+  `clNetwork::reset(PCB_ID - 1, …, IS_BATTLE)` que pour ceux-là. La borne lance `exec ./a.elf -netuse` (`exec/init`),
+  le loader `exec/a.elf` sans argument. `mainW.cpp` : Nirin lancé sans argument reçoit `-netuse`.
+- Ici à deux copies (`LOCAL_LINK_ADDRESS`, `IP_CAB1` à 4 = 127.0.0.2 à .5, `save0/testmode/testmode_game.lua` PCB_ID
+  1 / 2, IS_BATTLE) : « Network Checking » « PCB ID 1 : 127.0.0.2 : MINE », « PCB ID 2 : 127.0.0.3 : LINK » ; paquets
+  de 480 et 8 octets vers le port UDP 10001 de chaque adresse, reçus des deux copies ; attract normal.
+- Premier essai, rien d'engagé : une copie reste sur « Accept challengers? », l'autre affiche « Rival Entering! » puis
+  chacune court seule. `./build/log.txt` (option `-nolog`) n'est écrit que par les builds debug et release du jeu, pas
+  par celui des bornes (« master ») : le loader trace la bataille lui-même. `nirinBattleUpdate` (`patch.c`, après
+  `clBattle::update` à `0x080DD510`) écrit à chaque changement le mot d'état de chaque borne (`+0x2C` pour soi, `+0x56C +
+  0x10 * n` pour les autres : n° de borne bits 0-1, entrée 2-4, challenger 5, scène 6-10, maître 12, accepte 13), la
+  course de chacune (`+0x550`), les membres de la bataille, la connexion de chaque emplacement de `clNetwork` et les
+  drapeaux d'incursion de `clWorkSpace`. Le challenger compte 2 s les bornes qui acceptent
+  (`clSeqIncursionSelectThread::waitBattle`) avant d'abandonner.
+- Les traces : **les deux copies étaient la borne 0** (`me 0`), chacune écrasait l'état de l'autre. Les fichiers de
+  `save0/testmode` portent une somme de contrôle binaire, 2 octets en tête et en fin (`GenerateCheckSum` : somme 16 bits
+  des octets signés entre les deux, petit-boutiste), en plus de `CHECK_SUM` (somme des valeurs). Ma graine `PCB_ID = 2`
+  gardait celle de `PCB_ID = 1` (`11 1c` au lieu de `13 1c`) : `clTestModeManager::dataLoad` la refusait et réécrivait
+  les valeurs d'usine. Rien à corriger dans le loader : sur les bornes, PCB_ID se règle au menu de test, qui écrit la
+  bonne somme. Un réglage à la main doit recalculer ces 2 octets.
+- Graine corrigée, copie 2 mettant ses pièces 3 200 images après la copie 1 (en pleine course) : **bataille engagée**.
+  Copie 2 « Challenge rivals? Versus play available », YES, « Player 1 / You, Please wait » ; copie 1 « New
+  Challenger! » ; sélection de course commune (You / 2P, 2nd Metropolitan Belt Line), course à 4 (les deux joueurs et
+  deux COM, 1/4 avec « 1P » chez la copie 2, « 2P » chez la copie 1). Traces : `member 1100`, maître la borne 1
+  (`1208`), même course (`course 2 2`), scènes qui avancent ensemble. Script `try_nrnbattle.py` (scratchpad).
+- Pour les bornes : `-netuse` (ce correctif), `PCB_ID` 1 et 2 et `IS_BATTLE` au menu de test, `[Network]`
+  `IP_CAB1` / `IP_CAB2` (les adresses que `nirinGetIPString` rend au jeu).
+
 ### Release 3.0.14 -6 du 31/10 (demande 163)
 - `adbf179` poussé (demande 162 : la clé HASP de 3DX+ par `/proc/bus/usb/devices`, les traces des Maximum Tune et de
   leurs pédales de menu). Release MinGW, `RELEASE_SUFFIX` « -6 », 53 avertissements :
@@ -204,6 +238,13 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 - Vérifié depuis le zip : `--version` « …-20261031-6-njz3 » ; Maximum Tune 3 à deux copies (« LINK COUNT 2 », HASP) ;
   3DX+ à deux copies, duel jusqu'à la rampe de départ ; OutRun 2 en mode agent avec un dossier d'écriture : 60 FPS.
   Image borne prévenue.
+- Essai d'Image borne avec linktest7 (même code que la -6, `linktest-logs\mt3dx7`) : **3DX+ relié en duel sur les
+  bornes.** cab1 « Accepting VS », cab2 « Buy in race and challenge » YES, « Select a course » 1P / 2P, Nagoya Speed
+  Ring, départ et course ensemble (1/2 et 2/2, chacun voit la GT-R de l'autre). Plus de cadre « USB DONGLE ERROR ».
+  L'écran du duel qui « se fermait seul » venait de ses appuis : les traces des pédales ont montré l'écran de
+  transmission validé par son compte à rebours, puis l'appui suivant tombé sur l'écran du duel (« Refusing ») ; sa
+  direction à distance arrivait aussi après les 10 s. Fait en une seule commande vJoy, le duel passe. Le Start de
+  Maximum Tune 3 : même chose (Start lance la partie, l'accélérateur valide les menus).
 
 ### Maximum Tune 3DX+ en link, et la release 3.0.14 -5 (demande 161)
 - Essais d'Image borne (journal de la demande 157) : 3DX+ prend bien l'adresse de chaque PC, mais les deux bornes se

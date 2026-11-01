@@ -423,6 +423,11 @@ int main(int argc, char *argv[], char *envp[])
     log_debug("Initializing main...");
     initMain(configPath, controlsPath);
 
+    // Nirin's cabinet starts it as "a.elf -netuse" (exec/init): without it, main makes no clNetwork and clSeqControl
+    // no clBattle, and the game never links
+    if (getConfig()->crc32 == NIRIN && elfArgs[0] == '\0')
+        strcpy(elfArgs, "-netuse");
+
     int final_argc = 0;
     char *final_argv_arr[10];
 
