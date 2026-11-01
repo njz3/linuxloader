@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 171 | 01/11 | (Image borne) Release -3 déployée : Maximum Heat 3D net en 2D et relié, mais l'image de la caméra est noire sur les deux bornes, Dead Heat et Maximum Heat 3D (webcam « DV20 USB CAMERA » ouverte, « gives its pictures ») ; salle sombre ou images noires ? | 🔄 traces ajoutées (types d'image de la caméra, celui lu, luminosité de ses images, `LL_CAMERA_BMP`) ; `689b8a1` poussé ; release 3.0.14 -4 du 01/11 ; Image borne prévenu pour la déployer et relever les traces (voir journal) |
 | 170 | 01/11 | Commit, push, release (2D et caméra), Image borne prévenu pour la déployer ; le link de R-Tuned sur les bornes (essai d'Image borne) | ✅ `2714677` poussé ; release 3.0.14 -3 du 01/11 vérifiée depuis le zip (voir journal) ; Image borne prévenu (déploiement avec l'accord du propriétaire). R-Tuned relié sur les bornes : les `sram.bin` des dossiers d'écriture étaient ceux d'une borne seule, remplacés par les modèles |
 | 169 | 01/11 | Faire les deux : Maximum Heat 3D en 2D, et la caméra de Dead Heat et Maximum Heat 3D (demandes du propriétaire via Image borne) | ✅ `[Game.maxheat3d] STEREO_3D` (2D par défaut) ; caméra V4L2 émulée (`CAMERA` AUTO / PICTURE / OFF / nom, `CAMERA_PICTURE`) : image fixe et webcam du PC vérifiées ici (voir journal) |
 | 168 | 01/11 | Le cadre « USB DONGLE ERROR » de 3DX+ en link (essai d'Image borne) ; commit, push, release, déploiement par Image borne | ✅ la borne a deux clés HASP, le loader n'en listait qu'une : en link l'écran titre ferme la seconde ; `1e97a9f` poussé ; release 3.0.14 -2 du 01/11 (voir journal) ; Image borne prévenu pour la déployer |
@@ -199,6 +200,25 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### La caméra noire sur les bornes, et la release 3.0.14 -4 du 01/11 (demande 171)
+- Image borne (release -3 déployée sur les deux bornes avec l'accord du propriétaire, -2 gardée dans
+  `C:\Racecab\_sauvegardes\linuxloader-20261101-2-avant-20261101-3`) : Maximum Heat 3D net en 2D partout et toujours
+  relié (marqueurs P1 / P2) ; la caméra « DV20 USB CAMERA » s'ouvre (« 640x480 for the game's 640x480 », « gives its
+  pictures », plus rien ensuite) mais l'écran de prise de vue de Maximum Heat 3D, ses portraits et le « CAMERA LIVE »
+  de Dead Heat sont noirs, sur les deux bornes (`linktest-logs\maxheat3d-link-3`, `deadheat-camera`). Essai à 20:25,
+  salle probablement sombre ; la même webcam donnait une image à Daytona 3 sous windowsloader le 31/10.
+- Pas de quoi trancher depuis ces logs : `cameraSource.cpp` dit maintenant (`689b8a1`) :
+  - les types d'image de la caméra (`LL_LOG=info`), et en avertissement celui lu (« read as MJPG 640x480 30.0 fps ») ;
+  - la luminosité de ses images telles qu'elles arrivent, avant le YUYV du jeu (moyenne et maximum de R, G, B), en
+    avertissement à la première image, 5 s après, puis chaque minute : un maximum à 0 dit des images noires, une
+    moyenne basse avec un maximum plus haut une salle sombre ;
+  - `LL_CAMERA_BMP=<fichier>` : une de ses images enregistrée là, 5 s après la première (BMP 32 bits).
+- Release MinGW, 54 avertissements : `emulateurs/releases/linuxloader-v3.0.14-ffbedition-20261101-4-njz3-win32.zip`,
+  18 437 135 octets, SHA-256 du zip `6029b2657cbcbaa909ece7ab64e68f437e0ca488302509eeace7f0f5dd52c1bd`, de
+  `linuxloader.exe` `7e16db17f99f024dd4a4ecd79c0ad3c30fd3a16b20e81a4923bfce114c89e913` ; mêmes fichiers que la -3
+  (`ll-deps` et `lang` identiques). Vérifié depuis le zip : `--version` « …-20261101-4-njz3 » ; Maximum Heat 3D,
+  `CAMERA = AUTO` : la webcam de ce PC « read as NV12 640x480 30.0 fps », luminosité 109 / 255, BMP juste.
 
 ### Release 3.0.14 -3 du 01/11 (demande 170)
 - `2714677` poussé (demande 169 : Maximum Heat 3D en 2D, caméra de Dead Heat et Maximum Heat 3D). Release MinGW, 54
