@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 168 | 01/11 | Le cadre « USB DONGLE ERROR » de 3DX+ en link (essai d'Image borne) ; commit, push, release, déploiement par Image borne | ✅ la borne a deux clés HASP, le loader n'en listait qu'une : en link l'écran titre ferme la seconde ; `1e97a9f` poussé ; release 3.0.14 -2 du 01/11 (voir journal) ; Image borne prévenu pour la déployer |
 | 167 | 01/11 | Continuer le link de Nirin ; puis commit, push, release, envoi à Image borne | ✅ bataille engagée à deux copies (voir demande 165) ; `0ffc628` poussé ; release 3.0.14 du 01/11 (`…-20261101-njz3`, voir journal) ; Image borne prévenu |
 | 166 | 01/11 | Disque presque plein : effacer les fichiers temporaires de la session et les jeux déjà reliés et fonctionnels | ✅ scratchpad 3,5 Go → 13 Mo (scripts, réglages des bornes et outils gardés) ; effacés de `games\` (tous présents sur `\\racecab1\C\racecab\Games`) : Maximum Tune 3 et 3DX+, Hummer, Dead Heat, Dead Heat Riders, R-Tuned, OutRun 2, Tuning Race, Tokyo Cop, Ring Riders ; gardés : Nirin, Initial D 4 japonais, Initial D 4 et 5 Export, Race TV. C: 29 Go libres → 56 Go |
 | 165 | 01/11 | Étudier le code de Nirin pour son link | 🔄 cause principale trouvée : la borne lance `a.elf -netuse` (`exec/init`), le loader sans argument ; sans `-netuse`, ni `clNetwork` ni `clBattle`. `mainW.cpp` ajoute `-netuse` à Nirin. Ici à deux copies : « Network Checking » MINE / LINK, paquets UDP 10001 dans les deux sens ; **bataille engagée à deux copies** (« New Challenger! », course choisie ensemble, course à 4 avec 2P) : la cause du blocage était ma graine `PCB_ID = 2`, refusée pour sa somme de contrôle (les deux copies étaient la borne 1) ; traces de la bataille dans le log (`patch.c`) ; rien de commité |
@@ -196,6 +197,17 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Release 3.0.14 -2 du 01/11 (demande 168)
+- `1e97a9f` poussé (3DX+ : deux clés HASP sur le bus USB, traces des clés en avertissements ; voir la demande 167
+  pour la cause). Release MinGW, 53 avertissements :
+  `emulateurs/releases/linuxloader-v3.0.14-ffbedition-20261101-2-njz3-win32.zip`, 19 055 036 octets, SHA-256 du zip
+  `f7f2950f4bfa4f485adf9d4e4ec067c5a26461dadeb412ea5b104910194a5594`, de `linuxloader.exe`
+  `626d857d71e6acbf43cb117635b746d1445d9fed89e37a5b98766a0d483ac06c` ; mêmes fichiers que celle du matin
+  (`ll-deps` identiques). Par rapport à elle : le correctif des clés de 3DX+.
+- Vérifié depuis le zip : `--version` « linuxloader-v3.0.14-ffbedition-20261101-2-njz3 » ; 3DX+ à deux copies
+  reliées, 150 s d'attract, `clHasp2 status 0` et « HASP error sent to the link: no » sur les deux ; Nirin à deux
+  copies, bataille engagée (`member 1100`). `games\mt3dx` recopié du partage de racecab1 (5,7 Go) pour ces essais.
 
 ### Release 3.0.14 du 01/11 (demande 167)
 - `0ffc628` poussé (Nirin : `-netuse`, traces de la bataille). Release MinGW, première du jour donc sans suffixe,
