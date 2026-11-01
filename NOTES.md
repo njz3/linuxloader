@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 167 | 01/11 | Continuer le link de Nirin ; puis commit, push, release, envoi à Image borne | ✅ bataille engagée à deux copies (voir demande 165) ; `0ffc628` poussé ; release 3.0.14 du 01/11 (`…-20261101-njz3`, voir journal) ; Image borne prévenu |
 | 166 | 01/11 | Disque presque plein : effacer les fichiers temporaires de la session et les jeux déjà reliés et fonctionnels | ✅ scratchpad 3,5 Go → 13 Mo (scripts, réglages des bornes et outils gardés) ; effacés de `games\` (tous présents sur `\\racecab1\C\racecab\Games`) : Maximum Tune 3 et 3DX+, Hummer, Dead Heat, Dead Heat Riders, R-Tuned, OutRun 2, Tuning Race, Tokyo Cop, Ring Riders ; gardés : Nirin, Initial D 4 japonais, Initial D 4 et 5 Export, Race TV. C: 29 Go libres → 56 Go |
 | 165 | 01/11 | Étudier le code de Nirin pour son link | 🔄 cause principale trouvée : la borne lance `a.elf -netuse` (`exec/init`), le loader sans argument ; sans `-netuse`, ni `clNetwork` ni `clBattle`. `mainW.cpp` ajoute `-netuse` à Nirin. Ici à deux copies : « Network Checking » MINE / LINK, paquets UDP 10001 dans les deux sens ; **bataille engagée à deux copies** (« New Challenger! », course choisie ensemble, course à 4 avec 2P) : la cause du blocage était ma graine `PCB_ID = 2`, refusée pour sa somme de contrôle (les deux copies étaient la borne 1) ; traces de la bataille dans le log (`patch.c`) ; rien de commité |
 | 164 | 31/10 | Demander à Image borne d'essayer le link de Hummer, Race TV, Initial D 4 Export et Initial D 5 Export | 🔄 Hummer relié sur les bornes (« NETWORK PLAY FOR UP TO 2 MACHINES », course à deux, chacun voit l'autre) ; Race TV et Initial D 4 Export : adresses prises (« Link: this cabinet's address is … »), mais le duel pas atteint (menus à minuterie, commandes à distance trop lentes : à essayer au volant) ; Initial D 5 Export pas lancé. Le script des bornes passe déjà les clés [Network] par --set |
@@ -195,6 +196,17 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Release 3.0.14 du 01/11 (demande 167)
+- `0ffc628` poussé (Nirin : `-netuse`, traces de la bataille). Release MinGW, première du jour donc sans suffixe,
+  53 avertissements : `emulateurs/releases/linuxloader-v3.0.14-ffbedition-20261101-njz3-win32.zip`, 19 053 721 octets,
+  SHA-256 du zip `920357ae2e87afa4d1465bad3fceb8c16d8af4a938f28bfc706b33ca2bd619e0`, de `linuxloader.exe`
+  `126be5c98cc1a1e03112f5b622a4ef623edeefd756a09c3cc9b7bdaf1aee534f` ; mêmes fichiers que la -6 (`ll-deps`
+  identiques). Par rapport à la -6 : le link de Nirin et ses traces.
+- Vérifié depuis le zip : `--version` « linuxloader-v3.0.14-ffbedition-20261101-njz3 » ; Nirin à deux copies, challenger
+  en pleine course : « New Challenger! », sélection de course commune, course à 4 (3/4 avec « 1P » chez le challenger).
+  Les autres jeux de la -6 (Maximum Tune, OutRun 2…) ne sont plus sur ce disque (demande 166) : pas refaits, le
+  reste du code est celui de la -6.
 
 ### Nirin en link (demande 165)
 - Le réseau de Nirin ne démarrait jamais : `main` ne met `0x89256c8` à 1 que si un argument contient « netuse »
