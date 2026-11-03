@@ -92,6 +92,12 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 177 | 03/11 | (Image borne) Les trois VS essayés sur les bornes avec les séquences de la demande 176 | ✅ Race TV, Initial D 4 Export et Initial D 5 Export en course commune sur racecab1 et racecab2 (release -3 de l'image, lanceur de link, à distance) ; vjoyd complété de Haut / Bas par Image borne (voir journal) |
+| 176 | 03/11 | Trouver les séquences VS de Race TV, Initial D 4 Export et Initial D 5 Export à deux copies sur ce PC, les transmettre à Image borne | ✅ les trois en course commune ici (release -4, réglages link des bornes) ; Initial D 4 et 5 : menus aux entrées Up / Down (pas au volant), Start = OK, mode « In-store Battle » / 店内対戦 ; séquences, captures et journaux envoyés à Image borne (`linktest-logs\vs-sequences`, voir journal) |
+| 175 | 03/11 | Demander à Image borne si Race TV, Initial D 4 Export et 5 Export ont été essayés en link | ✅ réponse : depuis le 31/10, aucune course commune ; Race TV et Initial D 4 Export réseau établi mais menus à minuterie trop rapides à distance (01/11, release 20261031-5) ; Initial D 5 pas essayé depuis le 26/10 ; Race TV avait couru à deux le 26/10 ; aucun journal gardé |
+| 174 | 03/11 | Que reste-t-il à faire pour le link ? | ✅ donné dans la conversation : Initial D 4 japonais (Server Box imité, réseau qui ne démarre pas à deux copies), Race TV, Initial D 4 et 5 Export (VS jamais atteint sur les bornes) ; et vérifier les NVRAM des dossiers d'écriture des bornes |
+| 173 | 02/11 | Merge avec upstream | ✅ rien de neuf : `upstream/main` (`87ffd44`, v3.0.14) et `bobby/jvs-passthrough-rewrite` déjà dans `dev/ffbedition` |
+| 172 | 02/11 | Pull et merge d'upstream ; pousser `main` | ✅ `dev/ffbedition` à jour, upstream déjà fusionné le 30/10 ; `main` avancé sur `upstream/main` (`9aa6e3e` → `87ffd44`) et poussé sur `origin` |
 | 171 | 01/11 | (Image borne) Release -3 déployée : Maximum Heat 3D net en 2D et relié, mais l'image de la caméra est noire sur les deux bornes, Dead Heat et Maximum Heat 3D (webcam « DV20 USB CAMERA » ouverte, « gives its pictures ») ; salle sombre ou images noires ? | 🔄 traces ajoutées (types d'image de la caméra, celui lu, luminosité de ses images, `LL_CAMERA_BMP`) ; `689b8a1` poussé ; release 3.0.14 -4 du 01/11 ; Image borne prévenu pour la déployer et relever les traces (voir journal) |
 | 170 | 01/11 | Commit, push, release (2D et caméra), Image borne prévenu pour la déployer ; le link de R-Tuned sur les bornes (essai d'Image borne) | ✅ `2714677` poussé ; release 3.0.14 -3 du 01/11 vérifiée depuis le zip (voir journal) ; Image borne prévenu (déploiement avec l'accord du propriétaire). R-Tuned relié sur les bornes : les `sram.bin` des dossiers d'écriture étaient ceux d'une borne seule, remplacés par les modèles |
 | 169 | 01/11 | Faire les deux : Maximum Heat 3D en 2D, et la caméra de Dead Heat et Maximum Heat 3D (demandes du propriétaire via Image borne) | ✅ `[Game.maxheat3d] STEREO_3D` (2D par défaut) ; caméra V4L2 émulée (`CAMERA` AUTO / PICTURE / OFF / nom, `CAMERA_PICTURE`) : image fixe et webcam du PC vérifiées ici (voir journal) |
@@ -200,6 +206,42 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Les séquences VS de Race TV, Initial D 4 Export et Initial D 5 Export (demande 176)
+- Image borne (demande 175) : sur les bornes, aucun des trois n'a atteint de course commune depuis le 31/10, les menus
+  à minuterie allant plus vite que les commandes à distance ; il demandait la séquence exacte de chaque VS pour l'envoyer
+  d'un bloc par vjoyd.
+- Ici, deux copies reliées (`LOCAL_LINK_ADDRESS` 127.0.0.2 / .3), release 20261101-4, réglages link des bornes
+  (`scratchpad\link\cab1`, `cab2`), pilotées ensemble image par image : `duo.py` (serveur TCP 47100, les deux copies
+  avancent ensemble pour que le link ne gèle pas, captures côte à côte) et `duoc.py` (scratchpad). Captures et
+  journaux de commandes dans `linktest-logs\vs-sequences`.
+- **Race TV** : cab1 Start → SELECT MODE (10 s) ; volant à gauche (MULTI-PLAYER), accélérateur → « WAITING FOR
+  CHALLENGERS… » sur les deux, 10 s pour entrer, « JOIN NOW! » chez cab2 ; cab2 Start → « ENTRIES 2/2 », « 2PLAYERS
+  GAME! » ; voiture, pilote et vote de la course se valident seuls à la fin de leur minuterie ; course à deux, 1P et 2P.
+- **Initial D 4 Export** : ses menus ne suivent pas le volant (il arrive au jeu, 0 à 1023, le retour de force répond)
+  mais les entrées Up / Down du loader ; Start = OK. Deux crédits ouvrent seuls la question de la licence ; puis Start
+  ×7 (sans licence, infos, « Do not Issue », marque, modèle, couleur, boîte AT) jusqu'à MODE DE JEU, Down ×2
+  (In-store Battle), Start : « Found a opponent. » sur les deux, cab2 choisit la course, bataille PLAYER1 / PLAYER2
+  (écart −15 m / +15 m). Un Start de trop au menu du mode choisit Legend of the Streets.
+- **Initial D 5 Export** (écrans japonais) : mêmes commandes ; deux crédits, Start (持っていない), la licence émulée
+  « AAAAAA » est lue quand même (« アクセス中 », « オフラインプレイ »), Start ×4 (marque, modèle, couleur, boîte),
+  ゲームモード, Down ×2 (店内対戦), Start : « 挑戦者現る! », AAAAAA VS AAAAAA, cab1 choisit la course, course
+  (ADVANTAGE −9,0 m / +8,9 m). Avec le modèle de cab1, la copie 1 commence une partie seule dès le démarrage (licence
+  lue, au choix de la marque 30 s après) : cause pas cherchée.
+- **Sur les bornes** (Image borne, 03/11 de 11:15 à 11:48, release 20261101-3 de l'image, lanceur
+  `RunLinuxLoaderLinkGame.cmd`, BFF arrêté, à distance) : les trois en course commune avec ces séquences.
+  - Race TV : comme décrit, crédits déjà là (7 et 4) ; sans le volant à gauche, chaque borne court seule (Championship).
+  - Initial D 4 Export : les deux bornes commencent seules (crédits des modèles) et suivent leurs menus aux minuteries ;
+    Down, Down, Start envoyés dès MODE DE JEU (vjoyd n'avait pas Haut / Bas, ajoutés par Image borne). Bornes à 7 s
+    d'écart au menu du VS, appariées quand même ; ici cab1 choisit la course. Course côte à côte, ADVANTAGE +0,0 m.
+  - Initial D 5 Export : cab1 commence encore seule (licence AAAAAA) ; cab2 deux pièces et Start ; sur chacune, dès la
+    liste des marques, Start ×4, Down, Down, Start ; « 対戦相手を検索中 » puis « 挑戦者現る! », cab2 choisit la course,
+    départ des deux.
+  - Journaux et photos : `linktest-logs\sega-racetv-vs`, `id4exp-vs`, `id5exp-vs`.
+- Pas mesuré : combien de temps une borne attend l'autre au menu du VS d'Initial D (ici choisi dans la même seconde).
+- En mode agent caché (`--agent`), les captures d'Initial D 4 et 5 sont noires, même d'une copie seule ; avec
+  `--agent-show` elles sont justes (`DUO_SHOW=1` pour `duo.py`). Les « captures noires » d'Initial D 5 et 4 japonais
+  des essais précédents viennent sans doute de là.
 
 ### La caméra noire sur les bornes, et la release 3.0.14 -4 du 01/11 (demande 171)
 - Image borne (release -3 déployée sur les deux bornes avec l'accord du propriétaire, -2 gardée dans
