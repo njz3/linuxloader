@@ -1,8 +1,8 @@
 // The pictures of the emulated camera (v4l2Camera.c), as windowsloader's camera for Daytona 3 chooses them:
 // [Game.<short name>] CAMERA = AUTO, the PC's first camera; a camera's name, that one; PICTURE, the still picture of
-// CAMERA_PICTURE (a JPG or PNG, black without one). A camera that does not open, or gives no picture for 3 s, leaves
-// the still picture in its place (10 s at the start): the game always has a working camera, as a cabinet needs for
-// its link.
+// CAMERA_PICTURE (a JPG or PNG, black without one). A camera that does not open, gives no picture in 10 s or stops
+// leaves the still picture in its place; one silent for 3 s shows it until its pictures come again: the game always has
+// a working camera, as a cabinet needs for its link.
 // The PC's camera is read by Media Foundation (loaded when needed: Windows N has none), its pictures in RGB32 turned
 // into the game's YUYV at its size; the still picture is read and scaled once by WIC. Their brightness is logged (a
 // dark room or black pictures), and LL_CAMERA_BMP=<file> saves one of them as it comes.
@@ -37,6 +37,7 @@ static std::vector<uint8_t> picture; // the still picture, or black
 static std::vector<uint8_t> latest;  // the PC's camera's last picture
 static unsigned pictureSerial = 1, latestSerial;
 static bool live;          // the PC's camera gives its pictures
+static bool silent;        // ... but none for 3 s: the still picture meanwhile
 static bool cameraWanted;  // AUTO or a name: a PC's camera tried
 static DWORD lastFrameTick, startTick;
 static bool gaveUp;
@@ -414,17 +415,24 @@ static void readCamera(void)
             continue;
         }
         EnterCriticalSection(&lock);
+        DWORD gap = 0;
         if (!gaveUp)
         {
             latest.assign(yuyv.begin(), yuyv.end());
             latestSerial++;
+            if (silent)
+                gap = now - lastFrameTick;
             live = true;
-            lastFrameTick = GetTickCount();
+            silent = false;
+            lastFrameTick = now;
         }
         bool over = gaveUp;
         LeaveCriticalSection(&lock);
         if (over)
             break;
+        if (gap)
+            log_warn("camera: the PC's camera \"%s\" gives its pictures again, after %lu ms without", name.c_str(),
+                     (unsigned long)gap);
         if (first)
             log_warn("camera: the PC's camera \"%s\" gives its pictures", name.c_str());
         first = false;
@@ -476,17 +484,21 @@ int cameraSourceFrame(uint8_t *yuyv, unsigned *serial)
         return 0;
     EnterCriticalSection(&lock);
     DWORD now = GetTickCount();
-    // No picture for 3 s since the last one, or 10 s from the start (a camera may take that long to open): the still
-    // picture, from then on
-    if (cameraWanted && !gaveUp && (live ? now - lastFrameTick > 3000 : now - startTick > 10000))
+    // No picture 10 s from the start (a camera may take that long to open): the still picture, from then on. None for
+    // 3 s since the last one: the still picture until the next one
+    if (cameraWanted && !gaveUp && !live && now - startTick > 10000)
     {
         gaveUp = true;
-        live = false;
-        log_warn(latestSerial ? "camera: the PC's camera gives no more pictures, the emulated one from now on"
-                              : "camera: the PC's camera gives no picture, the emulated one from now on");
+        log_warn("camera: the PC's camera gives no picture, the emulated one from now on");
     }
-    const std::vector<uint8_t> &source = live ? latest : picture;
-    unsigned current = live ? latestSerial : 0x80000000u | pictureSerial;
+    else if (live && !silent && now - lastFrameTick > 3000)
+    {
+        silent = true;
+        log_warn("camera: the PC's camera gives no picture for 3 s, the emulated one until it gives them again");
+    }
+    bool showLive = live && !silent;
+    const std::vector<uint8_t> &source = showLive ? latest : picture;
+    unsigned current = showLive ? latestSerial : 0x80000000u | pictureSerial;
     memcpy(yuyv, source.data(), source.size());
     int changed = current != *serial;
     *serial = current;

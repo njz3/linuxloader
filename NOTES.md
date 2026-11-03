@@ -92,6 +92,8 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 179 | 03/11 | Demander à Image borne de tester les caméras, la lumière allumée ; son résultat | 🔄 racecab1, release -3 : Dead Heat montre l'image de la DV20 (la salle était sombre le 01/11) ; Maximum Heat 3D : la caméra donne ses images 103 s puis plus rien pendant 3 s, et le loader passait à l'image fixe pour toute la partie. Le silence de 3 s ne coupe plus la caméra : l'image fixe le temps du silence, la caméra dès qu'elle revient, la durée du silence dans le journal (voir journal) |
+| 178 | 03/11 | (Image borne, accord du propriétaire) Effacer les crédits d'Initial D 4 Export et 5 Export, qui commencent seuls une partie en link | ✅ crédits dans `sram.bin` (pas `eeprom.bin`) ; outil `linktest-logs\tools\lindbergh_credits.py` (lecture, `--set 0`), essayé sur une copie du modèle de cab1 : Initial D 5 revient à son attract ; envoyé à Image borne, qui les efface sur les bornes (voir journal) |
 | 177 | 03/11 | (Image borne) Les trois VS essayés sur les bornes avec les séquences de la demande 176 | ✅ Race TV, Initial D 4 Export et Initial D 5 Export en course commune sur racecab1 et racecab2 (release -3 de l'image, lanceur de link, à distance) ; vjoyd complété de Haut / Bas par Image borne (voir journal) |
 | 176 | 03/11 | Trouver les séquences VS de Race TV, Initial D 4 Export et Initial D 5 Export à deux copies sur ce PC, les transmettre à Image borne | ✅ les trois en course commune ici (release -4, réglages link des bornes) ; Initial D 4 et 5 : menus aux entrées Up / Down (pas au volant), Start = OK, mode « In-store Battle » / 店内対戦 ; séquences, captures et journaux envoyés à Image borne (`linktest-logs\vs-sequences`, voir journal) |
 | 175 | 03/11 | Demander à Image borne si Race TV, Initial D 4 Export et 5 Export ont été essayés en link | ✅ réponse : depuis le 31/10, aucune course commune ; Race TV et Initial D 4 Export réseau établi mais menus à minuterie trop rapides à distance (01/11, release 20261031-5) ; Initial D 5 pas essayé depuis le 26/10 ; Race TV avait couru à deux le 26/10 ; aucun journal gardé |
@@ -206,6 +208,28 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Les crédits d'Initial D 4 / 5 Export, et la caméra de Maximum Heat 3D (demandes 178 et 179)
+- **Crédits** : dans le `sram.bin` d'`id4-exp-rev-d` et `id5-exp-20`, un enregistrement de 0x60 octets en `0x4000` :
+  octet `0x0C` les crédits, `0x20` le compteur des pièces ; CRC32 sans XOR final de `0x4004..0x405F` en `0x4000`
+  (petit-boutiste) ; quatre copies identiques (`0x4000`, `0x4080`, `0x3FF00`, `0x3FF60`). L'enregistrement « Credit »
+  d'`eeprom.bin` n'est que le réglage des pièces, le même partout. À partir de 2 crédits ces jeux ouvrent seuls la
+  question de la licence : d'où les parties commencées seules (modèle de cab1 d'Initial D 5 : 5 crédits). La licence
+  « AAAAAA » est la carte émulée (`InidCrd000.crd`), lue quand le jeu la demande. Outil
+  `linktest-logs\tools\lindbergh_credits.py` : lecture, ou `--set N` (les quatre copies et leur CRC, relu ensuite ;
+  rien d'écrit si un CRC est faux, si les copies diffèrent ou si le fichier n'est pas de ces jeux). Essayé sur une copie
+  du modèle de cab1 : 20 octets changés, Initial D 5 démarre sur son attract, « CREDIT(S) 0 ». Image borne les efface sur
+  les bornes (dossiers link, modèles, solo), accord du propriétaire.
+- **Caméra, la lumière allumée** (Image borne, racecab1 seule, release -3) : Dead Heat montre à « CAMERA LIVE »
+  l'image de la DV20 (l'intérieur de la borne) : le noir du 01/11 était la salle éteinte. Maximum Heat 3D : la caméra
+  donne ses images dès 6,4 s, puis à 109,9 s « gives no more pictures, the emulated one from now on », à peu près à
+  l'arrivée de l'écran de prise de vue : cadre noir (`linktest-logs\camera-light`). Le loader passait à l'image fixe
+  pour le reste de la partie dès 3 s sans image. Maintenant (`cameraSource.cpp`) : 3 s sans image, l'image fixe le temps
+  du silence (« gives no picture for 3 s, the emulated one until it gives them again »), la caméra dès sa prochaine
+  image (« gives its pictures again, after N ms without ») ; seules l'absence d'image dans les 10 s du départ ou la fin
+  de la lecture laissent l'image fixe pour de bon. Ici, Maximum Heat 3D joué jusqu'à la course avec la webcam du PC :
+  pas de silence, pas de changement ; la cause du silence sur la borne n'est pas connue (la durée dira s'il revient).
+  MinGW et MSVC compilent.
 
 ### Les séquences VS de Race TV, Initial D 4 Export et Initial D 5 Export (demande 176)
 - Image borne (demande 175) : sur les bornes, aucun des trois n'a atteint de course commune depuis le 31/10, les menus
