@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 180 | 03/11 | Commit, push, release, Image borne prévenu | ✅ `3ee5c83` poussé (caméra muette 3 s : de retour à sa prochaine image) ; release 3.0.14 du 03/11 (`…-20261103-njz3`) vérifiée depuis le zip ; Image borne prévenu pour la déployer ; crédits effacés sur les bornes par Image borne, attract revenu (voir journal) |
 | 179 | 03/11 | Demander à Image borne de tester les caméras, la lumière allumée ; son résultat | 🔄 racecab1, release -3 : Dead Heat montre l'image de la DV20 (la salle était sombre le 01/11) ; Maximum Heat 3D : la caméra donne ses images 103 s puis plus rien pendant 3 s, et le loader passait à l'image fixe pour toute la partie. Le silence de 3 s ne coupe plus la caméra : l'image fixe le temps du silence, la caméra dès qu'elle revient, la durée du silence dans le journal (voir journal) |
 | 178 | 03/11 | (Image borne, accord du propriétaire) Effacer les crédits d'Initial D 4 Export et 5 Export, qui commencent seuls une partie en link | ✅ crédits dans `sram.bin` (pas `eeprom.bin`) ; outil `linktest-logs\tools\lindbergh_credits.py` (lecture, `--set 0`), essayé sur une copie du modèle de cab1 : Initial D 5 revient à son attract ; envoyé à Image borne, qui les efface sur les bornes (voir journal) |
 | 177 | 03/11 | (Image borne) Les trois VS essayés sur les bornes avec les séquences de la demande 176 | ✅ Race TV, Initial D 4 Export et Initial D 5 Export en course commune sur racecab1 et racecab2 (release -3 de l'image, lanceur de link, à distance) ; vjoyd complété de Haut / Bas par Image borne (voir journal) |
@@ -208,6 +209,25 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Release 3.0.14 du 03/11 (demande 180)
+- `3ee5c83` poussé (demandes 178 et 179). Release MinGW, première du jour donc sans suffixe, 54 avertissements :
+  `emulateurs/releases/linuxloader-v3.0.14-ffbedition-20261103-njz3-win32.zip`, 18 436 895 octets, SHA-256 du zip
+  `708011000ab61799d27c54b7b0a950a6bc2eda0be7b5bb2ae4d6a65554f69c39`, de `linuxloader.exe`
+  `1a4ef5f4109042e11545103074115977ef710bb2dd368b942b53d38bbef199a1` ; mêmes fichiers que la -4 (`ll-deps` et `lang`
+  identiques). Par rapport à elle : la caméra muette 3 s revient à sa prochaine image.
+- Vérifié depuis le zip : `--version` « linuxloader-v3.0.14-ffbedition-20261103-njz3 » ; Maximum Heat 3D joué jusqu'à
+  la course et Dead Heat 100 s d'attract avec la webcam de ce PC, ses images tout du long (2 491 à 150 s), en 2D. Le
+  silence de la borne n'a pas pu être provoqué ici.
+- Avant (Image borne, -4 sur racecab1 seule, accord du propriétaire, -3 gardée) : Dead Heat et Maximum Heat 3D montrent
+  l'image de la DV20 (NV12 640x480 30 i/s, luminosité 133 / 255), l'écran de prise de vue de Maximum Heat 3D avec le
+  plafond ; le silence de 103 s ne s'est pas reproduit. Les deux webcams seules, sans jeu (MediaCapture, une photo
+  1280x720 toutes les 30 s pendant 2,5 min) : vivantes tout du long ; quelques photos aux couleurs cassées (chroma
+  décalée, une sur racecab1, deux sur racecab2), de la caméra ou de son pilote (`linktest-logs\camera-light`).
+- Crédits effacés par Image borne avec `lindbergh_credits.py --set 0` (accord du propriétaire, anciens fichiers dans
+  `C:\Racecab\_sauvegardes\linuxloader-credits-avant-20261103`) : dossiers link et solo, modèles de l'image, sur les
+  deux bornes et dans le dépôt de l'image. Initial D 4 Export et 5 Export en link sur les deux bornes : attract 95 s,
+  « CREDIT(S) 0 », aucune partie commencée seule (`linktest-logs\credits-vides`).
 
 ### Les crédits d'Initial D 4 / 5 Export, et la caméra de Maximum Heat 3D (demandes 178 et 179)
 - **Crédits** : dans le `sram.bin` d'`id4-exp-rev-d` et `id5-exp-20`, un enregistrement de 0x60 octets en `0x4000` :
