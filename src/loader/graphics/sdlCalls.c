@@ -70,6 +70,25 @@ void GLAPIENTRY openglDebugCallback(GLenum source, GLenum type, GLuint id, GLenu
 {
     if (id == 1099)
         return;
+    // A driver's warning can come at every draw call (NVIDIA's 131222 thousands of times a second, halving the frame
+    // rate when each is written to the log): the first few of each id only, errors always
+    enum { SHOWN_PER_ID = 5, MAX_IDS = 256 };
+    static struct { GLuint id; int count; } shown[MAX_IDS];
+    static int ids = 0;
+    if (severity != GL_DEBUG_SEVERITY_HIGH)
+    {
+        int i = 0;
+        while (i < ids && shown[i].id != id)
+            i++;
+        if (i == MAX_IDS)
+            return;
+        if (i == ids)
+            shown[ids++].id = id;
+        if (shown[i].count >= SHOWN_PER_ID)
+            return;
+        if (++shown[i].count == SHOWN_PER_ID)
+            printf("OpenGL Debug Message: the next ones of ID %u are not shown\n", id);
+    }
     printf("OpenGL Debug Message:\n");
     printf("Source: 0x%x\n", source);
     printf("Type: 0x%x\n", type);

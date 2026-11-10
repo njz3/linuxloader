@@ -92,10 +92,14 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 187 | 10/11 | Sous le curseur de zone morte de la direction, dire que certains jeux comme OutRun 2 SP SDX ont besoin d'une petite valeur | ✅ phrase sous `Steer_DeadZone` (`guiControls.cpp`), traduite en français avec les deux textes du relief 3D qui manquaient (`fr.po` complet) ; MinGW et MSVC compilent ; pas vue à l'écran |
+| 186 | 10/11 | (un utilisateur, GTX 1080) OutRun 2 SP SDX très lent, journal rempli de l'avertissement GL 131222 | ✅ 60 i/s chez lui avec `DEBUG_MSGS = false` ; ces messages ne sortent qu'avec `DEBUG_MSGS = true` (défaut : non) ; ils sont maintenant limités à 5 par ID (les erreurs toujours), journal de Race TV 4 Mo → 17 Ko en 50 s ; la lenteur n'est pas reproduite : Race TV à 60 i/s avec ou sans ces messages (RTX 3050, journal dans un fichier), OutRun 2 pas essayé (pas de copie ici). Son « Original point error » avec les zones mortes à 0 : passe avec une zone morte non nulle ; sans doute le vrai volant, dont la position écrase celle que `driveBoard.c` simule pendant le centrage (`sdlInput.c`), lu dans le code, chargeur pas modifié |
+| 185 | 10/11 | Un pull, puis une release | ✅ pull des demandes 181 à 183 (`708d0fd`) ; release MinGW 3.0.14 -4 du 10/11 (`releases/linuxloader-v3.0.14-ffbedition-20261110-4-njz3-win32.zip`), vérifiée depuis le zip (voir journal) |
+| 184 | 10/11 | Un pull, puis un merge avec upstream | ✅ rien de neuf : `upstream/main` toujours à `87ffd44` (v3.0.14), déjà dans `dev/ffbedition` |
 | 183 | 10/11 | Troisième journal d'antonioeves : corriger, commit, push, release ; prévenir Windows loader Berstett | ✅ `3e7e9e4` : périphérique audio au-dessus de 48 kHz, le son fait à 48 kHz ; `dev/release/linuxloader-v3.0.14-ffbedition-20261110-3-njz3-win32-msvc.zip` ; session prévenue ; pas essayé sur un vrai périphérique à 192 kHz |
 | 182 | 10/11 | Plus de messages dans le journal pour le Hummer d'antonioeves, recompiler et lui envoyer | 🔄 `4ccffb0` : étapes du son et entrée/sortie du `main()` du jeu dans tout journal ; `dev/release/linuxloader-v3.0.14-ffbedition-20261110-2-njz3-win32-msvc.zip` ; en attente de son journal |
 | 181 | 10/11 | (un utilisateur, antonioeves) Hummer Extreme MDX ne se lance pas ; la fin du jeu dans le journal ; une release pour la lui transmettre | 🔄 cause inconnue, en attente de son journal avec cette release ; `36fd28f` : code de sortie et rapport de plantage dans le journal ; `dev/release/linuxloader-v3.0.14-ffbedition-20261110-njz3-win32-msvc.zip` |
-| 180 | 03/11 | Commit, push, release, Image borne prévenu | ✅ `3ee5c83` poussé (caméra muette 3 s : de retour à sa prochaine image) ; release 3.0.14 du 03/11 (`…-20261103-njz3`) vérifiée depuis le zip ; Image borne prévenu pour la déployer ; crédits effacés sur les bornes par Image borne, attract revenu (voir journal) |
+| 180 | 03/11 | Commit, push, release, Image borne prévenu | ✅ `3ee5c83` poussé (caméra muette 3 s : de retour à sa prochaine image) ; release 3.0.14 du 03/11 (`…-20261103-njz3`) vérifiée depuis le zip ; déployée par Image borne sur les deux bornes, caméra vue dans les deux jeux ; crédits effacés sur les bornes par Image borne, attract revenu (voir journal) |
 | 179 | 03/11 | Demander à Image borne de tester les caméras, la lumière allumée ; son résultat | 🔄 racecab1, release -3 : Dead Heat montre l'image de la DV20 (la salle était sombre le 01/11) ; Maximum Heat 3D : la caméra donne ses images 103 s puis plus rien pendant 3 s, et le loader passait à l'image fixe pour toute la partie. Le silence de 3 s ne coupe plus la caméra : l'image fixe le temps du silence, la caméra dès qu'elle revient, la durée du silence dans le journal (voir journal) |
 | 178 | 03/11 | (Image borne, accord du propriétaire) Effacer les crédits d'Initial D 4 Export et 5 Export, qui commencent seuls une partie en link | ✅ crédits dans `sram.bin` (pas `eeprom.bin`) ; outil `linktest-logs\tools\lindbergh_credits.py` (lecture, `--set 0`), essayé sur une copie du modèle de cab1 : Initial D 5 revient à son attract ; envoyé à Image borne, qui les efface sur les bornes (voir journal) |
 | 177 | 03/11 | (Image borne) Les trois VS essayés sur les bornes avec les séquences de la demande 176 | ✅ Race TV, Initial D 4 Export et Initial D 5 Export en course commune sur racecab1 et racecab2 (release -3 de l'image, lanceur de link, à distance) ; vjoyd complété de Haut / Bas par Image borne (voir journal) |
@@ -213,6 +217,18 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 
 ## Journal de développement
 
+### Release 3.0.14 -4 du 10/11 (demande 185)
+- Pull de `708d0fd` (demandes 181 à 183, faites sur l'autre PC : fin du jeu et plantage dans le journal, étapes du son,
+  périphérique au-dessus de 48 kHz). Mêmes sources que la -3 de ce jour (`…-20261110-3-njz3-win32-msvc.zip`, MSVC, sur
+  `E:\Arcade\emulateurs\dev\release`) ; celle-ci en MinGW, comme les releases des bornes, 54 avertissements :
+  `emulateurs/releases/linuxloader-v3.0.14-ffbedition-20261110-4-njz3-win32.zip`, 18 439 051 octets, SHA-256 du zip
+  `b7c293dde785ad3c975f68403ef72536f65f8fd726736f9bfcca2b163aa7359d`, de `linuxloader.exe`
+  `ba0f16bd7eb90b1d1e7afb9c37237f206da1d84cbc2abb8bbed2e65847bb5ba1` ; mêmes fichiers que celle du 03/11 (`ll-deps` et
+  `lang` identiques).
+- Vérifié depuis le zip (mode agent caché, 40 s) : `--version` « linuxloader-v3.0.14-ffbedition-20261110-4-njz3 » ; Race
+  TV (périphériques du son dans le journal, 48 kHz) et Dead Heat (webcam de ce PC) à 57-60 i/s, images non noires.
+  Pas essayé : le chemin des plantages, un périphérique au-dessus de 48 kHz, les bornes.
+
 ### Le son au-dessus de 48 kHz (demande 183)
 - Troisième journal d'antonioeves (release -2) : périphérique par défaut Realtek en 6 canaux à 192 000 Hz, mastering voice
   créée, puis 0xC0000005 avant la fin de `SEGAAPI_Init`. La réverbération de FAudio, sur les quatre emplacements d'effet,
@@ -288,6 +304,11 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   `C:\Racecab\_sauvegardes\linuxloader-credits-avant-20261103`) : dossiers link et solo, modèles de l'image, sur les
   deux bornes et dans le dépôt de l'image. Initial D 4 Export et 5 Export en link sur les deux bornes : attract 95 s,
   « CREDIT(S) 0 », aucune partie commencée seule (`linktest-logs\credits-vides`).
+- Déployée par Image borne sur les deux bornes (accord du propriétaire ; -4 et -3 gardées dans `C:\Racecab\_sauvegardes`).
+  Caméra, salle éclairée, solo, `LL_LOG=info` : Dead Heat et Maximum Heat 3D montrent l'image de la DV20 sur les deux
+  bornes (luminosité 141 sur racecab1, 114 à 116 sur racecab2 ; « CAMERA LIVE » de Dead Heat, écran de prise de vue de
+  Maximum Heat 3D tout son compte à rebours). Aucun silence de 3 s en quatre parties : celui de la -3 (109,9 s) ne
+  s'est pas reproduit (`linktest-logs\camera-light`, `*-camdh5-*`, `*-cammh5-*`).
 
 ### Les crédits d'Initial D 4 / 5 Export, et la caméra de Maximum Heat 3D (demandes 178 et 179)
 - **Crédits** : dans le `sram.bin` d'`id4-exp-rev-d` et `id5-exp-20`, un enregistrement de 0x60 octets en `0x4000` :

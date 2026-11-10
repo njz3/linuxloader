@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lindbergh Loader\n"
 "Report-Msgid-Bugs-To: https://github.com/njz3/linuxloader/issues\n"
-"POT-Creation-Date: 2026-10-31 17:55+0100\n"
+"POT-Creation-Date: 2026-11-10 15:54+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -749,6 +749,12 @@ msgid "Cancel"
 msgstr ""
 
 #: src/loader/gui/guiControls.cpp
+msgid ""
+"Some games need a small value here, not 0: at 0, OutRun 2 SP SDX stops at "
+"start-up with a drive board error (Original point error)."
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
 msgid "Device"
 msgstr ""
 
@@ -1172,6 +1178,16 @@ msgid ""
 "without a card. Unticked, the test menu decides; with CARD R/W ON the card "
 "reader-printer is emulated, its card in [Cards] CARDFILE_01 (the card key "
 "inserts it), and the start waits for the link check (about 5 minutes)."
+msgstr ""
+
+#: src/loader/config/gameOptions.c
+msgid "Stereoscopic 3D"
+msgstr ""
+
+#: src/loader/config/gameOptions.c
+msgid ""
+"For the cabinet's 3D monitor: each eye's picture on every other line. "
+"Unticked, the game is drawn in 2D, as on an ordinary screen."
 msgstr ""
 
 #: src/loader/config/gameOptions.c

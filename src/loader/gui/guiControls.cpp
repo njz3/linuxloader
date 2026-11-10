@@ -965,6 +965,13 @@ void drawOptions()
             int value = atoi(row.value.c_str());
             if (ImGui::SliderInt(shown.c_str(), &value, 0, 16000))
                 setRow(row, std::to_string(value));
+            if (row.key.size() >= 14 && row.key.compare(row.key.size() - 14, 14, "Steer_DeadZone") == 0)
+            {
+                ImGui::PushTextWrapPos(0.0f);
+                ImGui::TextDisabled("%s", tr("Some games need a small value here, not 0: at 0, OutRun 2 SP SDX stops at "
+                                             "start-up with a drive board error (Original point error)."));
+                ImGui::PopTextWrapPos();
+            }
         }
         else if (isToggle)
         {

@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lindbergh Loader\n"
 "Report-Msgid-Bugs-To: https://github.com/njz3/linuxloader/issues\n"
-"POT-Creation-Date: 2026-10-31 17:55+0100\n"
+"POT-Creation-Date: 2026-11-10 15:54+0100\n"
 "PO-Revision-Date: 2026-10-28 15:00+0100\n"
 "Last-Translator: njz3\n"
 "Language-Team: French\n"
@@ -331,7 +331,10 @@ msgstr "Impossible d'écrire %s"
 msgid ""
 "The console's lines of each game's run, in %s; the previous run's in "
 "linuxloader.old.log beside it. Takes effect at the next start."
-msgstr "Les lignes de la console à chaque lancement d'un jeu, dans %s ; celles du lancement précédent dans linuxloader.old.log, à côté. Prend effet au prochain démarrage."
+msgstr ""
+"Les lignes de la console à chaque lancement d'un jeu, dans %s ; celles du "
+"lancement précédent dans linuxloader.old.log, à côté. Prend effet au "
+"prochain démarrage."
 
 #: src/loader/gui/guiCommon.cpp
 msgid ""
@@ -790,6 +793,12 @@ msgid "Cancel"
 msgstr "Annuler"
 
 #: src/loader/gui/guiControls.cpp
+msgid ""
+"Some games need a small value here, not 0: at 0, OutRun 2 SP SDX stops at "
+"start-up with a drive board error (Original point error)."
+msgstr "Certains jeux ont besoin d'une petite valeur ici, pas de 0 : à 0, OutRun 2 SP SDX s'arrête au démarrage sur une erreur de la carte du volant (Original point error)."
+
+#: src/loader/gui/guiControls.cpp
 msgid "Device"
 msgstr "Périphérique"
 
@@ -1241,6 +1250,16 @@ msgstr ""
 "décide ; avec CARD R/W à ON, le lecteur-imprimante est émulé, sa carte dans "
 "[Cards] CARDFILE_01 (la touche carte l'insère), et le démarrage attend la "
 "liaison entre bornes (environ 5 minutes)."
+
+#: src/loader/config/gameOptions.c
+msgid "Stereoscopic 3D"
+msgstr "Relief 3D"
+
+#: src/loader/config/gameOptions.c
+msgid ""
+"For the cabinet's 3D monitor: each eye's picture on every other line. "
+"Unticked, the game is drawn in 2D, as on an ordinary screen."
+msgstr "Pour l'écran 3D de la borne : l'image de chaque œil sur une ligne sur deux. Décoché, le jeu est dessiné en 2D, comme sur un écran ordinaire."
 
 #: src/loader/config/gameOptions.c
 msgid "Skip the cabinet checks"
