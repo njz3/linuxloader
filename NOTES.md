@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 183 | 10/11 | Troisième journal d'antonioeves : corriger, commit, push, release ; prévenir Windows loader Berstett | ✅ `3e7e9e4` : périphérique audio au-dessus de 48 kHz, le son fait à 48 kHz ; `dev/release/linuxloader-v3.0.14-ffbedition-20261110-3-njz3-win32-msvc.zip` ; session prévenue ; pas essayé sur un vrai périphérique à 192 kHz |
 | 182 | 10/11 | Plus de messages dans le journal pour le Hummer d'antonioeves, recompiler et lui envoyer | 🔄 `4ccffb0` : étapes du son et entrée/sortie du `main()` du jeu dans tout journal ; `dev/release/linuxloader-v3.0.14-ffbedition-20261110-2-njz3-win32-msvc.zip` ; en attente de son journal |
 | 181 | 10/11 | (un utilisateur, antonioeves) Hummer Extreme MDX ne se lance pas ; la fin du jeu dans le journal ; une release pour la lui transmettre | 🔄 cause inconnue, en attente de son journal avec cette release ; `36fd28f` : code de sortie et rapport de plantage dans le journal ; `dev/release/linuxloader-v3.0.14-ffbedition-20261110-njz3-win32-msvc.zip` |
 | 180 | 03/11 | Commit, push, release, Image borne prévenu | ✅ `3ee5c83` poussé (caméra muette 3 s : de retour à sa prochaine image) ; release 3.0.14 du 03/11 (`…-20261103-njz3`) vérifiée depuis le zip ; Image borne prévenu pour la déployer ; crédits effacés sur les bornes par Image borne, attract revenu (voir journal) |
@@ -211,6 +212,24 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Le son au-dessus de 48 kHz (demande 183)
+- Troisième journal d'antonioeves (release -2) : périphérique par défaut Realtek en 6 canaux à 192 000 Hz, mastering voice
+  créée, puis 0xC0000005 avant la fin de `SEGAAPI_Init`. La réverbération de FAudio, sur les quatre emplacements d'effet,
+  est refusée au-dessus de 48 000 Hz (`FAUDIOFX_REVERB_MAX_FRAMERATE`). Reproduit en forçant la mastering voice : 6 canaux
+  à 96 et 192 kHz plantent, à 48 kHz le jeu démarre. Le rapport `CRASH:` ne sort pas pour ce plantage (ni chez lui, ni
+  ici), seule la ligne du superviseur ; raison non cherchée.
+- `3e7e9e4` (`libsegaapi.c`) : si le périphérique 0 dépasse 48 kHz, la mastering voice est créée à 48 kHz (une ligne le
+  dit) ; FAudio ouvre son flux SDL à cette fréquence et SDL convertit. Essayé avec la fréquence du périphérique simulée à
+  192 kHz (le jeu démarre), pas sur un vrai périphérique à 192 kHz. Contournement pour lui sans nouvelle version : format
+  par défaut 24 bits, 48 000 Hz dans les propriétés de ses haut-parleurs.
+- Release MSVC de zéro depuis `3e7e9e4` :
+  `E:\Arcade\emulateurs\dev\release\linuxloader-v3.0.14-ffbedition-20261110-3-njz3-win32-msvc.zip`, 17 342 815 octets ;
+  SHA-256 du zip `9fac455b4ecaffd16e356f1736eb6c774e8edf25453989aa4f55c8f5c4b27c2e`, de `linuxloader.exe`
+  `a9c492ab16bf9b8b442075cb5a93ac130bf8d457317806e4eff182814cb3f356`. Depuis le zip : `--version` et vrai lancement de
+  Hummer SBST jusqu'à `RESOLUTION`. Seul l'exe change par rapport à la -2.
+- Windows loader Berstett prévenue (cet utilisateur n'y démarre pas non plus les jeux) : cause, correctif et contournement ;
+  à vérifier de son côté, message remis mais lecture non confirmée.
 
 ### Second journal d'antonioeves, plus de messages (demande 182)
 - Son second journal (build du 03/11, `LL_LOG=debug`, DEBUG_MSGS) : cette fois SBST, autre dossier, Fanatec détectée. Le
