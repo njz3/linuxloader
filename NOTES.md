@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 181 | 10/11 | (un utilisateur, antonioeves) Hummer Extreme MDX ne se lance pas ; la fin du jeu dans le journal ; une release pour la lui transmettre | 🔄 cause inconnue, en attente de son journal avec cette release ; `36fd28f` : code de sortie et rapport de plantage dans le journal ; `dev/release/linuxloader-v3.0.14-ffbedition-20261110-njz3-win32-msvc.zip` |
 | 180 | 03/11 | Commit, push, release, Image borne prévenu | ✅ `3ee5c83` poussé (caméra muette 3 s : de retour à sa prochaine image) ; release 3.0.14 du 03/11 (`…-20261103-njz3`) vérifiée depuis le zip ; Image borne prévenu pour la déployer ; crédits effacés sur les bornes par Image borne, attract revenu (voir journal) |
 | 179 | 03/11 | Demander à Image borne de tester les caméras, la lumière allumée ; son résultat | 🔄 racecab1, release -3 : Dead Heat montre l'image de la DV20 (la salle était sombre le 01/11) ; Maximum Heat 3D : la caméra donne ses images 103 s puis plus rien pendant 3 s, et le loader passait à l'image fixe pour toute la partie. Le silence de 3 s ne coupe plus la caméra : l'image fixe le temps du silence, la caméra dès qu'elle revient, la durée du silence dans le journal (voir journal) |
 | 178 | 03/11 | (Image borne, accord du propriétaire) Effacer les crédits d'Initial D 4 Export et 5 Export, qui commencent seuls une partie en link | ✅ crédits dans `sram.bin` (pas `eeprom.bin`) ; outil `linktest-logs\tools\lindbergh_credits.py` (lecture, `--set 0`), essayé sur une copie du modèle de cab1 : Initial D 5 revient à son attract ; envoyé à Image borne, qui les efface sur les bornes (voir journal) |
@@ -209,6 +210,29 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Hummer Extreme MDX chez un utilisateur, la fin du jeu dans le journal (demande 181)
+- Son journal (release du 03/11) : jeu reconnu (SBTL, DVP-0083, ELF sans avertissement « not Clean »), puis plus rien
+  après la bannière, avant `[segaapi] init`. D'après lui, une fenêtre qui se ferme tout de suite. La version MDX n'a
+  jamais été essayée sous Windows ici (pas de copie sur ce PC ; windowsloader n'en parle pas).
+- Écarté, sur SBST seulement : le correctif Windows `INT 80` (`bridgeGettid`), présent pour SBST et absent pour SBTL
+  (SBST sans lui fait ses 600 images en agent caché) ; aucun appareil à retour de force avec son `FFB_DEVICE` (vrai
+  lancement, mêmes lignes `FFB:` que lui, le jeu va jusqu'à `RESOLUTION` ; le mode agent caché ne passe pas par ce
+  code). Sa Fanatec n'était pas détectée pendant ce lancement.
+- `mainW.cpp` (`36fd28f`) : le superviseur écrit comment finit le programme du jeu, à tout niveau de journal (code de
+  sortie, et sa signification pour une exception ou une erreur Windows). Une exception que rien ne traite est décrite
+  avant la fin du processus (`SetUnhandledExceptionFilter`) : type, adresse lue, écrite ou exécutée, module Windows et
+  décalage (sinon le code du jeu), fil, registres, 12 adresses de code sur la pile ; écrit directement sur le handle
+  d'erreur, le fil fautif pouvant détenir les verrous du runtime C.
+- Essais par le superviseur, arrêtés juste avant le jeu (code de test retiré ensuite) : écriture invalide, exécution à
+  une adresse nulle, division par zéro, sorties 3 et 0. Un vrai débordement de pile ne laisse plus de pile pour le
+  rapport : seule la ligne du superviseur reste, en « access violation ».
+- Release MSVC de zéro depuis `36fd28f`, la première de linuxloader du 10/11 :
+  `E:\Arcade\emulateurs\dev\release\linuxloader-v3.0.14-ffbedition-20261110-njz3-win32-msvc.zip`, 17 342 460 octets ;
+  SHA-256 du zip `ad4256241dc1c60c3de9694bfe8bda9b6d07bcbaf9a3059c076f159fd5f9a34b`, de `linuxloader.exe`
+  `79f4f3213a0803b863ba36ae9bd951f03d07b7f037278e7bf3212e6e8aad85ed`. Depuis le zip extrait : `--version` → « Build:
+  linuxloader-v3.0.14-ffbedition-20261110-njz3 FFB Edition » ; Hummer SBST en agent caché : 600 images, pièce → 1 crédit,
+  33,2 ms par image. Image borne non prévenue (release pour cet utilisateur).
 
 ### Release 3.0.14 du 03/11 (demande 180)
 - `3ee5c83` poussé (demandes 178 et 179). Release MinGW, première du jour donc sans suffixe, 54 avertissements :
