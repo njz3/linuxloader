@@ -1,4 +1,6 @@
 #if defined(_WIN32) || defined(__MINGW32__)
+#include <cstdarg>
+#include <cstdio>
 #include <cstdlib>
 #include <ctime>
 #include <sys/stat.h>
@@ -72,6 +74,138 @@ static bool s_segabootChild = false;  // --segaboot-child: started by segabootSu
 // The exit codes a program started by segabootSupervise ends with to ask for the next one
 static const int SEGABOOT_EXIT_TEST = 0x5E6A0001; // the game left on Test: the test menu next
 static const int SEGABOOT_EXIT_GAME = 0x5E6A0002; // the test menu ended: the game again
+
+// What an exception, or the exit code of a process ended by one, means; NULL for any other value
+static const char *exceptionName(DWORD code)
+{
+    switch (code)
+    {
+        case EXCEPTION_ACCESS_VIOLATION:
+            return "access violation";
+        case EXCEPTION_IN_PAGE_ERROR:
+            return "memory page not readable (disk or network)";
+        case EXCEPTION_ILLEGAL_INSTRUCTION:
+            return "illegal instruction";
+        case EXCEPTION_PRIV_INSTRUCTION:
+            return "privileged instruction";
+        case EXCEPTION_INT_DIVIDE_BY_ZERO:
+            return "integer division by zero";
+        case EXCEPTION_INT_OVERFLOW:
+            return "integer overflow";
+        case EXCEPTION_DATATYPE_MISALIGNMENT:
+            return "misaligned data";
+        case EXCEPTION_STACK_OVERFLOW:
+            return "stack overflow";
+        case EXCEPTION_BREAKPOINT:
+            return "breakpoint";
+        case 0xC0000135:
+            return "a DLL was not found";
+        case 0xC0000142:
+            return "a DLL failed to initialise";
+        case 0xC0000374:
+            return "heap corruption";
+        case 0xC0000409:
+            return "fast fail (stack buffer overrun)";
+        case 0xC000013A:
+            return "stopped by Ctrl+C or the console closed";
+        default:
+            return NULL;
+    }
+}
+
+// One line of a crash's report, straight to the standard error's handle: the crashing thread may hold the C runtime's
+// locks (stdout, the heap), so neither printf nor malloc
+static void crashLine(const char *format, ...)
+{
+    char line[256];
+    va_list args;
+    va_start(args, format);
+    int length = vsnprintf(line, sizeof(line), format, args);
+    va_end(args);
+    if (length < 0)
+        return;
+    if (length >= (int)sizeof(line))
+        length = (int)sizeof(line) - 1;
+    DWORD written;
+    WriteFile(GetStdHandle(STD_ERROR_HANDLE), line, (DWORD)length, &written, NULL);
+}
+
+// A Windows module and the offset in it, else the game: its ELF and libraries are not modules of Windows
+static void describeAddress(const void *address, char *text, size_t size)
+{
+    HMODULE module = NULL;
+    char path[MAX_PATH];
+    if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           (LPCSTR)address, &module) &&
+        GetModuleFileNameA(module, path, sizeof(path)))
+    {
+        const char *name = strrchr(path, '\\');
+        snprintf(text, size, "%s + 0x%lX", name ? name + 1 : path, (unsigned long)((const char *)address - (const char *)module));
+    }
+    else
+    {
+        snprintf(text, size, "the game's code or libraries");
+    }
+}
+
+// An exception nothing handled, reported before the process ends: what, where, the registers, the code addresses on
+// the stack. The process then ends with the exception's code, which segabootSupervise logs
+static LONG WINAPI reportCrash(PEXCEPTION_POINTERS info)
+{
+    static volatile LONG reported = 0;
+    if (InterlockedExchange(&reported, 1)) // another thread at the same time: the first one's report is finished
+    {
+        Sleep(1000);
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
+    const EXCEPTION_RECORD *record = info->ExceptionRecord;
+    const CONTEXT *context = info->ContextRecord;
+    const DWORD code = record->ExceptionCode;
+    const char *name = exceptionName(code);
+    if (code == EXCEPTION_STACK_OVERFLOW) // little stack left: this line only
+    {
+        crashLine("CRASH: stack overflow at 0x%08lX, thread %lu\r\n", (unsigned long)record->ExceptionAddress, GetCurrentThreadId());
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
+
+    char detail[48] = "";
+    if ((code == EXCEPTION_ACCESS_VIOLATION || code == EXCEPTION_IN_PAGE_ERROR) && record->NumberParameters >= 2)
+    {
+        const ULONG_PTR kind = record->ExceptionInformation[0];
+        snprintf(detail, sizeof(detail), ", %s address 0x%08lX", kind == 0 ? "reading" : kind == 1 ? "writing" : "executing",
+                 (unsigned long)record->ExceptionInformation[1]);
+    }
+    crashLine("CRASH: %s (0x%08lX)%s\r\n", name ? name : "exception", code, detail);
+    char where[128];
+    describeAddress(record->ExceptionAddress, where, sizeof(where));
+    crashLine("CRASH: at 0x%08lX (%s), thread %lu\r\n", (unsigned long)record->ExceptionAddress, where, GetCurrentThreadId());
+    crashLine("CRASH: eax=%08lX ebx=%08lX ecx=%08lX edx=%08lX esi=%08lX edi=%08lX ebp=%08lX esp=%08lX\r\n", context->Eax,
+              context->Ebx, context->Ecx, context->Edx, context->Esi, context->Edi, context->Ebp, context->Esp);
+
+    // What the stack holds that points to code, the most recent first: the calls in progress, and some left by older ones
+    char line[200];
+    int length = snprintf(line, sizeof(line), "CRASH: code addresses on the stack:");
+    MEMORY_BASIC_INFORMATION region;
+    const DWORD *stack = (const DWORD *)context->Esp;
+    if (VirtualQuery(stack, &region, sizeof(region)) && region.State == MEM_COMMIT && !(region.Protect & (PAGE_GUARD | PAGE_NOACCESS)))
+    {
+        const DWORD *end = (const DWORD *)((const char *)region.BaseAddress + region.RegionSize);
+        if (end > stack + 2048)
+            end = stack + 2048;
+        const DWORD executable = PAGE_EXECUTE | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
+        for (int found = 0; stack < end && found < 12; stack++)
+        {
+            MEMORY_BASIC_INFORMATION target;
+            if (*stack < 0x10000 || !VirtualQuery((const void *)*stack, &target, sizeof(target)) || target.State != MEM_COMMIT ||
+                !(target.Protect & executable))
+                continue;
+            length += snprintf(line + length, sizeof(line) - length, " %08lX", *stack);
+            found++;
+        }
+    }
+    crashLine("%s\r\n", line);
+    return EXCEPTION_CONTINUE_SEARCH;
+}
 
 static bool isTestModeArg(const char *arg)
 {
@@ -177,7 +311,16 @@ static int segabootSupervise(int argc, char **argv)
         else if ((int)code == SEGABOOT_EXIT_GAME)
             log_info("Leaving the test menu: the game again");
         else
+        {
+            // At every log level: a run that stops early leaves no other trace of how it ended
+            if (const char *name = exceptionName(code))
+                log_error("The game's program crashed: %s (exit code 0x%08lX)", name, code);
+            else if (code >= 0xC0000000)
+                log_error("The game's program ended with the Windows error 0x%08lX", code);
+            else
+                log_warn("The game's program ended (exit code %ld)", (long)code);
             return (int)code;
+        }
         testMode = (int)code == SEGABOOT_EXIT_TEST;
     }
 }
@@ -252,6 +395,7 @@ int main(int argc, char *argv[], char *envp[])
     // No system box on a public cabinet: a library Windows cannot load, a missing drive or a crash ends with a log
     // line and an exit code, not a window that outlives the loader in front of everything and waits for a click
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX | SEM_NOGPFAULTERRORBOX);
+    SetUnhandledExceptionFilter(reportCrash);
 #ifdef _MSC_VER
     _set_invalid_parameter_handler(ignoreInvalidParameter);
 #endif
