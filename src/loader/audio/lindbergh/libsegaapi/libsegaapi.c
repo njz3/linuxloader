@@ -2011,10 +2011,34 @@ __attribute__((force_align_arg_pointer)) int SEGAAPI_Init(void)
     pthread_mutex_init(&fAudioMutex, NULL);
     pthread_mutex_lock(&fAudioMutex);
 
-    FAudioCreate(&fAudio, 0, FAUDIO_DEFAULT_PROCESSOR);
+    // Each step told in the log, at every level: the first thing a game does with the sound, and where a run can stop
+    // without a word on a PC whose sound does not open
+    fprintf(stderr, "[segaapi] SEGAAPI_Init\n");
+    uint32_t audioResult = FAudioCreate(&fAudio, 0, FAUDIO_DEFAULT_PROCESSOR);
+    fprintf(stderr, "[segaapi] FAudioCreate: 0x%08X\n", audioResult);
+    if (audioResult == 0)
+    {
+        uint32_t deviceCount = 0;
+        audioResult = FAudio_GetDeviceCount(fAudio, &deviceCount);
+        fprintf(stderr, "[segaapi] sound devices: %u (0x%08X)\n", deviceCount, audioResult);
+        for (uint32_t device = 0; device < deviceCount && device < 8; device++)
+        {
+            FAudioDeviceDetails details;
+            memset(&details, 0, sizeof(details));
+            audioResult = FAudio_GetDeviceDetails(fAudio, device, &details);
+            char deviceName[64];
+            size_t length = 0;
+            for (; length < sizeof(deviceName) - 1 && details.DisplayName[length]; length++)
+                deviceName[length] = details.DisplayName[length] > 0 && details.DisplayName[length] < 127 ? (char)details.DisplayName[length] : '?';
+            deviceName[length] = '\0';
+            fprintf(stderr, "[segaapi] sound device %u: \"%s\", %u ch @ %u Hz (0x%08X)\n", device, deviceName,
+                    details.OutputFormat.Format.nChannels, details.OutputFormat.Format.nSamplesPerSec, audioResult);
+        }
+    }
 
-    FAudio_CreateMasteringVoice(fAudio, &fAudioMasteringVoice, FAUDIO_DEFAULT_CHANNELS, FAUDIO_DEFAULT_SAMPLERATE, 0, 0,
-                                NULL);
+    audioResult = FAudio_CreateMasteringVoice(fAudio, &fAudioMasteringVoice, FAUDIO_DEFAULT_CHANNELS, FAUDIO_DEFAULT_SAMPLERATE, 0, 0,
+                                              NULL);
+    fprintf(stderr, "[segaapi] mastering voice: 0x%08X, %s\n", audioResult, fAudioMasteringVoice ? "made" : "NOT MADE");
     if (agentHidden()) // --agent: the sound runs, silent
         FAudioVoice_SetVolume(fAudioMasteringVoice, 0.0f, FAUDIO_COMMIT_NOW);
 

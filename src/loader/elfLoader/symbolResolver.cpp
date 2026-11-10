@@ -86,13 +86,13 @@ extern "C" int __libc_start_main(int (*main_func)(int, char **, char **), int ar
 
     char **envp = argv + argc + 1;
 
-    log_info("Transferring control to main()...");
+    log_warn("Transferring control to main()..."); // warnings: in every log, as the end of main below
 #ifdef _MSC_VER
     int exitCode = (int)elfCall3((const void *)main_func, (uintptr_t)argc, (uintptr_t)argv, (uintptr_t)envp);
 #else
     int exitCode = main_func(argc, argv, envp);
 #endif
-    log_info("Program main() exited with code: %d", exitCode);
+    log_warn("Program main() exited with code: %d", exitCode);
 
     if (fini)
     {
