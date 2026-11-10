@@ -281,6 +281,13 @@ int createDefaultIni(const char *filePath)
     iniOut(&out, "FFB_STRENGTH = %d\n", defaults.ffbStrength);
     iniOut(&out, "# Set to true if the wheel turns the wrong way: the torque then pushes the other way\n");
     iniOut(&out, "FFB_INVERT = %s\n", defaults.ffbInvert ? "true" : "false");
+    iniOut(&out, "# Each effect's own gain, in percent, on top of FFB_STRENGTH (0 turns it off): the constant torque (with\n");
+    iniOut(&out, "# the collisions), the spring that centres the wheel, the damper (a friction on a wheel without one), the\n");
+    iniOut(&out, "# sine vibration\n");
+    iniOut(&out, "FFB_CONSTANT_GAIN = %d\n", defaults.ffbConstantGain);
+    iniOut(&out, "FFB_SPRING_GAIN = %d\n", defaults.ffbSpringGain);
+    iniOut(&out, "FFB_DAMPER_GAIN = %d\n", defaults.ffbDamperGain);
+    iniOut(&out, "FFB_SINE_GAIN = %d\n", defaults.ffbSineGain);
     iniOut(&out, "# The device the forces go to, wherever the steering is read: AUTO for the first controller's, or a\n");
     iniOut(&out, "# force feedback device's name as Tab > Controls lists it (case and surrounding spaces ignored)\n");
     iniOut(&out, "FFB_DEVICE = %s\n\n", defaults.ffbDevice);

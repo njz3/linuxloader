@@ -376,6 +376,12 @@ typedef struct
     int outputsNetworkUdpPort;
     int ffbStrength;
     int ffbInvert; // [ForceFeedback] FFB_INVERT: the drive board's torque pushes the other way
+    // [ForceFeedback] FFB_CONSTANT_GAIN, FFB_SPRING_GAIN, FFB_DAMPER_GAIN, FFB_SINE_GAIN: each effect's own gain, in
+    // percent, on top of FFB_STRENGTH
+    int ffbConstantGain;
+    int ffbSpringGain;
+    int ffbDamperGain;
+    int ffbSineGain;
     char ffbDevice[128]; // [ForceFeedback] FFB_DEVICE: AUTO or the name of the device the effects go to
     char gamesDir[MAX_PATH_LENGTH]; // [Launcher] GAMES_DIR: the folder the game picker lists
     char language[16];              // [Launcher] LANGUAGE: auto, en or a lang/*.po's name (fr)

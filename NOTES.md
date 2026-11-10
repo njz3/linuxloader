@@ -92,6 +92,8 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 189 | 10/11 | Pour le FFB, un gain par effet (ressort, sinus, couple constant, damper) à régler dans l'ini | ✅ `FFB_CONSTANT_GAIN`, `FFB_SPRING_GAIN`, `FFB_DAMPER_GAIN`, `FFB_SINE_GAIN` dans `[ForceFeedback]`, en %, 100 par défaut ; vérifiés en mode agent pour le couple et le damper ; MinGW et MSVC compilent (voir journal) |
+| 188 | 10/11 | Une release | ✅ release MinGW 3.0.14 -5 du 10/11 (`releases/linuxloader-v3.0.14-ffbedition-20261110-5-njz3-win32.zip`) depuis `3b589c1`, vérifiée depuis le zip (voir journal) |
 | 187 | 10/11 | Sous le curseur de zone morte de la direction, dire que certains jeux comme OutRun 2 SP SDX ont besoin d'une petite valeur | ✅ phrase sous `Steer_DeadZone` (`guiControls.cpp`), traduite en français avec les deux textes du relief 3D qui manquaient (`fr.po` complet) ; MinGW et MSVC compilent ; pas vue à l'écran |
 | 186 | 10/11 | (un utilisateur, GTX 1080) OutRun 2 SP SDX très lent, journal rempli de l'avertissement GL 131222 | ✅ 60 i/s chez lui avec `DEBUG_MSGS = false` ; ces messages ne sortent qu'avec `DEBUG_MSGS = true` (défaut : non) ; ils sont maintenant limités à 5 par ID (les erreurs toujours), journal de Race TV 4 Mo → 17 Ko en 50 s ; la lenteur n'est pas reproduite : Race TV à 60 i/s avec ou sans ces messages (RTX 3050, journal dans un fichier), OutRun 2 pas essayé (pas de copie ici). Son « Original point error » avec les zones mortes à 0 : passe avec une zone morte non nulle ; sans doute le vrai volant, dont la position écrase celle que `driveBoard.c` simule pendant le centrage (`sdlInput.c`), lu dans le code, chargeur pas modifié |
 | 185 | 10/11 | Un pull, puis une release | ✅ pull des demandes 181 à 183 (`708d0fd`) ; release MinGW 3.0.14 -4 du 10/11 (`releases/linuxloader-v3.0.14-ffbedition-20261110-4-njz3-win32.zip`), vérifiée depuis le zip (voir journal) |
@@ -216,6 +218,30 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Un gain par effet du FFB (demande 189)
+- `[ForceFeedback]` : `FFB_CONSTANT_GAIN`, `FFB_SPRING_GAIN`, `FFB_DAMPER_GAIN`, `FFB_SINE_GAIN`, en pourcentage, 100 par
+  défaut, 0 (ou négatif) coupe l'effet. Chacun multiplie la sortie de son effet après le gain `83`, le plafond `81` et
+  `FFB_STRENGTH` (`boardEffects`, `forceFeedback.c`) ; le couple comprend les pages jouées par `FB` (les chocs
+  d'OutRun) ; le gain du ressort multiplie sa raideur et sa saturation ; celui du damper vaut aussi pour la friction qui
+  le remplace sur un volant sans damper. Les jeux qui imitent la même carte (Dead Heat, Gaelco) passent par là aussi.
+  Au-delà de 100, chaque effet reste borné à la pleine échelle du volant. Lus au démarrage du jeu ; pas dans la fenêtre
+  F10 ; écrits dans l'ini que le loader génère.
+- Vérifié en mode agent, Race TV, une partie de 60 s : à 100 %, le pic du couple constant (0,2419) est celui des trames
+  du jeu (couple `84` de 47, gain 83, plafond 64) ; avec `FFB_CONSTANT_GAIN = 50`, 0,1955 pour un couple de 0,3911,
+  la moitié ; `FFB_DAMPER_GAIN = 200` : damper 0,0463 → 0,0926. Ni Race TV, ni Dead Heat, ni Initial D 4 Export n'ont
+  envoyé de ressort ou de sinus pendant ces parties : ces deux gains ne sont pas vus en jeu. Pas essayé sur un volant.
+
+### Release 3.0.14 -5 du 10/11 (demande 188)
+- Depuis `3b589c1` (avertissements GL répétés limités, phrase sous la zone morte de la direction, traductions). MinGW,
+  54 avertissements : `emulateurs/releases/linuxloader-v3.0.14-ffbedition-20261110-5-njz3-win32.zip`, 18 439 282 octets,
+  SHA-256 du zip `02eddb9bf86df1a654a4a6539b68ba30109d71f0f7fb898b8e2c02b86a2b6eb0`, de `linuxloader.exe`
+  `93ba6cd1206acd85a425a2d868f5bdf9d16131d6a6d1ee5461000c06e002ed95` ; mêmes 20 fichiers que la -4 (`ll-deps` identique,
+  seuls `linuxloader.exe`, `lang/fr.po` et `lang/linuxloader.pot` changent).
+- Vérifié depuis le zip (mode agent caché) : `--version` « linuxloader-v3.0.14-ffbedition-20261110-5-njz3 » ; Race TV
+  40 s et Dead Heat 120 s (webcam de ce PC) à 60 i/s. Dead Heat reste presque noir ses 60 premières secondes, de la même
+  façon avec la -4 (mêmes proportions de noir aux douze captures). Pas essayé : OutRun 2 SP SDX (pas sur ce PC), donc
+  l'effet de la limite sur le ralentissement de la GTX 1080 ; la phrase à l'écran ; les bornes.
 
 ### Release 3.0.14 -4 du 10/11 (demande 185)
 - Pull de `708d0fd` (demandes 181 à 183, faites sur l'autre PC : fin du jeu et plantage dans le journal, étapes du son,

@@ -233,6 +233,10 @@ void setDefaultValues(EmulatorConfig *cfg)
     cfg->outputsNetworkUdpPort = 8001;
     cfg->ffbStrength = 100;
     cfg->ffbInvert = 0;
+    cfg->ffbConstantGain = 100;
+    cfg->ffbSpringGain = 100;
+    cfg->ffbDamperGain = 100;
+    cfg->ffbSineGain = 100;
     strcpy(cfg->ffbDevice, "AUTO");
     strcpy(cfg->gamesDir, "");
     strcpy(cfg->language, "auto");
@@ -557,6 +561,15 @@ void applyIniConfig(EmulatorConfig *config, const IniConfig *ini)
     config->outputsNetworkUdpPort = getInt(ini, "Outputs", "OUTPUTS_NETWORK_UDP_PORT", config->outputsNetworkUdpPort);
     config->ffbStrength = getInt(ini, "ForceFeedback", "FFB_STRENGTH", config->ffbStrength);
     config->ffbInvert = getInt(ini, "ForceFeedback", "FFB_INVERT", config->ffbInvert);
+    // A negative gain (or NONE) turns its effect off
+    int *gains[] = {&config->ffbConstantGain, &config->ffbSpringGain, &config->ffbDamperGain, &config->ffbSineGain};
+    const char *gainKeys[] = {"FFB_CONSTANT_GAIN", "FFB_SPRING_GAIN", "FFB_DAMPER_GAIN", "FFB_SINE_GAIN"};
+    for (size_t i = 0; i < sizeof(gains) / sizeof(gains[0]); i++)
+    {
+        *gains[i] = getInt(ini, "ForceFeedback", gainKeys[i], *gains[i]);
+        if (*gains[i] < 0)
+            *gains[i] = 0;
+    }
     getString(ini, "ForceFeedback", "FFB_DEVICE", config->ffbDevice, sizeof(config->ffbDevice));
     getString(ini, "Launcher", "GAMES_DIR", config->gamesDir, MAX_PATH_LENGTH);
     getString(ini, "Launcher", "LANGUAGE", config->language, sizeof(config->language));

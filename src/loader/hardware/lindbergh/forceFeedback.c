@@ -345,6 +345,13 @@ typedef struct
     int sinePeriodMs;
 } WheelEffects;
 
+// An effect's own gain from the settings (FFB_CONSTANT_GAIN...), in percent, as a factor
+static float effectGain(int percent)
+{
+    return (float)SDL_max(percent, 0) / 100.0f;
+}
+
+// Each effect is the board's output times its own gain; the wheel's calls then hold it within the device's range
 static WheelEffects boardEffects(void)
 {
     WheelEffects effects;
@@ -353,21 +360,25 @@ static WheelEffects boardEffects(void)
         memset(&effects, 0, sizeof(effects));
         return effects;
     }
+    const EmulatorConfig *config = getConfig();
     int torque = board.torqueDropped ? 0 : board.torque;
     float level = board.enabled ? (float)SDL_clamp(torque + player.level, -127, 127) : 0.0f;
     // The board's + is to the left, like SDL's: the steering axis is the cartesian (1, 0), a force coming from the
     // right (0x4000 on Linux, 90 degrees in DirectInput as vJoy reports it), so a positive level pushes to the left
-    float sign = getConfig()->ffbInvert ? -1.0f : 1.0f;
-    effects.constant = sign * boardOutput(level);
+    float sign = config->ffbInvert ? -1.0f : 1.0f;
+    effects.constant = sign * boardOutput(level) * effectGain(config->ffbConstantGain);
 
-    effects.springStrength = (board.enabled && board.springOn) ? boardOutput((float)board.springForce) : 0.0f;
-    effects.springSaturation = boardOutput(127.0f);
+    // The spring's gain scales its stiffness and its saturation, the most force it gives
+    float springGain = effectGain(config->ffbSpringGain);
+    effects.springStrength = (board.enabled && board.springOn) ? boardOutput((float)board.springForce) * springGain : 0.0f;
+    effects.springSaturation = boardOutput(127.0f) * springGain;
     // 128 counts, about 90 degrees, taken as two thirds of the half travel of a 270 degree wheel
     effects.springCentre = -(float)board.springOffset / 128.0f * (2.0f / 3.0f);
 
     // Behaves like the ratio of its two parameters: 86 10 7F strong, 86 40 40 light, 86 xx 00 none
     float ratio = board.damperSpeed > 0x10 ? 16.0f / (float)board.damperSpeed : 1.0f;
-    effects.damperStrength = board.enabled ? boardOutput((float)board.damperParam * ratio) : 0.0f;
+    effects.damperStrength =
+        board.enabled ? boardOutput((float)board.damperParam * ratio) * effectGain(config->ffbDamperGain) : 0.0f;
 
     if (!board.enabled || board.sineFrequency == 0 || board.sineAmplitude == 0)
     {
@@ -376,7 +387,7 @@ static WheelEffects boardEffects(void)
     }
     else
     {
-        effects.sineStrength = boardOutput((float)board.sineAmplitude);
+        effects.sineStrength = boardOutput((float)board.sineAmplitude) * effectGain(config->ffbSineGain);
         effects.sinePeriodMs = 2000 / board.sineFrequency;
     }
     return effects;
