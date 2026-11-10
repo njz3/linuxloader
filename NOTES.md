@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 182 | 10/11 | Plus de messages dans le journal pour le Hummer d'antonioeves, recompiler et lui envoyer | 🔄 `4ccffb0` : étapes du son et entrée/sortie du `main()` du jeu dans tout journal ; `dev/release/linuxloader-v3.0.14-ffbedition-20261110-2-njz3-win32-msvc.zip` ; en attente de son journal |
 | 181 | 10/11 | (un utilisateur, antonioeves) Hummer Extreme MDX ne se lance pas ; la fin du jeu dans le journal ; une release pour la lui transmettre | 🔄 cause inconnue, en attente de son journal avec cette release ; `36fd28f` : code de sortie et rapport de plantage dans le journal ; `dev/release/linuxloader-v3.0.14-ffbedition-20261110-njz3-win32-msvc.zip` |
 | 180 | 03/11 | Commit, push, release, Image borne prévenu | ✅ `3ee5c83` poussé (caméra muette 3 s : de retour à sa prochaine image) ; release 3.0.14 du 03/11 (`…-20261103-njz3`) vérifiée depuis le zip ; Image borne prévenu pour la déployer ; crédits effacés sur les bornes par Image borne, attract revenu (voir journal) |
 | 179 | 03/11 | Demander à Image borne de tester les caméras, la lumière allumée ; son résultat | 🔄 racecab1, release -3 : Dead Heat montre l'image de la DV20 (la salle était sombre le 01/11) ; Maximum Heat 3D : la caméra donne ses images 103 s puis plus rien pendant 3 s, et le loader passait à l'image fixe pour toute la partie. Le silence de 3 s ne coupe plus la caméra : l'image fixe le temps du silence, la caméra dès qu'elle revient, la durée du silence dans le journal (voir journal) |
@@ -210,6 +211,22 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Second journal d'antonioeves, plus de messages (demande 182)
+- Son second journal (build du 03/11, `LL_LOG=debug`, DEBUG_MSGS) : cette fois SBST, autre dossier, Fanatec détectée. Le
+  jeu s'arrête après `Transferring control to main()`, sans autre ligne ; le premier journal (MDX) s'arrêtait au même
+  stade. Sur le SBST de ce PC, mêmes symboles et bibliothèques manquants, et la ligne suivante est `[segaapi] init`.
+- Piste non confirmée : le son. Le retour de `FAudio_CreateMasteringVoice` n'est pas vérifié, la voix nulle plante à la
+  ligne suivante. Non reproduit : avec `SDL_AUDIO_DRIVER` sur un pilote inexistant, le jeu continue normalement. Autres
+  différences non testables ici : son ELF est propre, pas le nôtre ; sa build du 03/11 est en MinGW.
+- `4ccffb0` : `SEGAAPI_Init` écrit chaque étape sur stderr (FAudioCreate, périphériques audio, mastering voice) ; l'entrée
+  dans le `main()` du jeu et son retour passent en avertissements, visibles au niveau par défaut.
+- Release MSVC de zéro depuis `6c16223` plus ces deux fichiers, le contenu de ce commit :
+  `E:\Arcade\emulateurs\dev\release\linuxloader-v3.0.14-ffbedition-20261110-2-njz3-win32-msvc.zip`, 17 342 912 octets ;
+  SHA-256 du zip `2613b48c04d131c5f6d49245b772d598aad17adba9191658ac1045d80ecd5bcb`, de `linuxloader.exe`
+  `802afc20ba513d955bf54043bc9373203e3de24865812f2c0822d6d8fd8e739e`. Depuis le zip : vrai lancement de Hummer SBST (les
+  nouvelles lignes et la ligne de fin du superviseur dans `linuxloader.log`), 300 images en agent caché. Seul l'exe change
+  par rapport à la release précédente du jour. Le plantage de l'utilisateur n'est pas reproduit ici.
 
 ### Hummer Extreme MDX chez un utilisateur, la fin du jeu dans le journal (demande 181)
 - Son journal (release du 03/11) : jeu reconnu (SBTL, DVP-0083, ELF sans avertissement « not Clean »), puis plus rien
