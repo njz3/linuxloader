@@ -2016,6 +2016,7 @@ __attribute__((force_align_arg_pointer)) int SEGAAPI_Init(void)
     fprintf(stderr, "[segaapi] SEGAAPI_Init\n");
     uint32_t audioResult = FAudioCreate(&fAudio, 0, FAUDIO_DEFAULT_PROCESSOR);
     fprintf(stderr, "[segaapi] FAudioCreate: 0x%08X\n", audioResult);
+    uint32_t masteringRate = FAUDIO_DEFAULT_SAMPLERATE;
     if (audioResult == 0)
     {
         uint32_t deviceCount = 0;
@@ -2033,11 +2034,19 @@ __attribute__((force_align_arg_pointer)) int SEGAAPI_Init(void)
             deviceName[length] = '\0';
             fprintf(stderr, "[segaapi] sound device %u: \"%s\", %u ch @ %u Hz (0x%08X)\n", device, deviceName,
                     details.OutputFormat.Format.nChannels, details.OutputFormat.Format.nSamplesPerSec, audioResult);
+            // Device 0 is the one the mastering voice opens. FAudio's reverb, on the four effect slots, is refused above
+            // 48 kHz and the game then crashes (a sound card set to 96 or 192 kHz): the sound is made at 48 kHz, and the
+            // device's stream converts it
+            if (device == 0 && details.OutputFormat.Format.nSamplesPerSec > FAUDIOFX_REVERB_MAX_FRAMERATE)
+            {
+                masteringRate = FAUDIOFX_REVERB_MAX_FRAMERATE;
+                fprintf(stderr, "[segaapi] the device is at %u Hz, above what the reverb accepts: the sound is made at %u Hz\n",
+                        (unsigned int)details.OutputFormat.Format.nSamplesPerSec, masteringRate);
+            }
         }
     }
 
-    audioResult = FAudio_CreateMasteringVoice(fAudio, &fAudioMasteringVoice, FAUDIO_DEFAULT_CHANNELS, FAUDIO_DEFAULT_SAMPLERATE, 0, 0,
-                                              NULL);
+    audioResult = FAudio_CreateMasteringVoice(fAudio, &fAudioMasteringVoice, FAUDIO_DEFAULT_CHANNELS, masteringRate, 0, 0, NULL);
     fprintf(stderr, "[segaapi] mastering voice: 0x%08X, %s\n", audioResult, fAudioMasteringVoice ? "made" : "NOT MADE");
     if (agentHidden()) // --agent: the sound runs, silent
         FAudioVoice_SetVolume(fAudioMasteringVoice, 0.0f, FAUDIO_COMMIT_NOW);
