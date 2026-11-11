@@ -30,7 +30,7 @@ extern char envpath[100];
  * Hook for the only function provided by kswapapi.so
  * @param p No idea this gets discarded
  */
-int sharedKswap_collect(void *p)
+int sharedKswap_collect(int pages)
 {
     return 0;
 }
@@ -276,9 +276,9 @@ unsigned int alarm(unsigned int seconds)
     return seconds; // approximate — alarm() returns previous timer's remaining
 }
 
-int kswap_collect(void *p)
+int kswap_collect(int pages)
 {
-    return sharedKswap_collect(p);
+    return sharedKswap_collect(pages);
 }
 
 static int (*_system)(const char *command) = NULL;

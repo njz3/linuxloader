@@ -356,6 +356,21 @@ static int getInt(const IniConfig *ini, const char *section, const char *key, in
     return atoi(valueStr);
 }
 
+static int isAuto(const IniConfig *ini, const char *section, const char *key)
+{
+    const char *rawValue = getValue(ini, section, key);
+    if (!rawValue)
+        return 1;
+
+    char cleanBuffer[256];
+    char *valueStr = cleanValue(rawValue, cleanBuffer, sizeof(cleanBuffer));
+    if (!valueStr)
+        return 1;
+
+    toLowerCase(valueStr);
+    return strcmp(valueStr, "auto") == 0;
+}
+
 static float getFloat(const IniConfig *ini, const char *section, const char *key, float defaultValue)
 {
     const char *rawValue = getValue(ini, section, key);
@@ -384,8 +399,17 @@ static void getString(const IniConfig *ini, const char *section, const char *key
 void applyIniConfig(EmulatorConfig *config, const IniConfig *ini)
 {
     // [Display]
-    config->width = getInt(ini, "Display", "WIDTH", config->width);
-    config->height = getInt(ini, "Display", "HEIGHT", config->height);
+    int nativeWidth = config->width;
+    int nativeHeight = config->height;
+    int autoWidth = isAuto(ini, "Display", "WIDTH");
+    int autoHeight = isAuto(ini, "Display", "HEIGHT");
+    config->width = getInt(ini, "Display", "WIDTH", nativeWidth);
+    config->height = getInt(ini, "Display", "HEIGHT", nativeHeight);
+    // One side AUTO: derive it from the game's native aspect ratio (rounded to even)
+    if (autoWidth && !autoHeight && config->height > 0)
+        config->width = ((config->height * nativeWidth / nativeHeight) + 1) & ~1;
+    else if (autoHeight && !autoWidth && config->width > 0)
+        config->height = ((config->width * nativeHeight / nativeWidth) + 1) & ~1;
     config->internalWidth = getInt(ini, "Display", "WIDTH", 0); // AUTO stays 0
     config->internalHeight = getInt(ini, "Display", "HEIGHT", 0);
     config->boostRenderRes = getInt(ini, "Display", "BOOST_RENDER_RES", config->boostRenderRes);

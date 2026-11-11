@@ -78,6 +78,11 @@ int initBaseboard()
     }
     fclose(sram);
     sram = writeDirFopen(sramPath, "rb+");
+    if (sram == NULL)
+    {
+        printf("Error: Cannot open %s\n", sramPath);
+        return 1;
+    }
     fseek(sram, 0, SEEK_SET);
 
     // JVS passed to a real I/O board: a serial device, a COM port on Windows
@@ -111,6 +116,11 @@ int initBaseboard()
     if (month == 5 && day == 21)
     {
         strcpy(serialString, "HAPPY BIRTHDAY!!");
+    }
+
+    if (month == 8 && day == 17)
+    {
+        strcpy(serialString, "AUGURI FRANCESCO"); /* exactly 16 characters */
     }
 
     return 0;

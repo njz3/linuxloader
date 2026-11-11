@@ -2,6 +2,7 @@
 #include "ipcBridge.hpp"
 #include "../log/log.h"
 #include "symbolResolver.hpp"
+#include "libcBridge.hpp"
 
 #include <condition_variable>
 #include <errno.h>
@@ -171,8 +172,10 @@ namespace IpcBridge
         MAP("semop", bridgeSemop);
         MAP("semctl", bridgeSemctl);
         MAP("ftok", bridgeFtok);
+        MAP("semtimedop", LibcBridge::bridgeStubSuccess);
     }
 }
+
 extern "C"
 {
     int bridgeShmget(int key, size_t size, int shmflg)

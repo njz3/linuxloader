@@ -231,7 +231,6 @@ void startSDL()
 
     if (g_SdlWindow)
     {
-#ifdef __linux__
         SDL_IOStream *io = SDL_IOFromConstMem(icon256x256, sizeof(icon256x256));
         if (io)
         {
@@ -242,7 +241,6 @@ void startSDL()
                 SDL_DestroySurface(iconSurface);
             }
         }
-#endif
     }
 
     // Hacky way to make AxA games render the characters properly
@@ -279,6 +277,11 @@ void startSDL()
         log_error("OpenGL context could not be created! SDL_Error: %s\n", SDL_GetError());
         exit(EXIT_FAILURE);
     }
+
+    // With the FPS limiter on it is the only frame clock; driver vsync on top of it would drift
+    // against it and drop frames.
+    if (getConfig()->fpsLimiter)
+        SDL_GL_SetSwapInterval(0);
 
     if (getConfig()->showDebugMessages)
     {

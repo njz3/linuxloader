@@ -92,6 +92,8 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 191 | 11/11 | Un pull, puis un merge avec upstream | ✅ rien de neuf sur `origin` ; upstream 3.0.15 (`96334eb`) fusionné, 10 fichiers en conflit résolus ; MinGW et MSVC compilent ; Race TV, Dead Heat, Initial D 4 et 5 Export essayés en mode agent ; pas poussé (voir journal) |
+| 190 | 10/11 | Une release | ✅ release MinGW 3.0.14 -6 du 10/11 (`releases/linuxloader-v3.0.14-ffbedition-20261110-6-njz3-win32.zip`) depuis `d49aebc` (gains par effet du FFB), vérifiée depuis le zip (voir journal) |
 | 189 | 10/11 | Pour le FFB, un gain par effet (ressort, sinus, couple constant, damper) à régler dans l'ini | ✅ `FFB_CONSTANT_GAIN`, `FFB_SPRING_GAIN`, `FFB_DAMPER_GAIN`, `FFB_SINE_GAIN` dans `[ForceFeedback]`, en %, 100 par défaut ; vérifiés en mode agent pour le couple et le damper ; MinGW et MSVC compilent (voir journal) |
 | 188 | 10/11 | Une release | ✅ release MinGW 3.0.14 -5 du 10/11 (`releases/linuxloader-v3.0.14-ffbedition-20261110-5-njz3-win32.zip`) depuis `3b589c1`, vérifiée depuis le zip (voir journal) |
 | 187 | 10/11 | Sous le curseur de zone morte de la direction, dire que certains jeux comme OutRun 2 SP SDX ont besoin d'une petite valeur | ✅ phrase sous `Steer_DeadZone` (`guiControls.cpp`), traduite en français avec les deux textes du relief 3D qui manquaient (`fr.po` complet) ; MinGW et MSVC compilent ; pas vue à l'écran |
@@ -218,6 +220,49 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Merge d'upstream 3.0.15 (demande 191)
+- `upstream/main` de `87ffd44` (3.0.14) à `96334eb` (3.0.15, 5 commits) : `mmap64` (VF5 Terminal), sémaphores pour
+  segaboot, Rambo (réticules, gris sur AMD / Intel, `glFinish` après les textures compressées sur Intel ARC), VF5
+  (stage RUINS), GSEvo (réticules), HOD4 Special (films), horloge CPU de HOD4 au-dessus de 4,29 GHz, mode Chihiro
+  d'OutRun 2, `EEPROM_PATH` enfin utilisé, `WIDTH` ou `HEIGHT` seul en `AUTO` calculé au format natif, retour aux
+  appels EXT des framebuffers quand le pilote refuse les autres (NVIDIA 341.92, 9600GT, After Burner Climax), icône de
+  la fenêtre sous Windows, `SDL_GL_SetSwapInterval(0)` avec le limiteur d'i/s, CI et scripts ; `libs/lib32ID.tar`
+  (35 Mo) ajouté.
+- Conflits, les deux côtés gardés :
+  - `CMakeLists.txt` : nos sources de la fenêtre de réglages, avec le chemin d'upstream de l'icône
+    (`src/loader/resources/icon.rc`) ; le nôtre, `src/icon.rc`, n'existait plus : nos exe n'avaient pas d'icône.
+  - `config.c` : le `AUTO` d'un seul côté d'upstream, puis notre résolution interne (`AUTO` reste 0).
+  - `configIni.c` : le nôtre (`iniOut`, `WRITE_DIR`...), avec les nouveaux commentaires d'upstream.
+  - `ipcBridge.cpp` : nos sémaphores System V, et `semtimedop` d'upstream (succès immédiat).
+  - `eeprom.c`, `baseBoard.c` : notre `writeDirFopen`, avec la vérification d'upstream ; `eepromSettings.c` :
+    celui d'upstream (le fichier ouvert par `initEeprom`, plus `eeprom.bin` rouvert).
+  - `libcBridge.cpp` (pas en conflit mais compilait mal) : le `mmap64` d'upstream (décalage 64 bits complet, même
+    place des arguments sur la pile) à la place du nôtre, qui ignorait la moitié haute.
+  - `glHooks.cpp` : notre fichier est en LF, la base et upstream en CRLF ; refusionné en LF, 5 vrais conflits : nos
+    includes plus `windows.h` ; `glBindFramebufferEXT` garde notre redirection hors écran (Chihiro compris) ;
+    `glProgramStringARB` : Initial D par ses patchs de shaders (nous), puis la copie terminée d'upstream pour Intel et
+    Rambo ; `glGetUniformLocationARB` d'upstream (-1) ; `glVertex3d`, `glIsBuffer`, `glGetBufferParameteriv`, ajoutés
+    des deux côtés, gardés une fois (les nôtres).
+  - `blitStretching.c` : le nôtre (rendu hors écran, formats, cylindre), avec le retour aux appels EXT d'upstream
+    (`fboBind`, `fboBlit`, `fboCreate` qui fait aussi notre tampon de profondeur et de stencil, `fboBindChecked`) ;
+    `blitRedirectDefaultFramebuffer` d'upstream gardé pour le shim Linux `glStackAlign.c` (sans effet sous Windows,
+    où le hors écran le fait) ; la première copie sautée aussi en mode Chihiro.
+  - `sdlCalls.c` : nos tailles de fenêtre (`blitWindowedSize`) à la place du `windowedWidth` d'upstream.
+- MinGW et MSVC compilent (icône compilée). Mode agent : Race TV (gains du FFB : couple à 50 %, 0,1647 pour 0,3293),
+  Dead Heat avec la webcam, Initial D 4 et 5 Export fenêtre affichée, images comme la -6, 60 i/s. Pas essayé : la
+  compilation Linux, OutRun 2 (Chihiro), Rambo, VF5, HOD4, After Burner Climax (pas sur ce PC), les bornes.
+
+### Release 3.0.14 -6 du 10/11 (demande 190)
+- Depuis `d49aebc` (la -5 et les gains par effet du FFB). MinGW, 54 avertissements :
+  `emulateurs/releases/linuxloader-v3.0.14-ffbedition-20261110-6-njz3-win32.zip`, 18 440 316 octets, SHA-256 du zip
+  `b473baf09660e8e2fdf7d3df0136e518148a5746c82d90f72ea60913470dec9a`, de `linuxloader.exe`
+  `05991738adc730afbee40c9b6d860a4d455f4ede0a5331a2a7020dbe409e452f` ; mêmes 20 fichiers que la -5, seul
+  `linuxloader.exe` change.
+- Vérifié depuis le zip (mode agent caché) : `--version` « linuxloader-v3.0.14-ffbedition-20261110-6-njz3 » ; Race TV,
+  60 s de partie avec `FFB_CONSTANT_GAIN = 50` et `FFB_DAMPER_GAIN = 200` : couple 0,0823 pour 0,1647 demandé, damper
+  0,0926 (0,0463 à 100 %) ; Dead Heat 120 s à 60 i/s avec la webcam de ce PC, captures comme la -4 et la -5. Pas
+  essayé : le ressort et le sinus, un volant, les bornes.
 
 ### Un gain par effet du FFB (demande 189)
 - `[ForceFeedback]` : `FFB_CONSTANT_GAIN`, `FFB_SPRING_GAIN`, `FFB_DAMPER_GAIN`, `FFB_SINE_GAIN`, en pourcentage, 100 par

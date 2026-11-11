@@ -88,8 +88,8 @@ int createDefaultIni(const char *filePath)
 
     // [Display]
     iniOut(&out, "[Display]\n");
-    iniOut(&out, "# Set the width resolution here\nWIDTH = AUTO\n\n");
-    iniOut(&out, "# Set the height resolution here\nHEIGHT = AUTO\n\n");
+    iniOut(&out, "# Set the width resolution here (AUTO = native, or calculated from HEIGHT keeping the native aspect ratio)\nWIDTH = AUTO\n\n");
+    iniOut(&out, "# Set the height resolution here (AUTO = native, or calculated from WIDTH keeping the native aspect ratio)\nHEIGHT = AUTO\n\n");
     iniOut(&out, "# Boost render resolution in HOD4/2Spicy/Harley/Rambo/HOD-EX/ID4/ID5 and LGJ\n");
     iniOut(&out, "BOOST_RENDER_RES = %s\n\n", defaults.boostRenderRes ? "true" : "false");
     iniOut(&out, "# Set to true for full screen\nFULLSCREEN = %s\n\n", defaults.fullscreen ? "true" : "false");
@@ -173,8 +173,8 @@ int createDefaultIni(const char *filePath)
     iniOut(&out, "# Define the path to pass the JVS packets to if JVS is not being emulated\nJVS_PATH = \"%s\"\n\n", defaults.jvsPath);
     iniOut(&out, "# Define the path to pass the first serial port to\nSERIAL_1_PATH = \"%s\"\n\n", defaults.serial1Path);
     iniOut(&out, "# Define the path to pass the second serial port to\nSERIAL_2_PATH = \"%s\"\n\n", defaults.serial2Path);
-    iniOut(&out, "# Define the path to the sram.bin file\nSRAM_PATH = \"%s\"\n\n", defaults.sramPath);
-    iniOut(&out, "# Define the path to the eeprom.bin file\nEEPROM_PATH = \"%s\"\n\n", defaults.eepromPath);
+    iniOut(&out, "# Define the path to the sram.bin file (relative paths are relative to the game folder)\nSRAM_PATH = \"%s\"\n\n", defaults.sramPath);
+    iniOut(&out, "# Define the path to the eeprom.bin file (relative paths are relative to the game folder)\nEEPROM_PATH = \"%s\"\n\n", defaults.eepromPath);
     iniOut(&out, "# Windows: the folder everything is written to (or --write-dir); the loader's and the game's folders are then\n");
     iniOut(&out, "# only read. Its root holds linuxloader.ini and controls.ini (copied there the first time), WRITE_DIR\\<game>\n");
     iniOut(&out, "# the NVRAM, saves, logs, temporary files and compiled shaders; for a write filter (UWF) or games on a share.\n");

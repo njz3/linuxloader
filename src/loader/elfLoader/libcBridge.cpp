@@ -173,13 +173,6 @@ namespace LibcBridge
         return "2.3.6";
     }
 
-    // The offset is 64-bit: the files mapped are small
-    static void *bridgeMmap64(void *addr, size_t length, int prot, int flags, int fd, uint32_t offsetLow, uint32_t offsetHigh)
-    {
-        (void)offsetHigh;
-        return bridgeMmap(addr, length, prot, flags, fd, (off_t)offsetLow);
-    }
-
     // i386's va_list is a pointer to the arguments, on both sides
     static int bridgeVfscanf(FILE *stream, const char *format, va_list args)
     {
@@ -401,8 +394,8 @@ namespace LibcBridge
         // Memory
         MAP("getpagesize", bridgeGetpagesize);
         MAP("mmap", bridgeMmap);
-        MAP("munmap", bridgeMunmap);
         MAP("mmap64", bridgeMmap64);
+        MAP("munmap", bridgeMunmap);
         MAP("sbrk", bridgeSbrk);
         MAP("mlock", bridgeStubSuccess);
         MAP("munlock", bridgeStubSuccess);
@@ -2085,7 +2078,14 @@ namespace LibcBridge
 
     void *bridgeMmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
     {
-        log_trace("Intercepted mmap: addr=%p, len=%zu, prot=%d, flags=%d, fd=%d, offset=%ld", addr, length, prot, flags, fd, (long)offset);
+        return bridgeMmap64(addr, length, prot, flags, fd, (int64_t)offset);
+    }
+
+    // Same as mmap, with glibc's 64-bit off64_t offset (two stack slots on i386).
+    void *bridgeMmap64(void *addr, size_t length, int prot, int flags, int fd, int64_t offset)
+    {
+        log_trace("Intercepted mmap: addr=%p, len=%zu, prot=%d, flags=%d, fd=%d, offset=%lld", addr, length, prot, flags, fd,
+                  (long long)offset);
 
         // The emulated camera's buffers (Dead Heat, Maximum Heat 3D)
         if (v4l2CameraIs(fd))
@@ -2108,7 +2108,7 @@ namespace LibcBridge
         if (ret && fd >= 0)
         {
             log_info("mmap: Emulating file mapping by reading into VirtualAlloc memory (fd=%d)", fd);
-            _lseek(fd, offset, SEEK_SET);
+            _lseeki64(fd, offset, SEEK_SET);
             _read(fd, ret, length);
         }
         return ret ? ret : L_MAP_FAILED;

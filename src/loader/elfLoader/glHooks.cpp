@@ -3,14 +3,27 @@
 #include <string.h>
 #include <ctype.h>
 #include <string>
+#include <windows.h>
 #include "glHooks.hpp"
+#include "../log/log.h"
 #include "../graphics/shaderPatches.h"
 #include "../patching/patchResolution.h"
 #include "../graphics/crossHair.h"
 #include "../graphics/blitStretching.h"
 #include "../config/config.h"
-#include "../log/log.h"
 
+extern "C" int gGrp;
+
+/* Intel's ARC Windows driver finishes compressed texture uploads on a worker thread.
+ * When Rambo streams its DXT3 textures, Rambo crashes. Adding glFinish fixes it */
+static void intelSyncTextureUpload()
+{
+    static int needed = -1;
+    if (needed < 0)
+        needed = getConfig()->GPUVendor == INTEL_GPU && gGrp == GROUP_RAMBO;
+    if (needed && glad_glFinish)
+        glad_glFinish();
+}
 
 extern "C" void __attribute__((cdecl)) wrap_glBegin(GLenum mode)
 {
@@ -487,7 +500,6 @@ extern "C" void __attribute__((cdecl)) wrap_glClientActiveTexture(GLenum texture
         glad_glClientActiveTexture(texture);
 }
 
-
 extern "C" void __attribute__((cdecl)) wrap_glNormalPointer(GLenum type, GLsizei stride, const GLvoid *pointer)
 {
     if (glad_glNormalPointer)
@@ -640,6 +652,10 @@ extern "C" void __attribute__((cdecl)) wrap_glGenFramebuffersEXT(GLsizei n, GLui
 {
     if (glad_glGenFramebuffersEXT)
         glad_glGenFramebuffersEXT(n, framebuffers);
+
+    // Lets a log show whether the game's FBO names line up with the loader's own (see blitStretching.c)
+    for (GLsizei i = 0; framebuffers && i < n; i++)
+        log_info("glGenFramebuffersEXT: game got FBO %u, context %p", framebuffers[i], SDL_GL_GetCurrentContext());
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glBindFramebufferEXT(GLenum target, GLuint framebuffer)
@@ -676,14 +692,39 @@ extern "C" void __attribute__((cdecl)) wrap_glBindProgramARB(GLenum target, GLui
 
 extern "C" void __attribute__((cdecl)) wrap_glProgramStringARB(GLenum target, GLenum format, GLsizei len, const GLvoid *string)
 {
-    extern int gGrp;
     if (gGrp == GROUP_ID4_JAP || gGrp == GROUP_ID4_EXP || gGrp == GROUP_ID5) // Initial D: through its shader patches
     {
         gl_ProgramStringARB((int)target, (int)format, (int)len, (char *)string);
         return;
     }
-    if (glad_glProgramStringARB)
+    if (!glad_glProgramStringARB)
+        return;
+
+    // The game freads exactly ftell() bytes and passes that length without a terminator. Intel's
+    // igxe3icd32 driver ignores the length and reads up to a NUL, running off the end of the buffer.
+    static int intelDriver = -1;
+    if (intelDriver < 0)
+        intelDriver = GetModuleHandleA("igxe3icd32.dll") != NULL;
+
+    // Rambo fetches glProgramStringARB through glXGetProcAddress instead of importing it, so it
+    // cannot be detoured in patch.c like the other games; route it to the shader patcher here.
+    // gl_ProgramStringARB() measures the program with strlen(), so it needs the terminated copy too.
+    if (!intelDriver && gGrp != GROUP_RAMBO)
+    {
         glad_glProgramStringARB(target, format, len, string);
+        return;
+    }
+
+    char *copy = (char *)malloc((size_t)len + 1);
+    if (copy == NULL)
+        return;
+    memcpy(copy, string, (size_t)len);
+    copy[len] = '\0';
+    if (gGrp == GROUP_RAMBO)
+        gl_ProgramStringARB((int)target, (int)format, (int)len, copy);
+    else
+        glad_glProgramStringARB(target, format, len, copy);
+    free(copy);
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glProgramLocalParameter4fARB(GLenum target, GLuint index, GLfloat x, GLfloat y, GLfloat z,
@@ -1472,6 +1513,12 @@ extern "C" void __attribute__((cdecl)) wrap_glBlendEquationSeparateEXT(GLenum mo
         glad_glBlendEquationSeparateEXT(modeRGB, modeAlpha);
 }
 
+extern "C" void __attribute__((cdecl)) wrap_glBlendEquationSeparate(GLenum modeRGB, GLenum modeAlpha)
+{
+    if (glad_glBlendEquationSeparate)
+        glad_glBlendEquationSeparate(modeRGB, modeAlpha);
+}
+
 extern "C" void __attribute__((cdecl)) wrap_glGenRenderbuffersEXT(GLsizei n, GLuint *renderbuffers)
 {
     if (glad_glGenRenderbuffersEXT)
@@ -1606,11 +1653,11 @@ extern "C" void __attribute__((cdecl)) wrap_glColor4dv(const GLdouble *v)
         glad_glColor4dv(v);
 }
 
-extern "C" GLint __attribute__((cdecl)) wrap_glGetUniformLocationARB(GLint program, const GLchar *name)
+extern "C" GLint __attribute__((cdecl)) wrap_glGetUniformLocationARB(GLhandleARB program, const GLcharARB *name)
 {
     if (glad_glGetUniformLocationARB)
         return glad_glGetUniformLocationARB(program, name);
-    return (GLint)0;
+    return -1;
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glUniform1fvARB(GLint location, GLsizei count, const GLfloat *value)
@@ -2003,6 +2050,7 @@ extern "C" void __attribute__((cdecl)) wrap_glCompressedTexImage2DARB(GLenum tar
     if (glad_glCompressedTexImage2DARB)
     {
         glad_glCompressedTexImage2DARB(target, level, internalformat, width, height, border, imageSize, data);
+        intelSyncTextureUpload();
         gsevoBleedAlpha(target, level, internalformat, width, height);
     }
 }
@@ -2028,6 +2076,7 @@ extern "C" void __attribute__((cdecl)) wrap_glCompressedTexImage2D(GLenum target
     if (glad_glCompressedTexImage2D)
     {
         glad_glCompressedTexImage2D(target, level, internalformat, width, height, border, imageSize, data);
+        intelSyncTextureUpload();
         gsevoBleedAlpha(target, level, internalformat, width, height);
     }
 }
@@ -2191,10 +2240,23 @@ extern "C" void __attribute__((cdecl)) wrap_glGenerateMipmapEXT(GLenum target)
     if (glad_glGenerateMipmapEXT)
         glad_glGenerateMipmapEXT(target);
 }
+
+extern "C" void __attribute__((cdecl)) wrap_glGetActiveUniformARB(GLhandleARB program, GLuint index, GLsizei maxLength, GLsizei *length, GLint *size, GLenum *type, GLcharARB *name)
+{
+    if (glad_glGetActiveUniformARB)
+        glad_glGetActiveUniformARB(program, index, maxLength, length, size, type, name);
+}
+
 extern "C" void __attribute__((cdecl)) wrap_glTexCoord2d(GLdouble u, GLdouble v)
 {
     if (glad_glTexCoord2d)
         glad_glTexCoord2d(u, v);
+}
+
+extern "C" void __attribute__((cdecl)) wrap_glVertexAttrib3fvARB(GLuint index, const GLfloat *v)
+{
+    if (glad_glVertexAttrib3fvARB)
+        glad_glVertexAttrib3fvARB(index, v);
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glBufferSubData(GLenum target, GLintptr offset, GLsizeiptr size, const GLvoid *data)
@@ -2481,6 +2543,8 @@ void *GLHooks_GetProcAddress(const char *procName)
         return (void *)&wrap_glBlendEquationEXT;
     if (strcmp(procName, "glBlendEquationSeparateEXT") == 0)
         return (void *)&wrap_glBlendEquationSeparateEXT;
+    if (strcmp(procName, "glBlendEquationSeparate") == 0)
+        return (void *)&wrap_glBlendEquationSeparate;
     if (strcmp(procName, "glBlendFunc") == 0)
         return (void *)&wrap_glBlendFunc;
     if (strcmp(procName, "glBlendFuncSeparate") == 0)
@@ -3074,9 +3138,15 @@ void *GLHooks_GetProcAddress(const char *procName)
     if (strcmp(procName, "glMultMatrixd") == 0)
         return (void *)&wrap_glMultMatrixd;
     if (strcmp(procName, "glGenerateMipmapEXT") == 0)
-        return (void *)&wrap_glGenerateMipmapEXT;        
+        return (void *)&wrap_glGenerateMipmapEXT;
+
+    // Hummer
+    if (strcmp(procName, "glGetActiveUniformARB") == 0)
+        return (void *)&wrap_glGetActiveUniformARB;
     if (strcmp(procName, "glBufferSubData") == 0)
         return (void *)&wrap_glBufferSubData;
+    if (strcmp(procName, "glVertexAttrib3fvARB") == 0)
+        return (void *)&wrap_glVertexAttrib3fvARB;
     if (strcmp(procName, "glTexCoord2d") == 0)
         return (void *)&wrap_glTexCoord2d;
     if (strcmp(procName, "glLoadMatrixd") == 0)

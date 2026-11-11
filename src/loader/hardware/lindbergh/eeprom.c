@@ -48,6 +48,11 @@ int initEeprom()
     fclose(eeprom);
 
     eeprom = writeDirFopen(eepromPath, "rb+");
+    if (eeprom == NULL)
+    {
+        printf("Error: Cannot open %s\n", eepromPath);
+        return 1;
+    }
 
     if (eepromSettingsInit(eeprom) != 0)
     {
