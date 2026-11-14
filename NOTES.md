@@ -92,6 +92,10 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 195 | 14/11 | (Image borne) Initial D 4 Export, 4 Japon et 5 Export : image noire sur les bornes en 1024x768 et 640x480 (60 i/s, les autres jeux s'affichent) | ✅ cause : un écran plus petit que l'image du jeu (1360x768) fait passer au rendu hors écran, et l'émulation des pbuffers (`pbufferBindDrawable`) rendait la fenêtre par `glBindFramebuffer(…, 0)` sans la redirection : Initial D dessinait dans la vraie fenêtre, jamais montrée. Reproduit ici en mode agent caché (même rendu hors écran, images à 0) ; corrigé (`blitRedirectFramebuffer(0)`), les trois Initial D affichent leur image ; MinGW et MSVC ; pas commité, pas de release (voir journal) |
+| 194 | 12/11 | Prévenir Image borne pour déployer la -7 | ✅ posée par Image borne sur racecab1 et racecab2 (accord du propriétaire), `--version` et SHA-256 vérifiés, ini et dossier d'écriture pas touchés ; la 20261103 gardée dans `C:\Racecab\_sauvegardes\linuxloader-3.0.14-20261103-avant-3.0.15-20261112-7` ; Race TV (cab1) et Initial D 5 Export (cab2) : attract à 60 i/s, FFB envoyé à vJoy (34 et 32 paquets), pas d'erreur ; FFB au volant pas encore essayé (au propriétaire) |
+| 193 | 12/11 | Faire la -7 | ✅ `emulateurs/releases/linuxloader-v3.0.15-ffbedition-20261112-7-njz3-win32.zip` (MinGW, `40b80ef`, le même code que le build de test de la demande 192 essayé sur racecab1) ; vérifiée depuis le zip : Race TV avec les gains du FFB, Dead Heat ; pas déployée, Image borne pas prévenue (voir journal) |
+| 192 | 12/11 | Tester la fusion 3.0.15 sur racecab1 (pousser avant : `40b80ef` poussé) | ✅ build de test `…-v3.0.15-ffbedition-20261112-mergetest-njz3-win32.zip` (pas une release), vérifié depuis le zip ici (Race TV, FFB) ; essayé par Image borne sur racecab1 (accord du propriétaire, attract seulement) : Race TV, Initial D 4 et 5 Export, Dead Heat, OutRun 2 SP SDX comme la version installée (20261103, pas la -6) ; FFB au volant et gains pas essayés (voir journal) |
 | 191 | 11/11 | Un pull, puis un merge avec upstream | ✅ rien de neuf sur `origin` ; upstream 3.0.15 (`96334eb`) fusionné, 10 fichiers en conflit résolus ; MinGW et MSVC compilent ; Race TV, Dead Heat, Initial D 4 et 5 Export essayés en mode agent ; pas poussé (voir journal) |
 | 190 | 10/11 | Une release | ✅ release MinGW 3.0.14 -6 du 10/11 (`releases/linuxloader-v3.0.14-ffbedition-20261110-6-njz3-win32.zip`) depuis `d49aebc` (gains par effet du FFB), vérifiée depuis le zip (voir journal) |
 | 189 | 10/11 | Pour le FFB, un gain par effet (ressort, sinus, couple constant, damper) à régler dans l'ini | ✅ `FFB_CONSTANT_GAIN`, `FFB_SPRING_GAIN`, `FFB_DAMPER_GAIN`, `FFB_SINE_GAIN` dans `[ForceFeedback]`, en %, 100 par défaut ; vérifiés en mode agent pour le couple et le damper ; MinGW et MSVC compilent (voir journal) |
@@ -220,6 +224,63 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Initial D noir sous 1360x768 (demande 195)
+- Signalé par Image borne : sur les deux bornes, écran Philips seul en 1024x768 (et 640x480 le 12/11), Initial D 4
+  Export Rev D, Initial D 4 Rev B et Initial D 5 Export 2.0 tournent à 60 i/s et quittent par Échap, mais leurs
+  captures sont noires ; les 13 autres jeux du loader s'affichent ; en 1920x1080 (octobre), Initial D s'affichait.
+- Cause : un écran (ou une fenêtre) plus petit que l'image du jeu, 1360x768 pour Initial D, fait passer au rendu hors
+  écran (`blitStretch`, « Offscreen rendering ») : le jeu dessine dans `fboId`, que `blitPresent` met à l'échelle de
+  la fenêtre ; les `glBindFramebuffer(EXT)` du jeu vers la fenêtre (0) sont redirigés vers `fboId`. Initial D rend
+  par des pbuffers GLX, émulés par des FBO (`pbufferEmu.c`, depuis le 28/10) ; quand il revient à la fenêtre,
+  `pbufferBindDrawable` faisait `glBindFramebuffer(GL_FRAMEBUFFER, 0)` lui-même, sans la redirection : la scène allait
+  dans la vraie fenêtre, effacée par la copie de `fboId`, resté noir. C'est aussi pourquoi le mode agent caché (toujours
+  hors écran) donnait des captures noires pour Initial D 4 et 5. Pas une régression de 3.0.15 : la 20261103 l'a aussi.
+- Correction : `pbufferBindDrawable` rend la fenêtre par `blitRedirectFramebuffer(0)` (inchangé quand le jeu dessine
+  dans la fenêtre).
+- Vérifié en mode agent caché (le même rendu hors écran) : Initial D 4 Export, 4 Japon et 5 Export, captures de
+  1360x768 comme fenêtre visible (avant : luminosité 0,0 ; après : 9 à 244 selon la scène). Sans la correction, en
+  fenêtre de 1024x768 et 640x480 avec `WIDTH`/`HEIGHT` à cette taille, Initial D 4 Export s'affiche (pas de hors
+  écran) : réglage de secours possible sur les bornes. MinGW et MSVC. Pas essayé : un vrai écran en 1024x768 (pas de
+  changement de mode d'écran ici), les bornes.
+
+### Release 3.0.15 -7 du 12/11 (demande 193)
+- Depuis `40b80ef` (fusion d'upstream 3.0.15), numéro 3.0.15 d'upstream. MinGW, 53 avertissements :
+  `emulateurs/releases/linuxloader-v3.0.15-ffbedition-20261112-7-njz3-win32.zip`, 18 558 278 octets, SHA-256 du zip
+  `e3aabe69413f6db98ebbbdf77fe50124e4e16c50c0a1b0bd45a9f2222f00b520`, de `linuxloader.exe`
+  `bf6137f7d32b1c2e901cd7e4c69037913430b568ebba292f48d75797aefcf18f` ; mêmes 20 fichiers que la -6, seul
+  `linuxloader.exe` change. Même code que le build `-mergetest` de la demande 192 (seul le nom change).
+- Vérifié depuis le zip (mode agent caché) : `--version` « linuxloader-v3.0.15-ffbedition-20261112-7-njz3 » ; Race TV,
+  60 s de partie avec `FFB_CONSTANT_GAIN = 50` et `FFB_DAMPER_GAIN = 200` : couple 0,1441 pour 0,2882 demandé, damper
+  0,0926 ; Dead Heat 120 s à 59,97 i/s, captures comme la -6 (noires pendant le démarrage, puis l'attract). Pas
+  essayé : le ressort et le sinus, un volant. Pas déployée sur les bornes, qui ont toujours la 20261103.
+
+### Build de test de la fusion pour racecab1 (demande 192)
+- Depuis `40b80ef` (fusion d'upstream 3.0.15, poussé). MinGW, 53 avertissements :
+  `emulateurs/releases/linuxloader-v3.0.15-ffbedition-20261112-mergetest-njz3-win32.zip`, 18 558 280 octets, SHA-256
+  du zip `4c55b4a56f2eaf3d13e1583a965559cf6929cf79c561c0bfe1fe9c9557086726`, de `linuxloader.exe`
+  `aa7519e86e46037e7043a964762ab4a83e28884f7529a7c571cf79f7462ab97d` ; mêmes 20 fichiers que la -6, seul
+  `linuxloader.exe` change. Numéro 3.0.15 (celui d'upstream), suffixe `-mergetest` : build de test, pas une release.
+- Vérifié depuis le zip : `--version` « linuxloader-v3.0.15-ffbedition-20261112-mergetest-njz3 » ; Race TV en mode agent,
+  60 s de partie : couple 0,1698 (celui des trames du jeu), damper 0,0463, comme la -6.
+- Demandé à Image borne, sur racecab1 seulement et avec l'accord du propriétaire, en gardant la version actuelle :
+  démarrage et attract de Race TV, Initial D 4 et 5 Export, Dead Heat (webcam), OutRun 2 ; une partie au volant ; les
+  gains `FFB_CONSTANT_GAIN = 50` et `FFB_SPRING_GAIN = 0` ; le mode Chihiro d'OutRun 2 s'il est utilisé.
+- Résultat d'Image borne (12/11, accord du propriétaire limité à l'attract) : build décompressé à part
+  (`C:\Temp\ll-test\ll`), installation et racecab2 pas touchées, chaque jeu lancé comme `RunLinuxLoaderGame.cmd` (même
+  `--write-dir`), version installée puis build de test, capture vers 85 s. Comparé à la version installée, qui est la
+  20261103 (ni la -5 ni la -6 n'ont été posées sur les bornes) :
+  - Race TV, Initial D 4 Export, Initial D 5 Export, OutRun 2 SP SDX : attract, 60 i/s des deux côtés, même son
+    (FAudio 2 canaux, 48 kHz) ; OutRun 2 de la borne n'est pas la version Chihiro.
+  - Dead Heat : attract, 44 à 58 i/s (installée) et 46 à 53 (test) ; la DV20 donne des images noires dans les deux
+    (luminosité 0, salle ou webcam).
+  - Journaux : rien de nouveau ; la même erreur GL `0502` de `predrawFilterShader` dans OutRun 2 des deux côtés ; le
+    build de test ajoute « The game's program ended (exit code 0) ». Les deux versions préviennent que les ini du
+    dossier d'écriture sont plus vieux que ceux du dossier du loader (pas lus).
+  - explorer.exe relancé par Windows à l'Alt+F4 d'Initial D 5 avec la version installée, pas avec le build de test.
+  - Pas essayé : une partie au volant, les gains du FFB.
+  - Journaux et mosaïque des captures copiés par Image borne dans son scratchpad (`ll_test`) ; sur la borne,
+    `C:\Racecab\_a_supprimer-20261112\Temp\ll-test`.
 
 ### Merge d'upstream 3.0.15 (demande 191)
 - `upstream/main` de `87ffd44` (3.0.14) à `96334eb` (3.0.15, 5 commits) : `mmap64` (VF5 Terminal), sémaphores pour

@@ -10,6 +10,7 @@
 #include <SDL3/SDL.h>
 
 #include "sdlCalls.h"
+#include "blitStretching.h"
 #include "../log/log.h"
 
 #include "pbufferEmu.h"
@@ -184,7 +185,8 @@ void pbufferBindDrawable(GLXDrawable drawable)
     }
     else
     {
-        glad_glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        // The window: fboId when the game draws offscreen (a window smaller than the game's picture)
+        glad_glBindFramebuffer(GL_FRAMEBUFFER, blitRedirectFramebuffer(0));
     }
 }
 
