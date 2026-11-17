@@ -134,10 +134,20 @@ static const char *linuxRooted(const char *src, char *buffer, size_t size)
 }
 #endif
 
+static const char *(*s_pathRewrite)(const char *src, char *buffer, size_t size) = NULL;
+
+void sharedSetPathRewrite(const char *(*rewrite)(const char *src, char *buffer, size_t size))
+{
+    s_pathRewrite = rewrite;
+}
+
 void ConvertPath(char *dst, const char *src, size_t size)
 {
     if (!src || !dst)
         return;
+    char rewritten[1024];
+    if (s_pathRewrite)
+        src = s_pathRewrite(src, rewritten, sizeof(rewritten));
 #ifdef _WIN32
     char rooted[MAX_PATH];
     src = linuxRooted(src, rooted, sizeof(rooted));

@@ -251,6 +251,22 @@ void ElfLoader::PreReserveAddressSpace(const std::string &path)
     SIZE_T totalSize = alignedMax - alignedBase;
 
     MemoryManager::GetInstance().ReserveAddressSpace(totalSize, reinterpret_cast<void *>((uintptr_t)alignedBase));
+
+    // A program dumped from memory while it ran (no section headers: Raw Thrills' Cruis'n Blast, unwrapped from its
+    // HASP envelope) still holds pointers into the heap it had then, Linux's, which starts after the program: there,
+    // memory as Linux's heap would have it, zeroed, before any library or allocation takes the place (64 MB of it: the
+    // address space of a 32-bit process is short)
+    if (ehdr.e_shnum == 0)
+    {
+        const SIZE_T heapSize = 64u << 20; // Cruis'n Blast's was used 32 MB after its end
+        void *heap = VirtualAlloc(reinterpret_cast<void *>((uintptr_t)alignedMax), heapSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+        if (heap)
+            log_info("Program dumped from memory: its old heap's place, 0x%08X to 0x%08X, made usable", alignedMax,
+                     (uint32_t)(alignedMax + heapSize));
+        else
+            log_warn("Program dumped from memory: its old heap's place at 0x%08X cannot be had (error %lu)", alignedMax,
+                     GetLastError());
+    }
 }
 
 bool ElfLoader::Load(const std::string &path)

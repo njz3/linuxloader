@@ -42,6 +42,8 @@ extern "C" {
 #endif
 
 void ConvertPath(char *dst, const char *src, size_t size);
+// A game's own paths, rewritten before the others (a cabinet's /pm as the game's folder): src, or buffer filled
+void sharedSetPathRewrite(const char *(*rewrite)(const char *src, char *buffer, size_t size));
 int sharedRemove(const char *path);
 int sharedMkdir(const char *path, mode_t mode);
 int sharedOpen(const char *pathname, int flags, ...);

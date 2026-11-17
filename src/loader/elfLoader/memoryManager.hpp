@@ -40,6 +40,8 @@ public:
     static void* customCalloc(size_t nmemb, size_t size);
     static void* customRealloc(void* ptr, size_t size);
     static void customFree(void* ptr);
+    // The process's address space in the log: free, reserved, committed, and its largest allocations
+    static void logAddressSpace(void);
     static void* customMemalign(size_t alignment, size_t size);
     static int customPosixMemalign(void **ptr, size_t alignment, size_t size);
     static void* customMemmove(void* dest, const void* src, size_t n);

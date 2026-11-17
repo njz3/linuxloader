@@ -889,6 +889,7 @@ void agentInit(int show)
     if (!answers)
         answers = stderr;
     setvbuf(answers, NULL, _IOFBF, 1 << 16);
+    setvbuf(stdout, NULL, _IONBF, 0); // the log, written at once: none of it lost when the game crashes
     queueLock = SDL_CreateMutex();
     queueChanged = SDL_CreateCondition();
     journalLock = SDL_CreateMutex();

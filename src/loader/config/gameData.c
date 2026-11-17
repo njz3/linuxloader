@@ -50,6 +50,7 @@ static const GameData gameData[] = {
     {DEAD_HEAT_US, "Dead Heat", "deadheat", "US DRIVE", "ES1", "2011", "1360x768", WORKING, SEGA_TYPE_3, DRIVING, 1360, 768, GROUP_DEAD_HEAT, 0, 0, 0, 0, 0, 0, YELLOW},
     {GAELCO_TUNING_RACE, "Gaelco Championship Tuning Race", "gaelcotuning", "", "GAELCO", "2005", "720x540", WORKING, SEGA_TYPE_3, DRIVING, 720, 540, GROUP_GAELCO, 0, 0, 0, 0, 0, 0, YELLOW},
     {RING_RIDERS, "Ring Riders", "ringriders", "", "GAELCO", "2004", "640x480", WORKING, SEGA_TYPE_3, DRIVING, 640, 480, GROUP_GAELCO, 0, 0, 0, 0, 0, 0, YELLOW},
+    {CRUISN_BLAST, "Cruis'n Blast", "cruisnblast", "1.25", "RAW THRILLS", "2017", "1360x768", WORKING, SEGA_TYPE_3, DRIVING, 1360, 768, -1, 0, 0, 0, 0, 0, 0, YELLOW},
     {TOKYO_COP, "Tokyo Cop", "tokyocop", "", "GAELCO", "2003", "640x480", WORKING, SEGA_TYPE_3, DRIVING, 640, 480, GROUP_GAELCO, 0, 0, 0, 0, 0, 0, YELLOW},
     {DEAD_HEAT_RIDERS, "Dead Heat Riders", "deadheatriders", "DH RIDERS", "N2", "2013", "1360x768", WORKING, SEGA_TYPE_3, DRIVING, 1360, 768, GROUP_DEAD_HEAT, 0, 0, 0, 0, 0, 0, YELLOW},
     {MAXIMUM_HEAT_3D, "Maximum Heat 3D", "maxheat3d", "US DRIVE", "ES1", "2011", "1360x768", WORKING, SEGA_TYPE_3, DRIVING, 1360, 768, GROUP_DEAD_HEAT, 0, 0, 0, 0, 0, 0, YELLOW},

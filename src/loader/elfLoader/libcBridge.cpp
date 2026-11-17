@@ -571,6 +571,7 @@ namespace LibcBridge
 
     void bridgeAbort()
     {
+        MemoryManager::logAddressSpace(); // an abort is often a bad_alloc
 #ifdef _MSC_VER
         void *caller = _ReturnAddress();
 #else
@@ -1222,6 +1223,21 @@ namespace LibcBridge
             tp->tv_nsec = (long)(t % 1000000) * 1000;
             return 0;
         }
+        // CLOCK_MONOTONIC, its _RAW and _COARSE, CLOCK_BOOTTIME and the CPU times: the performance counter, from the
+        // PC's start (FMOD times its mixer with CLOCK_MONOTONIC)
+        if (clk_id >= 1 && clk_id <= 7 && tp)
+        {
+            static LARGE_INTEGER frequency = {};
+            if (!frequency.QuadPart)
+                QueryPerformanceFrequency(&frequency);
+            LARGE_INTEGER now;
+            QueryPerformanceCounter(&now);
+            int32_t *linux = (int32_t *)tp; // i386: two 32-bit fields
+            linux[0] = (int32_t)(now.QuadPart / frequency.QuadPart);
+            linux[1] = (int32_t)((now.QuadPart % frequency.QuadPart) * 1000000000LL / frequency.QuadPart);
+            return 0;
+        }
+        errno = EINVAL;
         return -1;
     }
 
@@ -2086,6 +2102,14 @@ namespace LibcBridge
     {
         log_trace("Intercepted mmap: addr=%p, len=%zu, prot=%d, flags=%d, fd=%d, offset=%lld", addr, length, prot, flags, fd,
                   (long long)offset);
+        static int large = 0;
+        static const bool allocs = getenv("LL_ALLOCS") != NULL;
+        if (length >= (allocs ? (1u << 20) : (16u << 20)) && large < (allocs ? 100000 : 20))
+        {
+            large++;
+            log_warn("mmap of %zu MB (prot %d, flags 0x%x, fd %d), called from %p", length >> 20, prot, flags, fd,
+                     __builtin_return_address(0));
+        }
 
         // The emulated camera's buffers (Dead Heat, Maximum Heat 3D)
         if (v4l2CameraIs(fd))

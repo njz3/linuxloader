@@ -30,7 +30,7 @@ annexes (`Sega\assets\rpi-billboard`, une mise à jour), pas le jeu.
 | Dead Heat Riders - Namco N2 | Namco N2 | `a.elf` | `DEAD_HEAT_RIDERS` | ✅ course, FFB, menu de test, vJoy |
 | Wangan Midnight Maximum Tune 3 (Export) - Namco N2 | Namco N2 | `main` | `WANGAN_MIDNIGHT_MT3` | ✅ course (MinGW et MSVC), FFB, menu de test, son, lecteur-imprimante de cartes (carte neuve écrite puis relue), vJoy |
 | Wangan Midnight Maximum Tune 3DX+ (Japan) - Namco N2 | Namco N2 | `main` | `WANGAN_MIDNIGHT_MT3DX` | ✅ course (MinGW et MSVC), FFB, menu de test, vJoy, cartes (neuve, lue, écrite et imprimée en fin de partie), jeu sans lecteur |
-| Cruisn Blast 1.25 - Raw Thrills PC based | Raw Thrills (Linux) | `game` | — | ❌ non fait |
+| Cruisn Blast 1.25 - Raw Thrills PC based | Raw Thrills (Linux) | `game` | `CRUISN_BLAST` | ✅ course, FFB, calibrage et menu de test, son FMOD et SDL (mode agent, 17/11) |
 | Cruisn Blast 2.31 - Raw Thrills PC based | Raw Thrills (Linux) | `game` | — | ❌ abandonné |
 | Gaelco Championship Tuning Race - Gaelco PC Based | Gaelco PC | image disque, `.../salidas/car` | `GAELCO_TUNING_RACE` | ✅ course, FFB, menu Test, son émulé, vJoy |
 | Ring Riders - Gaelco PC Based | Gaelco PC | image disque, `.../salidas/gameport` | `RING_RIDERS` | ✅ course, FFB, menu TEST, son émulé, vJoy |

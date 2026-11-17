@@ -529,6 +529,10 @@ void bridgeglTexImage2D(unsigned int target, int level, int internalformat, int 
                         unsigned int type, const void *pixels)
 #endif
 {
+    {
+        void glTally(const char *kind, size_t bytes); // glHooks.cpp, LL_ALLOCS=1
+        glTally("texture", (size_t)width * (size_t)height * 4);
+    }
     if (gGrp == GROUP_OUTRUN)
     {
         if (gWidth != 800 || gHeight != 480)

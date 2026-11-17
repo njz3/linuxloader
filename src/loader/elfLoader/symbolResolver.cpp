@@ -48,6 +48,7 @@ extern "C"
 #include "elfLoader.hpp"
 #include "../log/log.h"
 #include "../patching/patch.h"
+#include "../agent/agent.h"
 
 extern "C" void __gmon_start__()
 {
@@ -483,13 +484,21 @@ void SymbolResolver::LoadNeededLibrary(const std::string &linuxName)
     if (found)
         fullPath = FollowLinkFile(fullPath);
 
+    // Loaded once, by its file: a library two others need (Raw Thrills' libfmod.so.7, needed by the game and by
+    // libfmodstudio.so.7) is counted as loaded before its own needs are, which may come back to it
+    if (found && std::find(m_LoadedNativeNames.begin(), m_LoadedNativeNames.end(), fullPath) != m_LoadedNativeNames.end())
+    {
+        log_debug("Linux SO %s is already natively loaded. Skipping.", fullPath.c_str());
+        return;
+    }
+
     if (found)
     {
         ElfLoader *soLoader = new ElfLoader();
         soLoader->SetIsSharedObject(true);
+        m_LoadedNativeNames.push_back(fullPath);
         if (soLoader->Load(fullPath))
         {
-            m_LoadedNativeNames.push_back(fullPath);
             m_NativeLoaders.push_back(soLoader);
             log_info("Successfully loaded and exported symbols for native Linux SO: %s", fullPath.c_str());
             m_PendingSOPatches.push_back({(uintptr_t)soLoader->GetBaseAddress(), fullPath});
@@ -497,6 +506,7 @@ void SymbolResolver::LoadNeededLibrary(const std::string &linuxName)
         else
         {
             log_error("Failed to natively load Linux SO: %s", fullPath.c_str());
+            m_LoadedNativeNames.erase(std::find(m_LoadedNativeNames.begin(), m_LoadedNativeNames.end(), fullPath));
             delete soLoader;
             soLoader = nullptr;
         }
@@ -538,7 +548,8 @@ extern "C" void HandleUnresolvedSymbol(const char *symbolName, void *callerAddre
     char msg[512];
     snprintf(msg, sizeof(msg), "Unresolved symbol called: %s\nCaller Address: %p\n\nThe loader will now terminate.", symbolName,
              callerAddress);
-    MessageBoxA(NULL, msg, "Lindbergh Loader Error", MB_ICONERROR | MB_OK);
+    if (!agentActive()) // driven by a program: the log says it, no box waits on the desktop
+        MessageBoxA(NULL, msg, "Lindbergh Loader Error", MB_ICONERROR | MB_OK);
     ExitProcess(1);
 }
 
@@ -719,7 +730,7 @@ void *SymbolResolver::ResolveSymbol(const std::string &symbolName, std::string *
         return originalAddr;
     }
 
-    log_info("Symbol not found: %s. Generating crash stub.", symbolName.c_str());
+    log_warn("Symbol not found: %s: the program stops if it calls it", symbolName.c_str());
     if (outModuleName)
         *outModuleName = "UNRESOLVED_STUB";
     return CreateUnresolvedStub(symbolName);

@@ -86,6 +86,7 @@
 #define SEGABOOT_2_6 0x0030                                       // DVP-????
 #define SEGA_RACE_TV_SBPF 0xb30ab16a                              // DVP-0044
 #define TOKYO_COP 0x0bbe26aa                                      // Gaelco PC, Tokyo Cop
+#define CRUISN_BLAST 0xddaf18ba                                   // Raw Thrills, Cruis'n Blast 1.25 (the dump of `game`)
 #define THE_HOUSE_OF_THE_DEAD_4_SBLC_REVA 0x226281ad              // DVP-0003A
 #define THE_HOUSE_OF_THE_DEAD_4_SBLC_REVA_TEST 0x1d1160aa         // DVP-0003A
 #define THE_HOUSE_OF_THE_DEAD_4_SBLC_REVB 0xad652b5               // DVP-0003B

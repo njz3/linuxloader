@@ -3,13 +3,73 @@
 #include "alsa2sdlBridge.hpp"
 #include "symbolResolver.hpp"
 #include "../audio/lindbergh/alsa2sdl/alsa2sdl.h"
+#include "memoryManager.hpp"
+
+#include <string.h>
 
 #define MAP(name, func) SymbolResolver::GetInstance().RegisterVTable(name, reinterpret_cast<void *>(func))
+
+// The devices' list (snd_device_name_hint), FMOD's: one, the default output. The strings get_hint hands out are the
+// program's to free, with its free: they come from the allocator the program's free returns memory to.
+static const char s_defaultHint[] = "NAMEdefault|DESCDefault Audio Device|IOIDOutput";
+
+static int bridgeSndDeviceNameHint(int card, const char *iface, void ***hints)
+{
+    (void)card;
+    (void)iface;
+    void **list = (void **)MemoryManager::customMalloc(2 * sizeof(void *));
+    if (!list)
+        return -12; // -ENOMEM
+    list[0] = (void *)s_defaultHint;
+    list[1] = nullptr;
+    *hints = list;
+    return 0;
+}
+
+static char *bridgeSndDeviceNameGetHint(const void *hint, const char *id)
+{
+    const char *text = (const char *)hint;
+    size_t idLength = id ? strlen(id) : 0;
+    for (const char *p = text; p && *p;)
+    {
+        const char *end = strchr(p, '|');
+        size_t length = end ? (size_t)(end - p) : strlen(p);
+        if (idLength && length >= idLength && strncmp(p, id, idLength) == 0)
+        {
+            size_t valueLength = length - idLength;
+            char *value = (char *)MemoryManager::customMalloc(valueLength + 1);
+            if (value)
+            {
+                memcpy(value, p + idLength, valueLength);
+                value[valueLength] = '\0';
+            }
+            return value;
+        }
+        p = end ? end + 1 : nullptr;
+    }
+    return nullptr;
+}
+
+static int bridgeSndDeviceNameFreeHint(void **hints)
+{
+    MemoryManager::customFree(hints);
+    return 0;
+}
 
 namespace Alsa2SdlBridge
 {
     void initBridges()
     {
+        MAP("snd_device_name_hint", bridgeSndDeviceNameHint);
+        MAP("snd_device_name_get_hint", bridgeSndDeviceNameGetHint);
+        MAP("snd_device_name_free_hint", bridgeSndDeviceNameFreeHint);
+        MAP("snd_pcm_hw_params_sizeof", shared_snd_pcm_hw_params_sizeof);
+        MAP("snd_pcm_sw_params_sizeof", shared_snd_pcm_sw_params_sizeof);
+        MAP("snd_pcm_hw_params_set_rate", shared_snd_pcm_hw_params_set_rate);
+        MAP("snd_pcm_hw_params_test_rate", shared_snd_pcm_hw_params_test_rate);
+        MAP("snd_pcm_nonblock", shared_snd_pcm_nonblock);
+        MAP("snd_pcm_readi", shared_snd_pcm_readi);
+        MAP("snd_asoundlib_version", shared_snd_asoundlib_version);
         MAP("snd_pcm_open", shared_snd_pcm_open);
         MAP("snd_pcm_close", shared_snd_pcm_close);
 

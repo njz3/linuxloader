@@ -227,14 +227,21 @@ int PthreadEmu::pthreadCreate(void *thread, const void *attr, void *(*start_rout
     DWORD_PTR affinity = creator ? creator->affinity : 0;
     thread_info->affinity = affinity;
 
+    // The stack asked for, reserved and committed as it grows, as Linux maps it, up to 32 MB: a 32-bit process has no
+    // room for Raw Thrills' Cruis'n Blast's 128 MB stacks committed whole
+    const size_t maxStack = 32u << 20;
+    if (stack_size > maxStack)
+        stack_size = maxStack;
+    unsigned flags = (affinity ? CREATE_SUSPENDED : 0) | (stack_size ? STACK_SIZE_PARAM_IS_A_RESERVATION : 0);
+
     // Create the thread
     unsigned thread_id;
-    HANDLE handle = (HANDLE)_beginthreadex(NULL,                            // Security
-                                           (unsigned)stack_size,            // Stack size
-                                           ThreadEntryPoint,                // Entry point
-                                           ctx,                             // Argument
-                                           affinity ? CREATE_SUSPENDED : 0, // Creation flags
-                                           &thread_id                       // Thread ID
+    HANDLE handle = (HANDLE)_beginthreadex(NULL,                 // Security
+                                           (unsigned)stack_size, // Stack size
+                                           ThreadEntryPoint,     // Entry point
+                                           ctx,                  // Argument
+                                           flags,                // Creation flags
+                                           &thread_id            // Thread ID
     );
 
     if (!handle)

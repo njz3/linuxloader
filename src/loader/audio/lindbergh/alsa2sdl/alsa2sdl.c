@@ -49,6 +49,8 @@ struct _snd_pcm
     int state;
     char name[64];
     snd_pcm_uframes_t buffer_size;
+    int nonblock;     // SND_PCM_NONBLOCK: a full buffer answers -EAGAIN instead of waiting
+    Uint64 drainedNs; // no device: the queue played out at the sound's pace, up to this time
 };
 
 typedef struct _snd_pcm snd_pcm_t;
@@ -134,6 +136,8 @@ int shared_snd_pcm_open(snd_pcm_t **pcm, const char *name, int stream, int mode)
     }
 
     handle->state = SND_PCM_STATE_OPEN;
+    handle->nonblock = (mode & 1) != 0; // SND_PCM_NONBLOCK
+    handle->drainedNs = SDL_GetTicksNS();
 
     if (pcm)
         *pcm = handle;
@@ -394,6 +398,48 @@ int shared_snd_pcm_delay(snd_pcm_t *pcm, snd_pcm_sframes_t *delayp)
     return 0;
 }
 
+// No device to play the stream (the agent's hidden mode, no audio device): what it would have played since the last
+// call taken out of it, so that the writer is held to the sound's pace and the queue stays the buffer's size
+static void drainWithoutDevice(snd_pcm_t *pcm)
+{
+    Uint64 now = SDL_GetTicksNS();
+    if (g_alsaDevice || !pcm->stream || pcm->spec.freq <= 0)
+    {
+        pcm->drainedNs = now;
+        return;
+    }
+    int frame_size = pcm->spec.channels * SDL_AUDIO_BYTESIZE(pcm->spec.format);
+    Uint64 frames = (now - pcm->drainedNs) * (Uint64)pcm->spec.freq / 1000000000ull;
+    if (frames == 0 || frame_size <= 0)
+        return;
+    pcm->drainedNs += frames * 1000000000ull / (Uint64)pcm->spec.freq;
+    int queued = SDL_GetAudioStreamQueued(pcm->stream);
+    Uint64 bytes = frames * (Uint64)frame_size;
+    if (queued <= 0)
+        return;
+    if (bytes >= (Uint64)queued)
+    {
+        SDL_ClearAudioStream(pcm->stream);
+        return;
+    }
+    static Uint8 sink[16384];
+    while (bytes > 0)
+    {
+        int chunk = bytes > sizeof(sink) ? (int)sizeof(sink) : (int)bytes;
+        int got = SDL_GetAudioStreamData(pcm->stream, sink, chunk);
+        if (got <= 0)
+            break;
+        bytes -= (Uint64)got;
+    }
+}
+
+static int framesQueued(snd_pcm_t *pcm, int frame_size)
+{
+    int queued = SDL_GetAudioStreamQueued(pcm->stream);
+    return queued > 0 ? queued / frame_size : 0;
+}
+
+// As ALSA's: no more than the buffer holds; non-blocking, what fits or -EAGAIN; blocking, all of it as room comes
 snd_pcm_sframes_t shared_snd_pcm_writei(snd_pcm_t *pcm, const void *buffer, unsigned long size)
 {
 
@@ -404,14 +450,28 @@ snd_pcm_sframes_t shared_snd_pcm_writei(snd_pcm_t *pcm, const void *buffer, unsi
     if (frame_size <= 0)
         return -22; // EINVAL
 
-    int total_bytes = size * frame_size;
-
-    if (SDL_PutAudioStreamData(pcm->stream, buffer, total_bytes))
+    const Uint8 *data = (const Uint8 *)buffer;
+    unsigned long written = 0;
+    Uint64 start = SDL_GetTicks();
+    while (written < size)
     {
-        return size; // Success
+        drainWithoutDevice(pcm);
+        long room = (long)pcm->buffer_size - framesQueued(pcm, frame_size);
+        if (room <= 0)
+        {
+            if (pcm->nonblock)
+                return written ? (snd_pcm_sframes_t)written : -11; // -EAGAIN
+            if (SDL_GetTicks() - start > 2000) // nothing plays it: what was taken
+                return written ? (snd_pcm_sframes_t)written : -32;
+            SDL_Delay(1);
+            continue;
+        }
+        unsigned long chunk = size - written < (unsigned long)room ? size - written : (unsigned long)room;
+        if (!SDL_PutAudioStreamData(pcm->stream, data + written * frame_size, (int)(chunk * frame_size)))
+            return written ? (snd_pcm_sframes_t)written : -32;
+        written += chunk;
     }
-
-    return -32; // Error
+    return (snd_pcm_sframes_t)written;
 }
 
 int shared_snd_pcm_avail_update(snd_pcm_t *pcm)
@@ -423,6 +483,7 @@ int shared_snd_pcm_avail_update(snd_pcm_t *pcm)
     if (frame_size <= 0)
         return 4096;
 
+    drainWithoutDevice(pcm);
     int queued_bytes = SDL_GetAudioStreamQueued(pcm->stream);
     int queued_frames = queued_bytes / frame_size;
 
@@ -457,6 +518,55 @@ int shared_snd_pcm_format_width(int format)
             return 32;
     }
     return 16;
+}
+
+size_t shared_snd_pcm_hw_params_sizeof(void)
+{
+    return sizeof(snd_pcm_hw_params_t);
+}
+
+size_t shared_snd_pcm_sw_params_sizeof(void)
+{
+    return sizeof(snd_pcm_sw_params_t);
+}
+
+int shared_snd_pcm_hw_params_set_rate(snd_pcm_t *pcm, snd_pcm_hw_params_t *params, unsigned int val, int dir)
+{
+    (void)pcm;
+    (void)dir;
+    if (params)
+        params->rate = val;
+    return 0;
+}
+
+int shared_snd_pcm_hw_params_test_rate(snd_pcm_t *pcm, snd_pcm_hw_params_t *params, unsigned int val, int dir)
+{
+    (void)pcm;
+    (void)params;
+    (void)val;
+    (void)dir;
+    return 0;
+}
+
+int shared_snd_pcm_nonblock(snd_pcm_t *pcm, int nonblock)
+{
+    if (pcm)
+        pcm->nonblock = nonblock != 0;
+    return 0;
+}
+
+// No capture device
+long shared_snd_pcm_readi(snd_pcm_t *pcm, void *buffer, unsigned long size)
+{
+    (void)pcm;
+    (void)buffer;
+    (void)size;
+    return -5; // -EIO
+}
+
+const char *shared_snd_asoundlib_version(void)
+{
+    return "1.0.27.2";
 }
 
 const char *shared_snd_strerror(int errnum)

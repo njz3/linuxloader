@@ -92,6 +92,8 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 198 | 16/11 | Reprendre la branche `rawthrills` du fork d'aderumier pour les jeux pas encore pris en charge ; puis porter Cruis'n Blast | 🔄 branche récupérée (`fork-aderumier/rawthrills`, 84 commits, jeux sous Linux seulement) ; Cruis'n Blast 1.25 copié de racecab1 (`games/cruisnblast`, 11,9 Go, `game` = le programme déchiffré, CRC 0xb919dbd6) ; ✅ porté dans notre loader Windows : calibrage du volant, menu de test, attract, partie au volant (course à Londres), FFB, son FMOD et SDL 1.2 ; la mémoire saturée venait de notre ALSA (FMOD écrivait sans fin dans une file SDL, 2,7 Go) ; en mode agent seulement, pas sur un vrai écran ni sur les bornes ; commité et poussé le 17/11 (voir journal) |
+| 196 | 14/11 | Release avec la correction d'Initial D, Image borne prévenue pour le réessayer | ✅ `emulateurs/releases/linuxloader-v3.0.15-ffbedition-20261114-8-njz3-win32.zip` (MinGW, `edef2f0`) ; vérifiée depuis le zip : les trois Initial D en rendu hors écran (mode agent caché), Dead Heat, Race TV avec les gains du FFB ; posée par Image borne sur les deux bornes (la -7 gardée) ; racecab2 en 1024x768 : Initial D 4 Export, 4 Rev B et 5 Export s'affichent à 60 i/s (noirs avec la -7), Dead Heat et Race TV comme avant ; en 640x480 (racecab2) aussi, les trois Initial D à 60 i/s ; l'œil du propriétaire à faire (voir journal) |
 | 195 | 14/11 | (Image borne) Initial D 4 Export, 4 Japon et 5 Export : image noire sur les bornes en 1024x768 et 640x480 (60 i/s, les autres jeux s'affichent) | ✅ cause : un écran plus petit que l'image du jeu (1360x768) fait passer au rendu hors écran, et l'émulation des pbuffers (`pbufferBindDrawable`) rendait la fenêtre par `glBindFramebuffer(…, 0)` sans la redirection : Initial D dessinait dans la vraie fenêtre, jamais montrée. Reproduit ici en mode agent caché (même rendu hors écran, images à 0) ; corrigé (`blitRedirectFramebuffer(0)`), les trois Initial D affichent leur image ; MinGW et MSVC ; pas commité, pas de release (voir journal) |
 | 194 | 12/11 | Prévenir Image borne pour déployer la -7 | ✅ posée par Image borne sur racecab1 et racecab2 (accord du propriétaire), `--version` et SHA-256 vérifiés, ini et dossier d'écriture pas touchés ; la 20261103 gardée dans `C:\Racecab\_sauvegardes\linuxloader-3.0.14-20261103-avant-3.0.15-20261112-7` ; Race TV (cab1) et Initial D 5 Export (cab2) : attract à 60 i/s, FFB envoyé à vJoy (34 et 32 paquets), pas d'erreur ; FFB au volant pas encore essayé (au propriétaire) |
 | 193 | 12/11 | Faire la -7 | ✅ `emulateurs/releases/linuxloader-v3.0.15-ffbedition-20261112-7-njz3-win32.zip` (MinGW, `40b80ef`, le même code que le build de test de la demande 192 essayé sur racecab1) ; vérifiée depuis le zip : Race TV avec les gains du FFB, Dead Heat ; pas déployée, Image borne pas prévenue (voir journal) |
@@ -224,6 +226,112 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Cruis'n Blast 1.25 depuis le fork d'aderumier (demande 198)
+- Branche `rawthrills` d'aderumier (SPiRiT, CC BY-NC-SA 4.0) : 84 commits, environ 60 jeux (Raw Thrills, IGS, Namco,
+  Teamplay, Global VR...), tous pour la version Linux du loader (LD_PRELOAD, X11/GLX, evdev) ; leur guide Windows ne liste
+  que des jeux Lindbergh. Choix de l'utilisateur : porter Cruis'n Blast vers notre loader Windows, avec leur code comme
+  modèle.
+- Le jeu : `\\racecab1\C\racecab\Games\Cruisn Blast 1.25 - Raw Thrills PC based` copié dans `games/cruisnblast` (sans
+  le dossier TeknoParrot) ; `game` est le programme tel que l'enveloppe HASP l'a déchiffré en mémoire (CRC du fichier
+  0xb919dbd6, celui du fork ; CRC partiel 0xddaf18ba), `game.Backup Original` l'original chiffré.
+- Fait (rien de commité) :
+  - `gameData.c` : `CRUISN_BLAST` (0xddaf18ba), en `NOT_WORKING` ; `patch.c` appelle `cruisnBlastInstall`.
+  - `hardware/rawthrills/cruisnBlast.c` (d'après le fork) : le dongle HASP répondu dans le jeu (`hasp_*`, `Dongle*`, et
+    les remplaçants du dump à 0x0804829a/833c/842a), sa mémoire de 128 octets gardée dans `dongle_memory.dmp` ; les
+    chemins de la borne (`/pm` = dossier du jeu, `programs_enc` → `programs_dec`, `pmuser`, `/mnt/usbflash`,
+    `/etc/udev`) par une réécriture des chemins dans `ConvertPath` (`sharedSetPathRewrite`) ; `/proc/cpuinfo` lu par
+    `open` (la vitesse du processeur de ce PC, du registre) ; les cartes de la borne coupées (`Wheel_*`,
+    `pmrt_usb_*`, `io_usbdev_init`, `read_thread_func`...) ; le gestionnaire de caméras des pistolets IR
+    (`cmgr_thread_main`) arrêté.
+  - `libcMoreBridge.cpp` (l'en-tête existait depuis octobre) : les variantes `_chk` de la glibc, les chaînes larges à
+    `wchar_t` de 32 bits (`wcstok`, `swscanf`, `fwprintf`...), `iconv`, `uname`, `sysinfo`, `getrlimit`, `mprotect`,
+    les tables de montage et de connexion vides, et les alias `__isoc99_sscanf`, `__sysv_signal`...
+  - `rawThrillsBridge.cpp` : 22 fonctions OpenGL 3 en cdecl (`glBlitFramebuffer`, blocs d'uniformes, binaires de
+    programmes...).
+  - ALSA (pour FMOD) : la liste des sorties (`snd_device_name_hint`), `hw_params_sizeof`, `set_rate`, `nonblock`...
+  - `clock_gettime` : `CLOCK_MONOTONIC` et les autres horloges (seule `CLOCK_REALTIME` marchait : FMOD échouait).
+  - `symbolResolver.cpp` : une bibliothèque Linux chargée une seule fois par fichier (libfmod.so.7 l'était deux fois,
+    par le jeu et par libfmodstudio).
+  - `elfLoader.cpp` : un programme sans sections (une copie mémoire) a la place de son ancien tas, 256 Mo après lui,
+    rendue utilisable : il y garde des pointeurs (le jeu écrivait à 0x0C2503A0).
+  - Outils : `LL_FAULTS=1` écrit chaque violation d'accès avec sa pile ; en mode agent le journal n'est plus en
+    tampon ; les échecs de compilation et d'édition de liens GLSL sont au journal ; un symbole manquant est écrit en
+    WARN, sans boîte d'erreur en mode agent.
+- Où il en est : le jeu ouvre sa fenêtre (1360x768), FMOD et ALSA démarrent, les shaders se chargent (le jeu garde ses
+  programmes compilés en `.bin`) ; il s'arrête sur 20 ressources `.g5` non chargées (polices, `screen_global`,
+  `cameras_basic`, pourtant présentes dans `g5/race/data/g5`), puis `std::bad_alloc`. Restent aussi : le son SDL 1.2
+  (`Mix_OpenAudio` : notre SDL 1.2 n'a pas de son), `iconv` à l'emplacement de GOT 0x08a4e00c (pas dans les
+  enregistrements de l'enveloppe), les entrées (carte RIO : volant et pédales sur les entrées GUN0 X/Y du moteur), le
+  retour de force (`Wheel_Set`), la résolution (`ParseCommandLineArgs`).
+- Suite (16/11, soir) :
+  - Les ressources ratées et le `std::bad_alloc` : l'espace d'adressage du processus (32 bits, 4 Go) est plein, 3,8 Go
+    engagés : 341 Mo d'images (DLL), 3 Go privés en 231 blocs de 4 à 16 Mo. Le `malloc` du jeu n'en tient que 137 Mo,
+    ses `mmap` presque rien ; il a donné 1,2 Go au pilote OpenGL (700 Mo de textures compressées, 256 Mo de tampons,
+    205 Mo de textures). C'est le pilote OpenGL 32 bits de NVIDIA qui en garde des copies dans le processus, environ
+    2,5 fois. Sous Linux, sur la borne d'origine, la même chose tient.
+  - Essayé : Zink (l'OpenGL de Mesa sur Vulkan, `LL_ZINK=1`, le code existait, désactivé) ; avec les corrections GLSL du
+    fork (sortie `out_Bloom` à côté de `gl_FragData`, listes d'initialisation, `GL_ARB_gpu_shader5`, `#version 120`),
+    tous les shaders passent, mais la mémoire manque encore plus tôt (vers 7 s ; « NVVM compilation failed » aussi).
+  - Corrigé en chemin (servent à tous les jeux) : les piles des fils POSIX étaient engagées en entier
+    (`_beginthreadex` sans `STACK_SIZE_PARAM_IS_A_RESERVATION`) : réservées, au plus 32 Mo ; la place de l'ancien tas
+    ramenée à 64 Mo.
+  - Outils ajoutés : `LL_ALLOCS=1` (allocations de 4 Mo et plus, `mmap` de 1 Mo et plus, données données au pilote
+    OpenGL), une carte de l'espace d'adressage au journal à `abort()` et au premier `malloc` raté.
+  - Le jeu va jusqu'à sa course de démo (Madagascar) avant d'être à court. Pistes : faire charger moins au jeu ;
+    un rendu dans un processus 64 bits à part ; voir comment TeknoParrot, qui fait tourner ce jeu sur les bornes, s'y
+    prend.
+- Suite et fin (17/11) :
+  - TeknoParrot (`ElfLdr2\BudgieLoader.exe`) est aussi un processus 32 bits (msys, `regal32.dll`, `TPGfx.dll`) : code
+    fermé, pas regardé de plus près.
+  - La vraie cause : 2,7 Go en 184 segments de 15 Mo du tas du CRT, appelés par `SDL_malloc` (trouvé en interceptant
+    `NtAllocateVirtualMemory`, `LL_ALLOCS=1`, et un exe lié sans `-s`). FMOD ouvre sa sortie ALSA non bloquante et
+    écrit sans arrêt ; notre `snd_pcm_writei` mettait tout dans la file du flux SDL3, sans limite ni `-EAGAIN`.
+    Corrigé (`alsa2sdl.c`) : au plus la taille du tampon, `-EAGAIN` en non bloquant, l'attente sinon ; sans
+    périphérique, la file vidée au rythme du son. Le pilote OpenGL n'y était pour rien (les 2,5 fois étaient ce tas).
+    L'essai de Zink reste possible (`LL_ZINK=1`, avec les corrections GLSL du fork pour ce jeu), pas nécessaire.
+  - Commandes (`cruisnBlast.c`, d'après le fork) : `io_rio_loop` accroché (MinHook), les entrées du moteur
+    (`io_get_input_analog`, `io_get_input_digital`, `io_input_analog_update`, le drapeau de `io_new_data_present`)
+    nourries de l'état JVS du loader : `ANALOGUE_1` volant (0x173), `ANALOGUE_2` accélérateur (0x174), `ANALOGUE_3`
+    ou `BUTTON_1` frein, `BUTTON_2` vue, `BUTTON_3` musique, `START`, `SERVICE`, `TEST`, Haut/Bas (volume et menus),
+    les deux monnayeurs (une impulsion de 80 ms par pièce).
+  - Retour de force : `Wheel_Set(force)` en trames 80/81/83/84 du modèle de la carte servo (comme les Gaelco) ;
+    menus : un quart du centrage demandé (0x08babbac), course : la force du jeu et ses effets allumés (0x09c28504).
+  - Son SDL 1.2 (`sdl12Bridge.c`, pour le SDL_mixer du jeu, ses sons de menu) : de vrais `SDL_RWops` sur nos fichiers,
+    `SDL_LoadWAV_RW` (PCM), `SDL_BuildAudioCVT`/`SDL_ConvertAudio` (SDL3), `SDL_OpenAudio` avec le callback du jeu sur
+    un flux SDL3, pause, verrou, `SDL_MixAudio`.
+  - Picker : `game` ajouté aux noms de programmes ; le jeu en `WORKING`.
+  - Vérifié en mode agent (caché) : premier lancement, calibrage du volant (gauche 1023, droite 0) et des pédales, menu
+    Diagnostics ; puis attract « PRESS START », deux pièces, Start, l'écran de la photo (sans caméra : une mire),
+    course à Londres à 147 km/h, 60 i/s, forces constantes de 0,6 à 0,94 envoyées au volant. Pas essayé : la fenêtre
+    affichée et le plein écran, un vrai volant, le son à l'oreille, les bornes.
+  - Pas de régression : Dead Heat, Nirin, Maximum Heat 3D (eux aussi en SDL 1.2), Race TV, Initial D 4 Export,
+    Maximum Tune 3DX+ à 60 i/s (Nirin 55) avec leurs images. MinGW et MSVC compilent.
+- Pas de régression vue : Race TV, Dead Heat, Initial D 4 Export et Maximum Tune 3DX+ à 60 i/s avec leurs images.
+
+### Release 3.0.15 -8 du 14/11 (demande 196)
+- Depuis `edef2f0` (la -7 et la correction d'Initial D en rendu hors écran). MinGW, 53 avertissements :
+  `emulateurs/releases/linuxloader-v3.0.15-ffbedition-20261114-8-njz3-win32.zip`, 18 558 264 octets, SHA-256 du zip
+  `600b61be6664da580e6c6893f64f529b13bc6684e56e0d76a88c1a0c559adfec`, de `linuxloader.exe`
+  `00e7d32cadd1aca2d95e0ba2edd73c73b4092623dd3bac2fcff5776ddb5370ec` ; mêmes 20 fichiers que la -7, seul
+  `linuxloader.exe` change.
+- Vérifié depuis le zip (mode agent caché, donc hors écran) : `--version` « linuxloader-v3.0.15-ffbedition-20261114-8-njz3 » ;
+  Initial D 4 Export, 4 Japon et 5 Export, 40 s chacun à 60 i/s, images comme fenêtre visible (avec la -7 : noires) ;
+  Dead Heat 120 s, captures comme la -7 ; Race TV avec `FFB_CONSTANT_GAIN = 50` et `FFB_DAMPER_GAIN = 200` : couple
+  0,1467 pour 0,2933, damper 0,0926. Deux premières mesures de Dead Heat à 36 et 44 i/s : la charge du PC (GPU pris par
+  une autre session), refaites dans l'autre ordre, -7 et -8 à 59 à 60 i/s. Pas essayé : un vrai écran en 1024x768, les
+  bornes.
+- Essai d'Image borne (14/11, accord du propriétaire) : -8 posée sur les deux bornes, la -7 gardée dans
+  `_sauvegardes\linuxloader-3.0.15-7-avant-8-20261114`, aucun réglage changé. Racecab2, bureau en 1024x768, écran
+  Philips seul, lancé comme AttractPlus, environ 60 s de conduite par vJoy puis Échap :
+  - Initial D 4 Export Rev D, Initial D 4 Rev B, Initial D 5 Export 2.0 : image (luminosité de l'écran 51 à 54, 0 avec
+    la -7), 60 i/s, 63 effets FFB reçus par vJoy, sortie par Échap ;
+  - Dead Heat (52 i/s, comme la -7) et Race TV (60 i/s) : comme avant ;
+  - mode d'écran resté en 1024x768, aucune boîte d'erreur.
+- En 640x480 (racecab2, racecab1 occupé ; `SetCRT31_640x480p`, puis retour en 1024x768), même essai : Initial D 4
+  Export Rev D, 4 Rev B et 5 Export 2.0 s'affichent (luminosité de l'écran 36 à 42, 0 avec la -7), 60 i/s, 32 effets
+  FFB, sortie par Échap, mode resté en 640x480, aucune boîte d'erreur.
+- Pas encore fait : la confirmation à l'œil du propriétaire sur l'écran Philips.
 
 ### Initial D noir sous 1360x768 (demande 195)
 - Signalé par Image borne : sur les deux bornes, écran Philips seul en 1024x768 (et 640x480 le 12/11), Initial D 4

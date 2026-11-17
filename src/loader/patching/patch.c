@@ -27,6 +27,7 @@
 #include "../redirections/filesystemShared.h"
 #include "../elfLoader/elfCall.h"
 #include "../hardware/gaelco/gaelcoIo.h"
+#include "../hardware/rawthrills/cruisnBlast.h"
 #include "../hardware/lindbergh/forceFeedback.h"
 #include "../hardware/lindbergh/netOutputs.h"
 #include "../agent/agent.h"
@@ -3192,6 +3193,11 @@ int initPatch()
         case GAELCO_TUNING_RACE:
         {
             gaelcoIoInstall(); // their interface board, reached through Gaelco's system calls
+        }
+        break;
+        case CRUISN_BLAST:
+        {
+            cruisnBlastInstall(); // its dongle, its cabinet's paths (hardware/rawthrills)
         }
         break;
         case MAXIMUM_HEAT_3D:

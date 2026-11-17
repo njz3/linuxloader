@@ -49,6 +49,14 @@ extern "C"
     int shared_snd_pcm_state(snd_pcm_t *pcm);
     int shared_snd_pcm_format_width(int format);
     const char *shared_snd_strerror(int errnum);
+    // FMOD's (Cruis'n Blast): the parameters on its stack, sized by these; any rate accepted
+    size_t shared_snd_pcm_hw_params_sizeof(void);
+    size_t shared_snd_pcm_sw_params_sizeof(void);
+    int shared_snd_pcm_hw_params_set_rate(snd_pcm_t *pcm, snd_pcm_hw_params_t *params, unsigned int val, int dir);
+    int shared_snd_pcm_hw_params_test_rate(snd_pcm_t *pcm, snd_pcm_hw_params_t *params, unsigned int val, int dir);
+    int shared_snd_pcm_nonblock(snd_pcm_t *pcm, int nonblock);
+    long shared_snd_pcm_readi(snd_pcm_t *pcm, void *buffer, unsigned long size);
+    const char *shared_snd_asoundlib_version(void);
 
     // Namco's sound driver (Dead Heat's nsAdrv)
     int shared_snd_pcm_hw_params_set_channels_max(snd_pcm_t *pcm, snd_pcm_hw_params_t *params, unsigned int *val);

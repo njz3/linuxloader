@@ -801,10 +801,29 @@ extern "C" void __attribute__((cdecl)) wrap_glGetBufferParameteriv(GLenum target
         glad_glGetBufferParameteriv(target, pname, params);
 }
 
+// LL_ALLOCS=1: what the game gives the driver, textures and buffers, each 128 MB more said in the log
+extern "C" void glTally(const char *kind, size_t bytes)
+{
+    static const bool allocs = getenv("LL_ALLOCS") != NULL;
+    static volatile LONG64 total = 0, said = 0, kinds[3] = {0, 0, 0};
+    if (!allocs)
+        return;
+    int k = kind[0] == 'b' ? 0 : kind[0] == 'c' ? 1 : 2;
+    InterlockedExchangeAdd64(&kinds[k], (LONG64)bytes);
+    LONG64 now = InterlockedExchangeAdd64(&total, (LONG64)bytes) + (LONG64)bytes;
+    if (now - said >= (128 << 20))
+    {
+        said = now;
+        log_warn("GL: %lld MB given to the driver so far: buffers %lld, compressed textures %lld, textures %lld", (long long)(now >> 20),
+                 (long long)(kinds[0] >> 20), (long long)(kinds[1] >> 20), (long long)(kinds[2] >> 20));
+    }
+}
+
 extern "C" void __attribute__((cdecl)) wrap_glBufferData(GLenum target, GLsizeiptr size, const GLvoid *data, GLenum usage)
 {
     if (glad_glBufferData)
         glad_glBufferData(target, size, data, usage);
+    glTally("buffer", (size_t)size);
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glGenFramebuffers(GLsizei n, GLuint *framebuffers)
@@ -906,6 +925,106 @@ static bool deadHeatShaders()
     return gGrp == GROUP_DEAD_HEAT; // Maximum Heat 3D: the same engine
 }
 
+// --- Raw Thrills' g5 engine (Cruis'n Blast): its GLSL made acceptable to strict compilers (Mesa's, through Zink), the
+// fixes of aderumier's linuxloader fork (rawthrills.c, rtPatchShaderSource), written again here
+
+static bool rawThrillsShaders()
+{
+    return getConfig()->crc32 == CRUISN_BLAST;
+}
+
+static bool identChar(char c)
+{
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+}
+
+// "vecN name = { a, b }" -> "vecN name = vecN( a, b )"
+static void rtInitializerLists(std::string &src)
+{
+    static const char *const types[] = {"vec2",  "vec3",  "vec4",  "ivec2", "ivec3", "ivec4",
+                                        "uvec2", "uvec3", "uvec4", "bvec2", "bvec3", "bvec4"};
+    for (size_t brace = src.find('{'); brace != std::string::npos; brace = src.find('{', brace + 1))
+    {
+        size_t p = brace;
+        while (p > 0 && (src[p - 1] == ' ' || src[p - 1] == '\t'))
+            p--;
+        if (p == 0 || src[p - 1] != '=')
+            continue;
+        p--;
+        while (p > 0 && (src[p - 1] == ' ' || src[p - 1] == '\t'))
+            p--;
+        size_t nameEnd = p;
+        while (p > 0 && identChar(src[p - 1]))
+            p--;
+        if (p == nameEnd)
+            continue;
+        while (p > 0 && (src[p - 1] == ' ' || src[p - 1] == '\t'))
+            p--;
+        size_t typeEnd = p;
+        while (p > 0 && identChar(src[p - 1]))
+            p--;
+        std::string type = src.substr(p, typeEnd - p);
+        size_t close = src.find('}', brace);
+        if (close == std::string::npos || src.find('{', brace + 1) < close)
+            continue;
+        bool vector = false;
+        for (const char *t : types)
+            vector = vector || type == t;
+        if (!vector)
+            continue;
+        src[close] = ')';
+        src.replace(brace, 1, type + "(");
+    }
+}
+
+static bool rtSamplerArray(const std::string &src)
+{
+    for (size_t p = src.find("uniform sampler"); p != std::string::npos; p = src.find("uniform sampler", p + 1))
+    {
+        size_t end = src.find_first_of(";\n", p), bracket = src.find('[', p);
+        if (bracket != std::string::npos && bracket < end)
+            return true;
+    }
+    return false;
+}
+
+static bool rtTexCoordIndexed(const std::string &src)
+{
+    for (size_t p = src.find("gl_TexCoord["); p != std::string::npos; p = src.find("gl_TexCoord[", p + 1))
+    {
+        size_t i = p + 12;
+        while (i < src.size() && src[i] == ' ')
+            i++;
+        if (i < src.size() && (src[i] < '0' || src[i] > '9'))
+            return true;
+    }
+    return false;
+}
+
+template <typename Char> static std::string rawThrillsSource(GLsizei count, Char *const *string, const GLint *length)
+{
+    std::string src;
+    for (GLsizei i = 0; i < count; i++)
+        if (string[i])
+            src.append(string[i], length && length[i] >= 0 ? (size_t)length[i] : strlen(string[i]));
+    rtInitializerLists(src);
+    // A sampler array indexed by a variable: GLSL 1.20 needs ARB_gpu_shader5 for it
+    size_t version = src.find("#version");
+    if (version != std::string::npos && rtSamplerArray(src) && src.find("GL_ARB_gpu_shader5") == std::string::npos)
+    {
+        size_t line = src.find('\n', version);
+        if (line != std::string::npos)
+            src.insert(line + 1, "#extension GL_ARB_gpu_shader5 : enable\n");
+    }
+    // The bloom output declared "out" beside gl_FragData, which cannot be mixed: a plain global
+    size_t bloom = src.find("out vec4 out_Bloom;");
+    if (bloom != std::string::npos && src.find("gl_FragData") != std::string::npos)
+        src.replace(bloom, 4, "    ");
+    if (src.find("#version") == std::string::npos)
+        src.insert(0, rtTexCoordIndexed(src) ? "#version 120\nvarying vec4 gl_TexCoord[gl_MaxTextureCoords];\n" : "#version 120\n");
+    return src;
+}
+
 // A local declared without a value ("    vec4 ret;") gets zero, as NVIDIA's compiler of the time left it: Nirin's
 // map_3rd_pass.frag adds to such a vec4 (getNeonColor) and returns it untouched where no neon light falls, which
 // today's compilers leave undefined. Indented lines only (the globals have their qualifiers), not in a source with a
@@ -975,6 +1094,13 @@ extern "C" void __attribute__((cdecl)) wrap_glShaderSource(GLuint shader, GLsize
 {
     if (!glad_glShaderSource)
         return;
+    if (rawThrillsShaders())
+    {
+        std::string source = rawThrillsSource(count, string, length);
+        const GLchar *text = source.c_str();
+        glad_glShaderSource(shader, 1, &text, NULL);
+        return;
+    }
     if (deadHeatShaders())
     {
         std::string source = deadHeatSource(count, string, length);
@@ -987,8 +1113,23 @@ extern "C" void __attribute__((cdecl)) wrap_glShaderSource(GLuint shader, GLsize
 
 extern "C" void __attribute__((cdecl)) wrap_glCompileShader(GLuint shader)
 {
-    if (glad_glCompileShader)
-        glad_glCompileShader(shader);
+    if (!glad_glCompileShader)
+        return;
+    glad_glCompileShader(shader);
+    // The driver's reasons for the first shaders it refuses, in the log
+    static int logged = 0;
+    GLint compiled = 1;
+    if (logged < 6 && glad_glGetShaderiv && glad_glGetShaderInfoLog)
+    {
+        glad_glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+        if (!compiled)
+        {
+            char info[600] = "";
+            glad_glGetShaderInfoLog(shader, sizeof(info), NULL, info);
+            log_warn("GLSL: shader %u not compiled: %s", shader, info);
+            logged++;
+        }
+    }
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glGetShaderiv(GLuint shader, GLenum pname, GLint *params)
@@ -1035,8 +1176,23 @@ extern "C" void __attribute__((cdecl)) wrap_glAttachShader(GLuint program, GLuin
 
 extern "C" void __attribute__((cdecl)) wrap_glLinkProgram(GLuint program)
 {
-    if (glad_glLinkProgram)
-        glad_glLinkProgram(program);
+    if (!glad_glLinkProgram)
+        return;
+    glad_glLinkProgram(program);
+    // The driver's reasons for the first programs it refuses, in the log
+    static int logged = 0;
+    if (logged < 6 && glad_glGetProgramiv && glad_glGetProgramInfoLog)
+    {
+        GLint linked = 1;
+        glad_glGetProgramiv(program, GL_LINK_STATUS, &linked);
+        if (!linked)
+        {
+            char info[600] = "";
+            glad_glGetProgramInfoLog(program, sizeof(info), NULL, info);
+            log_warn("GLSL: program %u not linked: %s", program, info);
+            logged++;
+        }
+    }
 }
 
 extern "C" void __attribute__((cdecl)) wrap_glGetProgramiv(GLuint program, GLenum pname, GLint *params)
@@ -1394,6 +1550,13 @@ extern "C" void __attribute__((cdecl)) wrap_glShaderSourceARB(GLhandleARB shader
 {
     if (!glad_glShaderSourceARB)
         return;
+    if (rawThrillsShaders())
+    {
+        std::string source = rawThrillsSource(count, string, length);
+        const GLcharARB *text = source.c_str();
+        glad_glShaderSourceARB(shader, 1, &text, NULL);
+        return;
+    }
     if (deadHeatShaders())
     {
         std::string source = deadHeatSource(count, string, length);
@@ -2050,6 +2213,7 @@ extern "C" void __attribute__((cdecl)) wrap_glCompressedTexImage2DARB(GLenum tar
     if (glad_glCompressedTexImage2DARB)
     {
         glad_glCompressedTexImage2DARB(target, level, internalformat, width, height, border, imageSize, data);
+        glTally("compressed texture", (size_t)imageSize);
         intelSyncTextureUpload();
         gsevoBleedAlpha(target, level, internalformat, width, height);
     }
@@ -2076,6 +2240,7 @@ extern "C" void __attribute__((cdecl)) wrap_glCompressedTexImage2D(GLenum target
     if (glad_glCompressedTexImage2D)
     {
         glad_glCompressedTexImage2D(target, level, internalformat, width, height, border, imageSize, data);
+        glTally("compressed texture", (size_t)imageSize);
         intelSyncTextureUpload();
         gsevoBleedAlpha(target, level, internalformat, width, height);
     }

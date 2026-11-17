@@ -29,6 +29,7 @@
 #include "elfLoader/mathBridge.hpp"
 #include "elfLoader/sysBridge.hpp"
 #include "elfLoader/rawThrillsBridge.hpp"
+#include "elfLoader/libcMoreBridge.hpp"
 #include "elfLoader/symbolResolver.hpp"
 #include "elfLoader/pthread/pthreadEmu.hpp"
 #include "loader/config/config.h"
@@ -361,6 +362,24 @@ LONG CALLBACK myVectoredHandler(PEXCEPTION_POINTERS ExceptionInfo)
         }
     }
 
+    // LL_FAULTS=1: every access violation as it happens, handled later or not (a crash whose report never comes:
+    // its stack, its handler gone)
+    static const bool faults = getenv("LL_FAULTS") != NULL;
+    if (faults && exceptionCode == EXCEPTION_ACCESS_VIOLATION)
+    {
+        char where[128];
+        describeAddress(ExceptionInfo->ExceptionRecord->ExceptionAddress, where, sizeof(where));
+        crashLine("FAULT: at 0x%08lX (%s), %s 0x%08lX, thread %lu, esp=%08lX ebp=%08lX eax=%08lX ecx=%08lX edx=%08lX\r\n",
+                  (unsigned long)ctx->Eip, where, ExceptionInfo->ExceptionRecord->ExceptionInformation[0] ? "writing" : "reading",
+                  (unsigned long)ExceptionInfo->ExceptionRecord->ExceptionInformation[1], GetCurrentThreadId(), ctx->Esp,
+                  ctx->Ebp, ctx->Eax, ctx->Ecx, ctx->Edx);
+        const uint32_t *stack = (const uint32_t *)ctx->Esp;
+        if (!IsBadReadPtr(stack, 64 * 4))
+            for (int i = 0; i < 64; i += 8)
+                crashLine("FAULT: stack+%02X %08X %08X %08X %08X %08X %08X %08X %08X\r\n", i * 4, stack[i], stack[i + 1],
+                          stack[i + 2], stack[i + 3], stack[i + 4], stack[i + 5], stack[i + 6], stack[i + 7]);
+    }
+
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
@@ -380,6 +399,7 @@ void initBridges()
     MathBridge::initBridges();
     SysBridge::initBridges();
     RawThrillsBridge::initBridges();
+    LibcMoreBridge::initBridges(); // last: some are the others' under glibc's internal names
 }
 
 #ifdef _MSC_VER
@@ -546,7 +566,9 @@ int main(int argc, char *argv[], char *envp[])
         getConfig()->fpsLimiter = 0;
     }
 
-    if (false) // Removed for PH as the game is fixed now.
+    // LL_ZINK=1: OpenGL through Mesa's Zink on Vulkan (ll-deps\zink), its textures in the GPU's memory rather than also in
+    // the process's address space (Raw Thrills' Cruis'n Blast fills a 32-bit one through NVIDIA's OpenGL)
+    if (getenv("LL_ZINK") != NULL)
     {
         SymbolResolver::GetInstance().AddDllSearchSubPath("zink");
         SetEnvironmentVariableA("GALLIUM_DRIVER", "zink");
