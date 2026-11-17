@@ -35,6 +35,7 @@
 #include "../hardware/lindbergh/serialPort.h"
 #ifdef _WIN32
 #include "../hardware/namco/v4l2Camera.h"
+#include "../hardware/rawthrills/cruisnBlast.h"
 #endif
 
 #ifdef __linux__
@@ -1596,6 +1597,30 @@ static const char *linkAddress(void)
     return NULL;
 }
 
+// Raw Thrills' Cruis'n Blast on a link of cabinets, its Network adjustment on (the operator's menu): eth0 is this PC's
+// address on its network, where the game binds its UDP socket (port 46500) and finds the cabinets of its channel by
+// broadcast; the host of a linked race then takes the others' TCP connection. Read once, at the game's first look at
+// eth0 (the setting is read at its start). Off, eth0 stays loopback and the game plays alone
+static void cruisnBlastLanAddress(void)
+{
+    static bool decided = false;
+    if (decided || gId != CRUISN_BLAST || eth0Set[0])
+        return;
+    decided = true;
+    uint32_t lan, mask;
+    if (!cruisnBlastLinked())
+        log_info("Cruis'n Blast: its Network adjustment is off, eth0 is 127.0.0.1 (the game plays alone)");
+    else if (sharedLanAddress(&lan, &mask))
+    {
+        struct in_addr in;
+        in.s_addr = lan;
+        snprintf(eth0Set, sizeof(eth0Set), "%s", inet_ntoa(in));
+        log_warn("Link: Cruis'n Blast's address is this PC's, %s (its Network adjustment is on)", eth0Set);
+    }
+    else
+        log_warn("Link: Cruis'n Blast's Network adjustment is on, but this PC has no network address: it plays alone");
+}
+
 static const char *eth0Address(void)
 {
     // The link on one PC: this copy's address, before the one a Namco game sets (its peers are in that /24)
@@ -1603,6 +1628,7 @@ static const char *eth0Address(void)
         return linkAddress();
     if (getConfig()->crc32 == SEGA_RACE_TV_SBPF && strcmp(getConfig()->srtvIP, "") != 0)
         return sharedSrtvAddress();
+    cruisnBlastLanAddress();
     if (eth0Set[0])
         return eth0Set;
     const char *link = linkAddress();

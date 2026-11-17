@@ -92,7 +92,9 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
-| 198 | 16/11 | Reprendre la branche `rawthrills` du fork d'aderumier pour les jeux pas encore pris en charge ; puis porter Cruis'n Blast | 🔄 branche récupérée (`fork-aderumier/rawthrills`, 84 commits, jeux sous Linux seulement) ; Cruis'n Blast 1.25 copié de racecab1 (`games/cruisnblast`, 11,9 Go, `game` = le programme déchiffré, CRC 0xb919dbd6) ; ✅ porté dans notre loader Windows : calibrage du volant, menu de test, attract, partie au volant (course à Londres), FFB, son FMOD et SDL 1.2 ; la mémoire saturée venait de notre ALSA (FMOD écrivait sans fin dans une file SDL, 2,7 Go) ; en mode agent seulement, pas sur un vrai écran ni sur les bornes ; commité et poussé le 17/11 (voir journal) |
+| 200 | 17/11 | Commit et push de Cruis'n Blast ; regarder son mode link | ✅ `57fe5ad` poussé (le port, sans la fenêtre d'options du picker, toujours à l'essai) ; link : celui du jeu (réglage Network de son menu, machine ID 0 à 7, UDP 46500 et TCP vers l'hôte de la course), rien à émuler ; ✅ ici à deux copies (`LOCAL_LINK_ADDRESS` 127.0.0.2 / .3) : « Linked Game Starting », course à Londres à 2 humains et 8 IA, PLAYER1 et PLAYER2 ; pour deux PC, eth0 = l'adresse du PC quand Network est on (`cruisnBlastLinked`), vérifié ici sur une copie (192.168.1.134) ; MinGW et MSVC ; pas essayé sur les bornes ; commité et poussé le 17/11 (voir journal) |
+| 199 | 16/11 | Les autres jeux comme Batman sont-ils pris en charge par le fork ? | ✅ non : ni Batman, ni Cars, ni Dirty Drivin', ni H2Overdrive (jeux Windows, `BILAN.md`) ; jeux de volant du fork donnés dans la conversation (MotoGP, Superbikes 3, Speed Driver, Maximum Tune 4…) |
+| 198 | 16/11 | Reprendre la branche `rawthrills` du fork d'aderumier pour les jeux pas encore pris en charge ; puis porter Cruis'n Blast | 🔄 branche récupérée (`fork-aderumier/rawthrills`, 84 commits, jeux sous Linux seulement) ; Cruis'n Blast 1.25 copié de racecab1 (`games/cruisnblast`, 11,9 Go, `game` = le programme déchiffré, CRC 0xb919dbd6) ; ✅ porté dans notre loader Windows : calibrage du volant, menu de test, attract, partie au volant (course à Londres), FFB, son FMOD et SDL 1.2 ; la mémoire saturée venait de notre ALSA (FMOD écrivait sans fin dans une file SDL, 2,7 Go) ; en mode agent seulement, pas sur un vrai écran ni sur les bornes ; commité et poussé (`57fe5ad`, voir journal) |
 | 196 | 14/11 | Release avec la correction d'Initial D, Image borne prévenue pour le réessayer | ✅ `emulateurs/releases/linuxloader-v3.0.15-ffbedition-20261114-8-njz3-win32.zip` (MinGW, `edef2f0`) ; vérifiée depuis le zip : les trois Initial D en rendu hors écran (mode agent caché), Dead Heat, Race TV avec les gains du FFB ; posée par Image borne sur les deux bornes (la -7 gardée) ; racecab2 en 1024x768 : Initial D 4 Export, 4 Rev B et 5 Export s'affichent à 60 i/s (noirs avec la -7), Dead Heat et Race TV comme avant ; en 640x480 (racecab2) aussi, les trois Initial D à 60 i/s ; l'œil du propriétaire à faire (voir journal) |
 | 195 | 14/11 | (Image borne) Initial D 4 Export, 4 Japon et 5 Export : image noire sur les bornes en 1024x768 et 640x480 (60 i/s, les autres jeux s'affichent) | ✅ cause : un écran plus petit que l'image du jeu (1360x768) fait passer au rendu hors écran, et l'émulation des pbuffers (`pbufferBindDrawable`) rendait la fenêtre par `glBindFramebuffer(…, 0)` sans la redirection : Initial D dessinait dans la vraie fenêtre, jamais montrée. Reproduit ici en mode agent caché (même rendu hors écran, images à 0) ; corrigé (`blitRedirectFramebuffer(0)`), les trois Initial D affichent leur image ; MinGW et MSVC ; pas commité, pas de release (voir journal) |
 | 194 | 12/11 | Prévenir Image borne pour déployer la -7 | ✅ posée par Image borne sur racecab1 et racecab2 (accord du propriétaire), `--version` et SHA-256 vérifiés, ini et dossier d'écriture pas touchés ; la 20261103 gardée dans `C:\Racecab\_sauvegardes\linuxloader-3.0.14-20261103-avant-3.0.15-20261112-7` ; Race TV (cab1) et Initial D 5 Export (cab2) : attract à 60 i/s, FFB envoyé à vJoy (34 et 32 paquets), pas d'erreur ; FFB au volant pas encore essayé (au propriétaire) |
@@ -226,6 +228,25 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Le link de Cruis'n Blast (demande 200)
+- Le fork n'en fait rien. Le jeu a son propre link (g5 : `UNet`, `CNet`, `GNet`) : réglages du menu de l'opérateur
+  `networked` (Network on/off), `machineID` (0 à 7, distincts), et en mode dev `netchannel` et `netStaticIP` (on par
+  défaut : il écrirait `/etc/network/interfaces` en 192.111.<canal>.<id>, sans effet ici). Sauvés dans
+  `pmuser/adj/save/net/<nom>.0/1/2.txt`, trois copies écrites ensemble : 0x14, SHA-1 du texte, sa longueur, le
+  texte (`val = …`).
+- Le jeu prend son adresse d'eth0 (ioctl), y ouvre un socket UDP 46500, trouve les bornes de son canal
+  (« Connected to machine id »), puis l'hôte d'une course écoute en TCP (46516) et les autres s'y connectent.
+- Ici à deux copies (`games/cb_link1`, `cb_link2` : jonctions vers `games/cruisnblast`, `pmuser` copié ; machine ID
+  0 / 1, Network on, `LOCAL_LINK_ADDRESS` 127.0.0.2 / .3), pilotées ensemble (`cb_duo.py`, scratchpad) : reliées
+  dès le démarrage, « Up to 2 can play » ; pièces et Start sur les deux : « JOIN IN NOW! » chez l'autre, « Linked
+  Game Starting », choix de la course, voiture, photo échangée, « Starting race with 2 human(s), 8 AI », course à
+  Londres, PLAYER1 et PLAYER2 au classement. Rien à changer pour ça.
+- Pour deux PC : eth0 restait 127.0.0.1 (le jeu seul). Maintenant, Network on (`cruisnBlastLinked`, le fichier lu par
+  le dossier d'écriture), eth0 est l'adresse du PC sur son réseau (`sharedLanAddress`), comme pour Maximum Tune 3.
+  Vérifié ici sur une copie seule : « IP is 192.168.1.134 », socket UDP créé. Pas essayé à deux PC.
+- Sur les bornes, il faudra : Network on et des machine ID différents dans le menu de chaque borne ; UDP 46500 et
+  les ports TCP de l'hôte ouverts au pare-feu pour le loader.
 
 ### Cruis'n Blast 1.25 depuis le fork d'aderumier (demande 198)
 - Branche `rawthrills` d'aderumier (SPiRiT, CC BY-NC-SA 4.0) : 84 commits, environ 60 jeux (Raw Thrills, IGS, Namco,

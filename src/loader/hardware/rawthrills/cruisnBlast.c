@@ -264,6 +264,32 @@ static const char *cbPath(const char *path, char *buffer, size_t size)
     return path;
 }
 
+// --- the link: the game's own (UDP 46500 between the cabinets of a channel, TCP to the host of a race), its address
+// given by eth0 (filesystemShared.c)
+
+// Its Network adjustment as the game saved it: three copies written together (networked.0 to 2.txt), each a header
+// (0x14, its text's SHA-1, its length) and the text, "val = 1" when on
+int cruisnBlastLinked(void)
+{
+    for (int i = 0; i < 3; i++)
+    {
+        char path[1100];
+        snprintf(path, sizeof(path), "%s\\pmuser\\adj\\save\\net\\networked.%d.txt", gameDir[0] ? gameDir : ".", i);
+        FILE *file = writeDirFopen(path, "rb");
+        if (!file)
+            continue;
+        char line[128];
+        int value = -1;
+        while (value < 0 && fgets(line, sizeof(line), file))
+            if (sscanf(line, "val = %d", &value) != 1)
+                value = -1;
+        fclose(file);
+        if (value >= 0)
+            return value == 1;
+    }
+    return 0;
+}
+
 // The game reads its processor's speed from /proc/cpuinfo's "cpu MHz" (and stops without it): this PC's, from the
 // registry, in a cpuinfo of one processor
 static void writeCpuinfo(void)
