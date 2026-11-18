@@ -8,6 +8,7 @@
 #include <SDL3_image/SDL_image.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -20,6 +21,7 @@
 #include "guiCommon.h"
 #include "../config/config.h"
 #include "../mainShared.h"
+#include "../redirections/writeDir.h"
 
 extern "C"
 {
@@ -53,6 +55,7 @@ struct GameEntry
     std::string resolution;
     std::vector<std::string> boards; // its I/O and motor boards
     int status = -1;
+    uint32_t crc = 0; // the program's, 0 for a version not known
     GLuint art = 0;
     float artW = 0.0f, artH = 0.0f;
     bool artTried = false;
@@ -126,10 +129,12 @@ bool scanGame(const fs::directory_entry &dir, const fs::path &programDir, GameEn
     const GameData *data = nullptr;
     for (const fs::path &program : programs)
     {
-        data = getGameData(elfCrc(program));
+        uint32_t crc = elfCrc(program);
+        data = getGameData(crc);
         if (data)
         {
             entry.elf = program.string();
+            entry.crc = crc;
             break;
         }
     }
@@ -324,6 +329,178 @@ struct Picker
     int launch = -1;
     bool quit = false;
 
+    // The "Game options" window of the selected game, without launching it: the game's settings read from the file it
+    // will read, its [Game.<short name>] section over the general keys, the picker's own kept aside meanwhile
+    int optionsRequest = -1;
+    bool optionsOpen = false;
+    bool optionsFocus = false;
+    std::string optionsFile;     // the file read and written
+    std::string optionsCopyFrom; // the write folder's copy not made yet: made from this file at the first save
+    std::string optionsWriteRoot;
+    bool optionsReadOnly = false; // the write folder cannot be written: nothing is saved
+    std::string optionsStatus;
+    EmulatorConfig pickerConfig;
+
+    // <short name>.ini beside a linuxloader.ini, the game's own settings, read in its place when it is there (config.c)
+    static std::string gameOwnFile(const std::string &file, const std::string &shortTitle)
+    {
+        if (file.empty() || shortTitle.empty())
+            return file;
+        const fs::path path(file);
+        std::string name = path.filename().string();
+        std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+        if (name != "linuxloader.ini")
+            return file;
+        const fs::path own = path.parent_path() / (shortTitle + ".ini");
+        std::error_code ec;
+        return fs::is_regular_file(own, ec) ? own.string() : file;
+    }
+
+    // The settings file the game reads at its start, found as it finds it (mainShared.c, writeDir.c, config.c): the one
+    // the picker launches it with, else linuxloader.ini of the loader's folder; with a write folder ([Paths] WRITE_DIR
+    // of that file, relative to the loader's folder) the linuxloader.ini at its root, copied from the first one the
+    // first time; then <short name>.ini beside a linuxloader.ini. A write folder that cannot be written is refused:
+    // the game then reads the files where they are and writes nothing, and nothing is saved here either.
+    void findOptionsFile(const GameEntry &entry, const std::string &configFile, std::string &readFile)
+    {
+        std::error_code ec;
+        const std::string first = !entry.config.empty() ? entry.config : fs::is_regular_file(configFile, ec) ? configFile : std::string();
+        optionsCopyFrom.clear();
+        optionsWriteRoot.clear();
+        optionsReadOnly = false;
+        char root[1024];
+        if (!writeDirRootFor(NULL, first.c_str(), root, sizeof(root)))
+        {
+            readFile = gameOwnFile(first, entry.shortTitle);
+            optionsFile = readFile.empty() ? configFile : readFile;
+            return;
+        }
+        optionsWriteRoot = root;
+        char reason[160];
+        if (!writeDirUsable(root, reason, sizeof(reason)))
+        {
+            optionsReadOnly = true;
+            readFile = gameOwnFile(first, entry.shortTitle);
+            optionsFile = readFile;
+            return;
+        }
+        const std::string overlay = (fs::path(root) / "linuxloader.ini").string();
+        const std::string own = gameOwnFile(overlay, entry.shortTitle);
+        if (own != overlay || fs::is_regular_file(overlay, ec))
+            readFile = own;
+        else
+        {
+            readFile = first; // the copy, not made yet, would be this file
+            optionsCopyFrom = first;
+        }
+        optionsFile = own;
+    }
+
+    void openOptions(const GameEntry &entry, const std::string &configFile)
+    {
+        if (optionsOpen || entry.crc == 0)
+            return;
+        pickerConfig = *getConfig();
+        std::string readFile;
+        findOptionsFile(entry, configFile, readFile);
+        if (loadGameConfigFile(readFile.c_str(), entry.crc) != 0)
+        {
+            *getConfig() = pickerConfig;
+            return;
+        }
+        optionsOpen = true;
+        optionsFocus = true;
+        optionsStatus.clear();
+    }
+
+    // [Game.<short name>] written to the file the game reads; the write folder's copy made first when it is not there
+    void saveOptions()
+    {
+        char message[1200];
+        std::error_code ec;
+        if (!optionsCopyFrom.empty() && !fs::exists(optionsFile, ec))
+        {
+            fs::copy_file(optionsCopyFrom, optionsFile, ec);
+            if (ec)
+            {
+                snprintf(message, sizeof(message), gui::tr("Cannot write %s"), optionsFile.c_str());
+                optionsStatus = message;
+                return;
+            }
+        }
+        optionsCopyFrom.clear();
+        std::vector<gui::IniValue> values;
+        gui::gameOptionsIniValues(values);
+        if (gui::settingsUpdate(optionsFile, values))
+            snprintf(message, sizeof(message), gui::tr("Saved to %s"), optionsFile.c_str());
+        else
+            snprintf(message, sizeof(message), gui::tr("Cannot write %s"), optionsFile.c_str());
+        optionsStatus = message;
+    }
+
+    void closeOptions()
+    {
+        if (!optionsOpen)
+            return;
+        *getConfig() = pickerConfig;
+        optionsOpen = false;
+        ImGui::GetIO().ClearInputKeys(); // the key that closed it does nothing more in the picker
+    }
+
+    // The options and their help, as the Tab window's "Game options" page; Save writes [Game.<short name>] to the file
+    // the game reads, Escape or B closes without saving
+    void drawOptions()
+    {
+        const ImGuiViewport *viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + viewport->WorkSize.x * 0.5f, viewport->WorkPos.y + viewport->WorkSize.y * 0.5f),
+                                ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(ImVec2(viewport->WorkSize.x * 0.7f, viewport->WorkSize.y * 0.8f), ImGuiCond_Always);
+        if (optionsFocus)
+            ImGui::SetNextWindowFocus();
+        // A list open takes Escape and B for itself: they close the window only when none was open
+        const bool listOpen = ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId);
+        bool open = true;
+        const std::string title = std::string(gui::tr("Game options")) + "###gameoptions";
+        if (ImGui::Begin(title.c_str(), &open, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize))
+        {
+            // The keyboard and the gamepad go from the options down to the buttons
+            const float footer = ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y;
+            ImGui::BeginChild("##options", ImVec2(0.0f, -footer), ImGuiChildFlags_NavFlattened);
+            // The file really read and written, and the write folder it is in
+            ImGui::PushTextWrapPos(0.0f);
+            if (!optionsFile.empty())
+                ImGui::TextDisabled(gui::tr("Settings file: %s"), optionsFile.c_str());
+            if (!optionsWriteRoot.empty())
+                ImGui::TextDisabled(gui::tr("Write folder: %s"), optionsWriteRoot.c_str());
+            if (!optionsCopyFrom.empty())
+                ImGui::TextDisabled(gui::tr("Made from %s at the first save, as the game's start would."), optionsCopyFrom.c_str());
+            if (optionsReadOnly)
+                ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.35f, 1.0f), "%s", gui::tr("Nothing is saved: the write folder cannot be written."));
+            ImGui::PopTextWrapPos();
+            gui::drawGameOptionsTab(optionsFile, true);
+            ImGui::EndChild();
+            ImGui::Separator();
+            ImGui::BeginDisabled(optionsReadOnly);
+            if (ImGui::Button(gui::tr("Save")))
+                saveOptions();
+            ImGui::EndDisabled();
+            ImGui::SameLine();
+            if (ImGui::Button(gui::tr("Close")))
+                open = false;
+            if (!optionsStatus.empty())
+            {
+                ImGui::SameLine();
+                ImGui::TextDisabled("%s", optionsStatus.c_str());
+            }
+            if (!listOpen && (ImGui::IsKeyPressed(ImGuiKey_Escape, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false)))
+                open = false;
+        }
+        ImGui::End();
+        optionsFocus = false;
+        if (!open)
+            closeOptions();
+    }
+
     void draw()
     {
         const ImGuiViewport *viewport = ImGui::GetMainViewport();
@@ -342,7 +519,7 @@ struct Picker
         }
 
         ImGui::TextUnformatted(gui::tr("Select a game"));
-        const char *hint = gui::tr("Enter: launch   Tab: settings   F9: quit");
+        const char *hint = gui::tr("Enter: launch   O: game options   Tab: settings   F9: quit");
         ImGui::SameLine(ImGui::GetWindowWidth() - ImGui::CalcTextSize(hint).x - ImGui::GetStyle().WindowPadding.x);
         ImGui::TextDisabled("%s", hint);
         ImGui::Separator();
@@ -368,7 +545,7 @@ struct Picker
         const int count = (int)entries.size();
 
         // The picker drives the selection itself, so the pane and the launch follow the highlighted tile
-        if (!settingsOpen)
+        if (!settingsOpen && !optionsOpen)
         {
             auto pressed = [](ImGuiKey key) { return ImGui::IsKeyPressed(key, true); };
             int sel = selected;
@@ -388,6 +565,8 @@ struct Picker
             }
             if (pressed(ImGuiKey_Enter) || pressed(ImGuiKey_KeypadEnter) || pressed(ImGuiKey_GamepadFaceDown))
                 launch = selected;
+            if ((ImGui::IsKeyPressed(ImGuiKey_O, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadFaceUp, false)) && entries[selected].crc)
+                optionsRequest = selected;
         }
 
         ImGui::BeginChild("##grid", ImVec2(gridW, 0.0f), false);
@@ -402,14 +581,14 @@ struct Picker
             ImGui::PushID(i);
             const bool isSelected = i == selected;
             const ImVec2 p0 = ImGui::GetCursorScreenPos();
-            if (ImGui::Button("##tile", tile))
+            if (ImGui::Button("##tile", tile) && !optionsOpen)
             {
                 if (selected == i)
                     launch = i;
                 else
                     selected = i;
             }
-            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+            if (!optionsOpen && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
                 launch = i;
             if (isSelected && scrollToSelected)
             {
@@ -465,6 +644,12 @@ struct Picker
                 ImGui::Text(gui::tr("%s: %s"), gui::tr("Native resolution"), cur.resolution.c_str());
             for (const std::string &line : cur.boards)
                 ImGui::TextUnformatted(line.c_str());
+        }
+        if (cur.crc)
+        {
+            ImGui::Spacing();
+            if (ImGui::Button(gui::tr("Game options (O)")) && !optionsOpen)
+                optionsRequest = selected;
         }
         ImGui::Spacing();
         ImGui::TextDisabled("%s", gui::tr("Folder"));
@@ -555,7 +740,7 @@ extern "C" int guiRunPicker(const char *programPath)
             {
                 if (event.key.key == SDLK_F9)
                     picker.quit = true;
-                else if (event.key.key == SDLK_TAB || (event.key.key == SDLK_ESCAPE && picker.settingsOpen))
+                else if (!picker.optionsOpen && (event.key.key == SDLK_TAB || (event.key.key == SDLK_ESCAPE && picker.settingsOpen)))
                     picker.settingsOpen = !picker.settingsOpen;
             }
         }
@@ -564,6 +749,8 @@ extern "C" int guiRunPicker(const char *programPath)
         picker.draw();
         if (picker.settingsOpen)
             gui::drawSettings(&picker.settingsOpen, configFile, false);
+        if (picker.optionsOpen)
+            picker.drawOptions();
         int width, height;
         SDL_GetWindowSizeInPixels(window, &width, &height);
         glad_glClearColor(0.06f, 0.07f, 0.09f, 1.0f);
@@ -572,7 +759,7 @@ extern "C" int guiRunPicker(const char *programPath)
         SDL_GL_SwapWindow(window);
 
         // The games folder changed in the settings: list it again once they are closed
-        if (!picker.settingsOpen && lastGamesDir != getConfig()->gamesDir)
+        if (!picker.settingsOpen && !picker.optionsOpen && lastGamesDir != getConfig()->gamesDir)
         {
             lastGamesDir = getConfig()->gamesDir;
             gamesDir = resolveGamesDir(programDir);
@@ -581,6 +768,13 @@ extern "C" int guiRunPicker(const char *programPath)
                 if (entry.art)
                     glad_glDeleteTextures(1, &entry.art);
             picker.entries = scanGames(gamesDir, programDir);
+        }
+
+        if (picker.optionsRequest >= 0)
+        {
+            if (!picker.settingsOpen)
+                picker.openOptions(picker.entries[picker.optionsRequest], configFile);
+            picker.optionsRequest = -1;
         }
 
         if (picker.launch >= 0)

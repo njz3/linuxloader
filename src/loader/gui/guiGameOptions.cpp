@@ -49,7 +49,7 @@ static std::string realBoard(const std::string &port)
 }
 
 // One board's list: emulated, or a real board on one of the ports (and the one it is set to, not there now)
-static void drawBoard(const GameBoard *board)
+static void drawBoard(const GameBoard *board, bool picker)
 {
     bool emulated = gameBoardEmulated(board);
     char name[SERIAL_PORT_NAME];
@@ -60,7 +60,9 @@ static void drawBoard(const GameBoard *board)
         present = present || port == current;
     std::string missing = realBoard(current) + " " + tr("(not found)");
     std::string preview = emulated ? tr("Emulated") : present ? realBoard(current) : missing;
-    std::string label = std::string(tr(board->label)) + " (" + tr(board->gamePort) + ") " + tr("(at the next start)");
+    std::string label = std::string(tr(board->label)) + " (" + tr(board->gamePort) + ")";
+    if (!picker)
+        label = label + " " + tr("(at the next start)");
     ImGui::TextUnformatted(label.c_str());
     ImGui::SetNextItemWidth(-FLT_MIN);
     if (ImGui::BeginCombo("##board", preview.c_str()))
@@ -130,7 +132,7 @@ std::vector<std::string> boardDescription(const GameData *data)
     return lines;
 }
 
-void drawGameOptionsTab(const std::string &configFile)
+void drawGameOptionsTab(const std::string &configFile, bool picker)
 {
     EmulatorConfig *cfg = getConfig();
     const char *section = gameOptionSection();
@@ -141,6 +143,8 @@ void drawGameOptionsTab(const std::string &configFile)
     {
         std::string file = std::filesystem::path(configFile).filename().string();
         ImGui::TextDisabled(tr("In [%s] of %s, for this game only."), section, file.c_str());
+        if (picker)
+            ImGui::TextDisabled("%s", tr("Read at the next start of the game."));
     }
     ImGui::Separator();
 
@@ -153,7 +157,7 @@ void drawGameOptionsTab(const std::string &configFile)
         any = true;
         ImGui::PushID(i);
         std::string label = tr(option->label);
-        if (option->nextStart)
+        if (option->nextStart && !picker)
             label = label + " " + tr("(at the next start)");
         int value = gameOptionValue(option);
         if (option->kind == GAME_OPTION_SWITCH)
@@ -181,7 +185,7 @@ void drawGameOptionsTab(const std::string &configFile)
             ImGui::TextDisabled("%s", tr(option->help));
             ImGui::PopTextWrapPos();
         }
-        if (option->nextStart && gameOptionValue(option) != gameOptionLaunchValue(option))
+        if (!picker && option->nextStart && gameOptionValue(option) != gameOptionLaunchValue(option))
             waiting = true;
         ImGui::PopID();
         ImGui::Spacing();
@@ -202,9 +206,9 @@ void drawGameOptionsTab(const std::string &configFile)
             boards = true;
         }
         ImGui::PushID(1000 + i);
-        drawBoard(board);
+        drawBoard(board, picker);
         ImGui::PopID();
-        waiting = waiting || gameBoardChanged(board);
+        waiting = waiting || (!picker && gameBoardChanged(board));
     }
     if (boards)
     {

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lindbergh Loader\n"
 "Report-Msgid-Bugs-To: https://github.com/njz3/linuxloader/issues\n"
-"POT-Creation-Date: 2026-11-10 15:54+0100\n"
+"POT-Creation-Date: 2026-11-16 13:46+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -224,7 +224,7 @@ msgstr ""
 msgid "Controls"
 msgstr ""
 
-#: src/loader/gui/guiCommon.cpp
+#: src/loader/gui/guiCommon.cpp src/loader/gui/picker.cpp
 msgid "Game options"
 msgstr ""
 
@@ -290,6 +290,7 @@ msgid "[System] LOG_FILE = %s, saved to %s"
 msgstr ""
 
 #: src/loader/gui/guiCommon.cpp src/loader/gui/guiControls.cpp
+#: src/loader/gui/picker.cpp
 #, c-format
 msgid "Cannot write %s"
 msgstr ""
@@ -313,7 +314,7 @@ msgid ""
 "emulator:"
 msgstr ""
 
-#: src/loader/gui/guiCommon.cpp
+#: src/loader/gui/guiCommon.cpp src/loader/gui/picker.cpp
 msgid "Save"
 msgstr ""
 
@@ -322,7 +323,7 @@ msgstr ""
 msgid "Saved to %s and controls.ini"
 msgstr ""
 
-#: src/loader/gui/guiCommon.cpp
+#: src/loader/gui/guiCommon.cpp src/loader/gui/picker.cpp
 #, c-format
 msgid "Saved to %s"
 msgstr ""
@@ -337,6 +338,7 @@ msgid "Saved to %s (this game only)"
 msgstr ""
 
 #: src/loader/gui/guiCommon.cpp src/loader/gui/guiControls.cpp
+#: src/loader/gui/picker.cpp
 msgid "Close"
 msgstr ""
 
@@ -924,6 +926,10 @@ msgid "In [%s] of %s, for this game only."
 msgstr ""
 
 #: src/loader/gui/guiGameOptions.cpp
+msgid "Read at the next start of the game."
+msgstr ""
+
+#: src/loader/gui/guiGameOptions.cpp
 msgid "No options for this game."
 msgstr ""
 
@@ -1111,11 +1117,30 @@ msgid "Partially working"
 msgstr ""
 
 #: src/loader/gui/picker.cpp
+#, c-format
+msgid "Settings file: %s"
+msgstr ""
+
+#: src/loader/gui/picker.cpp
+#, c-format
+msgid "Write folder: %s"
+msgstr ""
+
+#: src/loader/gui/picker.cpp
+#, c-format
+msgid "Made from %s at the first save, as the game's start would."
+msgstr ""
+
+#: src/loader/gui/picker.cpp
+msgid "Nothing is saved: the write folder cannot be written."
+msgstr ""
+
+#: src/loader/gui/picker.cpp
 msgid "Select a game"
 msgstr ""
 
 #: src/loader/gui/picker.cpp
-msgid "Enter: launch   Tab: settings   F9: quit"
+msgid "Enter: launch   O: game options   Tab: settings   F9: quit"
 msgstr ""
 
 #: src/loader/gui/picker.cpp
@@ -1134,6 +1159,10 @@ msgstr ""
 
 #: src/loader/gui/picker.cpp
 msgid "Native resolution"
+msgstr ""
+
+#: src/loader/gui/picker.cpp
+msgid "Game options (O)"
 msgstr ""
 
 #: src/loader/gui/picker.cpp

@@ -440,6 +440,9 @@ const char *getConfigFilePath(void);
 void setDefaultValues(EmulatorConfig *cfg);
 EmulatorConfig *getConfig();
 int loadConfigFile(const char *configFilePath);
+// The settings of the game crc32 names as it reads them from configFilePath, [Game.<short name>] included (the picker's
+// "Game options" window): 1 for a game not known
+int loadGameConfigFile(const char *configFilePath, uint32_t crc32);
 char *getGameName();
 char *getDvpName();
 void formatWindowTitle(char *buffer, size_t size, double fps);

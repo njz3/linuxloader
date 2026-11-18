@@ -866,6 +866,27 @@ int loadConfigFile(const char *configFilePath)
     return 0;
 }
 
+// A game's settings as the game reads them, for the picker's "Game options" window: the game crc32 names, the settings
+// file it is launched with, its [Game.<short name>] section over the general keys. Returns 1 for a game not known.
+int loadGameConfigFile(const char *configFilePath, uint32_t crc32)
+{
+    setDefaultValues(&config);
+    config.crc32 = crc32;
+    if (detectGame(crc32) != 0)
+        return 1;
+    config.inputMode = 0;
+    IniConfig *ini = iniLoad(configFilePath);
+    if (ini == NULL)
+    {
+        gameOptionsRemember();
+        return 0;
+    }
+    applyIniConfig(&config, ini);
+    applyGameOptions(ini);
+    iniFree(ini);
+    return 0;
+}
+
 EmulatorConfig *getConfig()
 {
     return &config;

@@ -899,6 +899,12 @@ int writeDirRootFor(const char *writeDir, const char *configPath, char *out, siz
     return 1;
 }
 
+int writeDirUsable(const char *root, char *reason, size_t size)
+{
+    makeFolders(root, 1);
+    return usable(root, reason, size);
+}
+
 #else
 
 #include <fcntl.h>
@@ -948,6 +954,14 @@ int writeDirRootFor(const char *writeDir, const char *configPath, char *out, siz
     if (size)
         out[0] = '\0';
     return 0;
+}
+
+int writeDirUsable(const char *root, char *reason, size_t size)
+{
+    (void)root;
+    if (size)
+        reason[0] = '\0';
+    return 1;
 }
 
 void writeDirTempWrites(const char *patterns)

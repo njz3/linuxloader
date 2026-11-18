@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lindbergh Loader\n"
 "Report-Msgid-Bugs-To: https://github.com/njz3/linuxloader/issues\n"
-"POT-Creation-Date: 2026-11-10 15:54+0100\n"
+"POT-Creation-Date: 2026-11-16 13:46+0100\n"
 "PO-Revision-Date: 2026-10-28 15:00+0100\n"
 "Last-Translator: njz3\n"
 "Language-Team: French\n"
@@ -255,7 +255,7 @@ msgstr "Masquer le pointeur de la souris"
 msgid "Controls"
 msgstr "Contrôles"
 
-#: src/loader/gui/guiCommon.cpp
+#: src/loader/gui/guiCommon.cpp src/loader/gui/picker.cpp
 msgid "Game options"
 msgstr "Options du jeu"
 
@@ -322,6 +322,7 @@ msgid "[System] LOG_FILE = %s, saved to %s"
 msgstr "[System] LOG_FILE = %s, enregistré dans %s"
 
 #: src/loader/gui/guiCommon.cpp src/loader/gui/guiControls.cpp
+#: src/loader/gui/picker.cpp
 #, c-format
 msgid "Cannot write %s"
 msgstr "Impossible d'écrire %s"
@@ -352,7 +353,7 @@ msgstr ""
 "Page des contrôles organisée comme celle de Flycast, l'émulateur Dreamcast, "
 "Naomi et Atomiswave :"
 
-#: src/loader/gui/guiCommon.cpp
+#: src/loader/gui/guiCommon.cpp src/loader/gui/picker.cpp
 msgid "Save"
 msgstr "Sauvegarder"
 
@@ -361,7 +362,7 @@ msgstr "Sauvegarder"
 msgid "Saved to %s and controls.ini"
 msgstr "Sauvegardé dans %s et controls.ini"
 
-#: src/loader/gui/guiCommon.cpp
+#: src/loader/gui/guiCommon.cpp src/loader/gui/picker.cpp
 #, c-format
 msgid "Saved to %s"
 msgstr "Sauvegardé dans %s"
@@ -376,6 +377,7 @@ msgid "Saved to %s (this game only)"
 msgstr "Sauvegardé dans %s (ce jeu seulement)"
 
 #: src/loader/gui/guiCommon.cpp src/loader/gui/guiControls.cpp
+#: src/loader/gui/picker.cpp
 msgid "Close"
 msgstr "Fermer"
 
@@ -796,7 +798,10 @@ msgstr "Annuler"
 msgid ""
 "Some games need a small value here, not 0: at 0, OutRun 2 SP SDX stops at "
 "start-up with a drive board error (Original point error)."
-msgstr "Certains jeux ont besoin d'une petite valeur ici, pas de 0 : à 0, OutRun 2 SP SDX s'arrête au démarrage sur une erreur de la carte du volant (Original point error)."
+msgstr ""
+"Certains jeux ont besoin d'une petite valeur ici, pas de 0 : à 0, OutRun 2 "
+"SP SDX s'arrête au démarrage sur une erreur de la carte du volant (Original "
+"point error)."
 
 #: src/loader/gui/guiControls.cpp
 msgid "Device"
@@ -974,6 +979,10 @@ msgstr "Jeu inconnu"
 #, c-format
 msgid "In [%s] of %s, for this game only."
 msgstr "Dans [%s] de %s, pour ce jeu seulement."
+
+#: src/loader/gui/guiGameOptions.cpp
+msgid "Read at the next start of the game."
+msgstr "Pris en compte au prochain lancement du jeu."
 
 #: src/loader/gui/guiGameOptions.cpp
 msgid "No options for this game."
@@ -1175,12 +1184,31 @@ msgid "Partially working"
 msgstr "Fonctionne en partie"
 
 #: src/loader/gui/picker.cpp
+#, c-format
+msgid "Settings file: %s"
+msgstr "Fichier de réglages : %s"
+
+#: src/loader/gui/picker.cpp
+#, c-format
+msgid "Write folder: %s"
+msgstr "Dossier d'écriture : %s"
+
+#: src/loader/gui/picker.cpp
+#, c-format
+msgid "Made from %s at the first save, as the game's start would."
+msgstr "Créé depuis %s à la première sauvegarde, comme au lancement du jeu."
+
+#: src/loader/gui/picker.cpp
+msgid "Nothing is saved: the write folder cannot be written."
+msgstr "Rien n'est sauvegardé : le dossier d'écriture ne peut pas être écrit."
+
+#: src/loader/gui/picker.cpp
 msgid "Select a game"
 msgstr "Choisissez un jeu"
 
 #: src/loader/gui/picker.cpp
-msgid "Enter: launch   Tab: settings   F9: quit"
-msgstr "Entrée : lancer   Tab : paramètres   F9 : quitter"
+msgid "Enter: launch   O: game options   Tab: settings   F9: quit"
+msgstr "Entrée : lancer   O : options du jeu   Tab : paramètres   F9 : quitter"
 
 #: src/loader/gui/picker.cpp
 #, c-format
@@ -1201,6 +1229,10 @@ msgstr "État"
 #: src/loader/gui/picker.cpp
 msgid "Native resolution"
 msgstr "Résolution native"
+
+#: src/loader/gui/picker.cpp
+msgid "Game options (O)"
+msgstr "Options du jeu (O)"
 
 #: src/loader/gui/picker.cpp
 msgid "Folder"
@@ -1259,7 +1291,9 @@ msgstr "Relief 3D"
 msgid ""
 "For the cabinet's 3D monitor: each eye's picture on every other line. "
 "Unticked, the game is drawn in 2D, as on an ordinary screen."
-msgstr "Pour l'écran 3D de la borne : l'image de chaque œil sur une ligne sur deux. Décoché, le jeu est dessiné en 2D, comme sur un écran ordinaire."
+msgstr ""
+"Pour l'écran 3D de la borne : l'image de chaque œil sur une ligne sur deux. "
+"Décoché, le jeu est dessiné en 2D, comme sur un écran ordinaire."
 
 #: src/loader/config/gameOptions.c
 msgid "Skip the cabinet checks"

@@ -48,8 +48,9 @@ bool iniUpdate(const std::string &path, const std::vector<IniValue> &values);
 bool settingsUpdate(const std::string &configFile, const std::vector<IniValue> &values);
 
 // The "Game options" page: the options of the game being run (config/gameOptions.c), in its [Game.<short name>]
-// section of configFile; and their values for saveSettings
-void drawGameOptionsTab(const std::string &configFile);
+// section of configFile; and their values for saveSettings. picker: the picker's window, the game not running, its
+// values read at its next start
+void drawGameOptionsTab(const std::string &configFile, bool picker = false);
 void gameOptionsIniValues(std::vector<IniValue> &values);
 // A game's boards, translated, for its description: the controls' I/O board, the motor board (the same wording as
 // windowsloader's)

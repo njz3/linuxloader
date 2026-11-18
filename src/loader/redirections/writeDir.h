@@ -52,6 +52,9 @@ extern "C"
     // WRITE_DIR of configPath, relative to the loader's folder. 0 when there is none (the log file's place, before the
     // game's processes start, and the settings' page)
     int writeDirRootFor(const char *writeDir, const char *configPath, char *out, size_t size);
+    // A write folder's root can be written, checked as a run checks it (the folder made, a file written and removed in
+    // it): else 0 and the reason, for the log (the picker's "Game options" window, which then saves nothing)
+    int writeDirUsable(const char *root, char *reason, size_t size);
 
     // The path to read: WRITE_DIR\<game>'s file when it is there, else the game folder's. Paths other than the game's
     // (devices, other folders) come back as they are.
