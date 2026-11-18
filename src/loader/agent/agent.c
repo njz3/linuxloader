@@ -46,6 +46,9 @@
 //   menu outputs on|off
 //       The settings' network outputs box (Windows): the server started or stopped at once, [Outputs] OUTPUTS_NETWORK
 //       written to the settings file. Answer: "ok MESSAGE" or "err MESSAGE", MESSAGE the state and where it was saved.
+//   menu settings N
+//       The Tab settings window (Windows), opened at the next step as Tab opens it, the game paused under it, closed
+//       after N of its frames: the game then runs on. Answer: "ok".
 //   settle [MS] / bands N
 //       Accepted for the other agent modes' clients: "settle 0", "ok".
 //   save PATH / load PATH
@@ -650,14 +653,28 @@ static void printJournal(const char *name, Journal *journal)
     fflush(answers);
 }
 
-// "menu outputs on|off": what the settings' box does
+// "menu outputs on|off": what the settings' box does; "menu settings N": the settings window over the game for N frames
 static void commandMenu(const char *arguments)
 {
     char page[32] = "", value[16] = "";
+    int frames = 0;
+    if (sscanf(arguments, "%31s %15s", page, value) == 2 && strcmp(page, "settings") == 0 &&
+        sscanf(value, "%d", &frames) == 1 && frames > 0)
+    {
+#ifdef _WIN32
+        if (guiOverlayAgentOpen(frames))
+            answer("ok");
+        else
+            answer("err the settings window cannot open");
+#else
+        answer("err the settings window is Windows only");
+#endif
+        return;
+    }
     if (sscanf(arguments, "%31s %15s", page, value) != 2 || strcmp(page, "outputs") != 0 ||
         (strcmp(value, "on") != 0 && strcmp(value, "off") != 0))
     {
-        answer("err usage: menu outputs on|off");
+        answer("err usage: menu outputs on|off, menu settings FRAMES");
         return;
     }
 #ifdef _WIN32

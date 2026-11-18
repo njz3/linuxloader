@@ -17,6 +17,7 @@ namespace
 {
 bool g_ready = false;
 bool g_open = false;
+int g_agentFrames = 0; // the agent's "menu settings N": the frames left before it closes
 std::string g_configFile;
 
 void setOpen(bool open)
@@ -60,6 +61,15 @@ extern "C" int guiOutputsSwitch(int on, char *status, size_t size)
     bool started = gui::switchOutputs(on != 0, g_configFile, &saved);
     snprintf(status, size, "%s %s", gui::outputsState().c_str(), saved.c_str());
     return started;
+}
+
+extern "C" int guiOverlayAgentOpen(int frames)
+{
+    if (!g_ready || frames <= 0)
+        return 0;
+    g_agentFrames = frames;
+    setOpen(true);
+    return 1;
 }
 
 extern "C" int guiOverlayProcessEvent(const SDL_Event *event)
@@ -109,6 +119,9 @@ extern "C" void guiOverlayRender(int width, int height)
     glad_glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &elementBuffer);
     glad_glGetIntegerv(GL_ACTIVE_TEXTURE, &activeTexture);
     glad_glGetIntegerv(GL_CLIENT_ACTIVE_TEXTURE, &clientTexture);
+    // The sRGB conversion of the writes, which Cruis'n Blast turns on: in the enable bits, but not given back by
+    // glPopAttrib on every driver (its picture then half as bright once the settings closed)
+    GLboolean srgb = glad_glIsEnabled(GL_FRAMEBUFFER_SRGB);
     GLboolean vertexProgram = glad_glIsEnabled(GL_VERTEX_PROGRAM_ARB);
     GLboolean fragmentProgram = glad_glIsEnabled(GL_FRAGMENT_PROGRAM_ARB);
 
@@ -168,6 +181,8 @@ extern "C" void guiOverlayRender(int width, int height)
     // Behind the windows: a page over the whole window (a device's bindings) hides it
     ImGui::GetBackgroundDrawList()->AddText(ImVec2(8.0f, 8.0f), IM_COL32(220, 225, 235, 255), hint);
     gui::renderFrame(width, height);
+    if (g_agentFrames > 0 && --g_agentFrames == 0)
+        open = false;
     if (!open)
         setOpen(false);
 
@@ -178,6 +193,10 @@ extern "C" void guiOverlayRender(int width, int height)
     glad_glPopMatrix();
     glad_glPopClientAttrib();
     glad_glPopAttrib();
+    if (srgb)
+        glad_glEnable(GL_FRAMEBUFFER_SRGB);
+    else
+        glad_glDisable(GL_FRAMEBUFFER_SRGB);
     while (glad_glGetError() != GL_NO_ERROR) // a capability this driver lacks
         ;
 
