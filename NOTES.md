@@ -92,9 +92,14 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 204 | 18/11 | Commit et pousse. Fait une release | ✅ fenêtre d'options du picker commitée (`c4075ec`) et poussée sur `dev/ffbedition` ; `emulateurs/releases/linuxloader-v3.0.15-ffbedition-20261118-10-njz3-win32.zip` (MinGW) ; vérifiée depuis le zip : Cruis'n Blast et Race TV à 60 i/s ; Image borne pas prévenue (voir journal) |
+| 203 | 17/11 | (Image borne) Cruis'n Blast lancé par linuxloader depuis AttractPlus : quels fichiers ajoutés au dossier du jeu retirer (plugin FFB, TeknoParrot, `fmod.dll`), comment préparer les dossiers d'écriture solo et link, le solo avec Network On | ✅ aucun de ces fichiers n'est utilisé (FMOD vient de `utils\*.so`) ; vérifié ici sur un dossier réduit à ce qu'Image borne garde, avec un `--seed-dir` qui met Network On : course seule, 1 humain et 9 IA ; conseil envoyé : copier une fois le `cruisnblast\` déjà réglé dans chaque dossier d'écriture, Network Off pour le solo (voir journal) |
+| 202 | 17/11 | Cruis'n Blast est normalement déjà présent sur les bornes | 🔄 Image borne l'avait dit absent ; demandé à Image borne : le chercher sur les deux bornes (lecture seule : ELF `game` à côté de `pmuser`, `SpecTex.ppm`, `eeprom.bin`, ou une entrée d'AttractPlus), puis, avec l'accord du propriétaire, l'essayer seul avec la -9, puis en link (Network on, machine ID 0 / 1). Trouvé sur les deux bornes, identique : `C:\Racecab\Games\Cruisn Blast 1.25 - Raw Thrills PC based`, lancé par TeknoParrot depuis AttractPlus ; son `game` a la même empreinte que le nôtre (le dump déchiffré, `CDB5F6B6…`), `game.Backup Original` est la version chiffrée ; réponse à Image borne : lancer `game` tel quel, rien à renommer, les écritures vont au dossier d'écriture ; pare-feu des bornes désactivé. Solo ✅ sur racecab1 (Image borne, accord du propriétaire, `--write-dir` à part) : 60 i/s en 1920x1080, étalonnage du volant et du gaz au premier lancement, course à Londres, retour de force, sortie par Échap ; « Serial Number mismatch » dans errorlog.txt (audit de TeknoParrot contre le dongle émulé 0xC0FFEE). Menu de l'opérateur : Scroll Up / Down = actions Up / Down de [Driving] (pas MusicChange ni les flèches, non liées), Select = Test, Exit = Service. ✅ Link entre les deux bornes (Image borne, 17/11) : course commune à Londres à 2 humains et 8 IA, PLAYER1 et PLAYER2 au classement, retour de force des deux côtés (voir journal) |
+| 201 | 17/11 | Faire la release et prévenir Image borne | ✅ `emulateurs/releases/linuxloader-v3.0.15-ffbedition-20261117-9-njz3-win32.zip` (MinGW, `30c5982` : Cruis'n Blast et son link, sans la fenêtre d'options du picker) ; vérifiée depuis le zip : Cruis'n Blast et Race TV à 60 i/s ; posée par Image borne sur les deux bornes (accord du propriétaire, la -8 sauvegardée) ; Dead Heat, Initial D 5 et Race TV essayés sur racecab1 ; Cruis'n Blast pas copié, son link pas essayé (voir journal) |
 | 200 | 17/11 | Commit et push de Cruis'n Blast ; regarder son mode link | ✅ `57fe5ad` poussé (le port, sans la fenêtre d'options du picker, toujours à l'essai) ; link : celui du jeu (réglage Network de son menu, machine ID 0 à 7, UDP 46500 et TCP vers l'hôte de la course), rien à émuler ; ✅ ici à deux copies (`LOCAL_LINK_ADDRESS` 127.0.0.2 / .3) : « Linked Game Starting », course à Londres à 2 humains et 8 IA, PLAYER1 et PLAYER2 ; pour deux PC, eth0 = l'adresse du PC quand Network est on (`cruisnBlastLinked`), vérifié ici sur une copie (192.168.1.134) ; MinGW et MSVC ; pas essayé sur les bornes ; commité et poussé le 17/11 (voir journal) |
 | 199 | 16/11 | Les autres jeux comme Batman sont-ils pris en charge par le fork ? | ✅ non : ni Batman, ni Cars, ni Dirty Drivin', ni H2Overdrive (jeux Windows, `BILAN.md`) ; jeux de volant du fork donnés dans la conversation (MotoGP, Superbikes 3, Speed Driver, Maximum Tune 4…) |
 | 198 | 16/11 | Reprendre la branche `rawthrills` du fork d'aderumier pour les jeux pas encore pris en charge ; puis porter Cruis'n Blast | 🔄 branche récupérée (`fork-aderumier/rawthrills`, 84 commits, jeux sous Linux seulement) ; Cruis'n Blast 1.25 copié de racecab1 (`games/cruisnblast`, 11,9 Go, `game` = le programme déchiffré, CRC 0xb919dbd6) ; ✅ porté dans notre loader Windows : calibrage du volant, menu de test, attract, partie au volant (course à Londres), FFB, son FMOD et SDL 1.2 ; la mémoire saturée venait de notre ALSA (FMOD écrivait sans fin dans une file SDL, 2,7 Go) ; en mode agent seulement, pas sur un vrai écran ni sur les bornes ; commité et poussé (`57fe5ad`, voir journal) |
+| 197 | 16/11 | (njz3, relayé par Windows loader Berstett) Régler les options d'un jeu depuis le picker, sans le lancer, comme windowsloader | ✅ bouton « Options du jeu (O) » sur la fiche du jeu, touche O, Y à la manette : la page « Options du jeu » du menu en jeu, les réglages lus comme le jeu les lit, « Sauvegarder » écrit `[Game.<nom court>]` dans le fichier que le jeu lit, dossier d'écriture compris (sa copie, faite si besoin ; rien d'écrit s'il ne peut pas l'être, demande de njz3 en suite) ; MinGW et MSVC ; fenêtre pas essayée à la main (voir journal) ; commité (`c4075ec`, 18/11), dans la -10 |
 | 196 | 14/11 | Release avec la correction d'Initial D, Image borne prévenue pour le réessayer | ✅ `emulateurs/releases/linuxloader-v3.0.15-ffbedition-20261114-8-njz3-win32.zip` (MinGW, `edef2f0`) ; vérifiée depuis le zip : les trois Initial D en rendu hors écran (mode agent caché), Dead Heat, Race TV avec les gains du FFB ; posée par Image borne sur les deux bornes (la -7 gardée) ; racecab2 en 1024x768 : Initial D 4 Export, 4 Rev B et 5 Export s'affichent à 60 i/s (noirs avec la -7), Dead Heat et Race TV comme avant ; en 640x480 (racecab2) aussi, les trois Initial D à 60 i/s ; l'œil du propriétaire à faire (voir journal) |
 | 195 | 14/11 | (Image borne) Initial D 4 Export, 4 Japon et 5 Export : image noire sur les bornes en 1024x768 et 640x480 (60 i/s, les autres jeux s'affichent) | ✅ cause : un écran plus petit que l'image du jeu (1360x768) fait passer au rendu hors écran, et l'émulation des pbuffers (`pbufferBindDrawable`) rendait la fenêtre par `glBindFramebuffer(…, 0)` sans la redirection : Initial D dessinait dans la vraie fenêtre, jamais montrée. Reproduit ici en mode agent caché (même rendu hors écran, images à 0) ; corrigé (`blitRedirectFramebuffer(0)`), les trois Initial D affichent leur image ; MinGW et MSVC ; pas commité, pas de release (voir journal) |
 | 194 | 12/11 | Prévenir Image borne pour déployer la -7 | ✅ posée par Image borne sur racecab1 et racecab2 (accord du propriétaire), `--version` et SHA-256 vérifiés, ini et dossier d'écriture pas touchés ; la 20261103 gardée dans `C:\Racecab\_sauvegardes\linuxloader-3.0.14-20261103-avant-3.0.15-20261112-7` ; Race TV (cab1) et Initial D 5 Export (cab2) : attract à 60 i/s, FFB envoyé à vJoy (34 et 32 paquets), pas d'erreur ; FFB au volant pas encore essayé (au propriétaire) |
@@ -229,6 +234,90 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 
 ## Journal de développement
 
+### Release 3.0.15 -10 du 18/11 (demande 204)
+- La fenêtre « Options du jeu » du picker (demande 197) commitée seule, `c4075ec`, et poussée sur
+  `origin/dev/ffbedition`. La -10 en est construite, dans un worktree détaché : `version.h` à 3.0.15 avec
+  `RELEASE_SUFFIX "-10"`, MinGW (Ninja, Release), 55 avertissements comme la -9. Worktree retiré ensuite.
+- `emulateurs/releases/linuxloader-v3.0.15-ffbedition-20261118-10-njz3-win32.zip`, 18 590 294 octets, SHA-256 du
+  zip `f4a00d88df1b3c22ffb1538cb6406e78a1ef541e097221debfcf7631ff762c7d`, de `linuxloader.exe`
+  `9ccb0f4a1ae42b9f0a16bfc458abad38f620e7475e84a99996c02d6a93fd728f` ; mêmes 20 fichiers que la -9, `ll-deps`
+  repris de la -9 ; seuls changent `linuxloader.exe`, `lang/fr.po` et `lang/linuxloader.pot` (remis en LF).
+- Vérifié depuis le zip extrait, en mode agent caché : `--version` « linuxloader-v3.0.15-ffbedition-20261118-10-njz3 » ;
+  `--list-games` identique à la -9 ; Cruis'n Blast à 60 i/s, pièce et Start, choix de la course ; Race TV à
+  60 i/s jusqu'à l'écran CRIWARE. Pas essayé : la fenêtre d'options du picker depuis le zip, les autres jeux, les
+  bornes.
+- Image borne pas prévenue (pas demandé) : les bornes restent sur la -9.
+
+### Cruis'n Blast depuis AttractPlus : fichiers et dossiers d'écriture (demande 203)
+- Le propriétaire veut lancer Cruis'n Blast par le loader depuis AttractPlus, et retirer du dossier du jeu les
+  fichiers ajoutés hors `racefiles.txt` : le plugin FFB (`FFBPlugin.*`, `MetroFramework.dll`, `winmm.dll`,
+  `SDL2.dll`), TeknoParrot (`teknoparrot.ini`, `TeknoParrot\`), `fmod.dll` et `fmodstudio.dll`.
+- Aucun n'est utilisé par la -9 : le jeu charge `libfmod.so.7` et `libfmodstudio.so.7` de `utils\`
+  (`symbolResolver.cpp`). `rawthrills\` (cpuinfo, udev, usbflash), `tmp\`, `eeprom.bin` et `sram.bin` sont créés
+  par le loader dans le dossier d'écriture.
+- Vérifié ici, la -9 extraite du zip, sur un dossier réduit à ce qu'Image borne garde (`game`, `env`, `g5`,
+  `origfiles`, `programs_dec`, `utils` en jonctions, `pmuser`, `*.ppm`, `GeneralPurposeStateMachine.txt`,
+  `racecrc.txt`, `racefiles.txt`, `version.txt`), un dossier d'écriture neuf et `--seed-dir` contenant
+  `cruisnblast\pmuser\adj\save\net` de `cb_link1` (Network On) : « Link: … 192.168.1.107 », 60 i/s, voiture,
+  « Starting race with 1 human(s), 9 AI », course à Londres. Le solo n'attend pas de partenaire avec Network On.
+- Une première extraction de la -9 (`z9`, scratchpad) était incomplète, sans `ll-deps` : le zip est intact
+  (`unzip -t`, 20 fichiers, comme posé par Image borne), extraction refaite (`z9b`).
+- Conseil envoyé à Image borne :
+  - copier une fois `Saves\linuxloader_cruisnblast\cruisnblast\`, déjà étalonné et réglé, sans les journaux,
+    dans `Saves\linuxloader<CAB_ID>\cruisnblast\` (link, tel quel) et `Saves\linuxloader_single\cruisnblast\` ;
+  - pour le solo, Network Off dans le menu, réglé une fois par `RunLinuxLoaderGame.cmd` ;
+  - `SEED_DIR` seulement si les dossiers d'écriture sont vidés de temps en temps ;
+  - les fichiers retirés déplacés en sauvegarde plutôt qu'effacés (TeknoParrot ne lancera plus le jeu sans eux).
+
+### Cruis'n Blast sur les bornes, seul et en link (demande 202)
+- Le jeu y était déjà, identique sur les deux bornes : `C:\Racecab\Games\Cruisn Blast 1.25 - Raw Thrills PC
+  based` (11,94 Go), lancé par TeknoParrot depuis AttractPlus. Son `game` a la même empreinte que le nôtre
+  (`CDB5F6B6…`, le dump déchiffré) ; `game.Backup Original` (`59289CE9…`) est la version chiffrée, que le loader ne
+  reconnaît pas. Pare-feu Windows désactivé sur les deux bornes.
+- Lancement par Image borne, avec l'accord du propriétaire, depuis `C:\Racecab\Emulators\linuxloader` :
+  `linuxloader.exe "...\game" --write-dir C:\Racecab\Saves\linuxloader_cruisnblast`, rien d'écrit dans le dossier
+  de TeknoParrot, AttractPlus pas touché.
+- Seul sur racecab1 : 60 i/s en 1920x1080, course à Londres, retour de force, sortie par Échap. Au premier lancement
+  de chaque borne, étalonnage du volant et du gaz (fait par vJoy : X 1.0 puis 0.0, Y 0.0 puis 0.5, Start entre
+  chaque étape). « Serial Number mismatch. audit=99999 Dongle=12648430 » dans `errorlog.txt` seulement (dongle émulé
+  0xC0FFEE contre l'audit de TeknoParrot) : rien à l'écran, ne bloque pas le link.
+- Menu de l'opérateur : Test tenu 1,5 s l'ouvre (un appui bref ne suffit pas) ; Scroll Down = `Down` de
+  `[Driving]`, sur les bornes ViewChange (vJoy 5, aussi sur `BUTTON_DOWN`), appui de 80 ms par ligne ; Test choisit
+  ou bascule On/Off ; Service revient. Machine ID affiché de 1 à 8 : « ID 1 » (`val = 0`) sur racecab1, « ID 2 »
+  (`val = 1`) sur racecab2 ; Network On des deux côtés. « Machine will reboot after leaving this menu » : pas de
+  redémarrage sous le loader, quitté par Échap et relancé.
+- Link : « Link: Cruis'n Blast's address is this PC's » 192.168.1.4 (racecab1) et 192.168.1.5 (racecab2) ; chacune
+  « Connected to machine id » de l'autre en quelques secondes ; pièce et Start sur racecab1 : « LINKED GAME
+  STARTING / Player 1 vs Player 2 » sur racecab2, qui rejoint ; photo « LOOK UP! » (pas de webcam : mire), course
+  à Londres, « Starting race with 2 human(s), 8 AI » des deux côtés, PLAYER1 et PLAYER2 au classement des deux ;
+  760 et 747 paquets de retour de force ; sortie par Échap des deux côtés.
+- Pas fait : lancer Cruis'n Blast par le loader depuis AttractPlus (il y passe toujours par TeknoParrot).
+
+### Release 3.0.15 -9 du 17/11 (demande 201)
+- Depuis `30c5982` (Cruis'n Blast 1.25 et son link), construite dans un worktree détaché propre : la fenêtre
+  d'options du picker (demande 197, pas commitée) n'y est pas. `version.h` du worktree à 3.0.15 avec
+  `RELEASE_SUFFIX "-9"`, MinGW (Ninja, Release), 55 avertissements, aucun dans `cruisnBlast.c` ni dans le code
+  du link. Worktree retiré ensuite.
+- `emulateurs/releases/linuxloader-v3.0.15-ffbedition-20261117-9-njz3-win32.zip`, 18 591 030 octets, SHA-256 du zip
+  `1e98e5dd09e7c5db9261c7465df2ebde0cd348417d39b7c053a870de4f9b9f45`, de `linuxloader.exe`
+  `0c417015459fde8da281b61a574b0a622ba0537c3753a69b218551e0806f8bcb` ; mêmes 20 fichiers que la -8, `ll-deps`
+  repris de la -8. Le checkout du worktree donnait `lang/` en CRLF : remis en LF comme les releases précédentes
+  (`fr.po` ne diffère de la -8 que par deux fins de ligne).
+- Vérifié depuis le zip extrait, en mode agent caché : `--version` « linuxloader-v3.0.15-ffbedition-20261117-9-njz3 » ;
+  96 lignes à `--list-games`, dont `cruisnblast` ; Cruis'n Blast à 60 i/s, pièce et Start, choix de la course ;
+  Race TV à 60 i/s jusqu'à l'écran CRIWARE. Pas essayé : les autres jeux, les bornes.
+- Image borne prévenue : chemin, empreintes, nouveautés ; Cruis'n Blast n'est pas sur les bornes (12 Go, à copier
+  seulement avec l'accord du propriétaire) ; pour le link : Network on et machine ID 0 / 1 dans le menu de chaque
+  borne, pare-feu ouvert à `linuxloader.exe` (UDP 46500, TCP 46516, UDP 46532) ; garder la -8 en sauvegarde.
+- Retour d'Image borne (17/11, accord du propriétaire, qui a choisi « la -9 seule ») : -9 posée sur les deux bornes
+  dans `C:\Racecab\Emulators\linuxloader` (SHA-256 du zip vérifié, 20 fichiers, réglages inchangés, `--version`
+  « linuxloader-v3.0.15-ffbedition-20261117-9-njz3 », même `linuxloader.exe` sur les deux) ; la -8 sauvegardée
+  dans `C:\Racecab\_sauvegardes\linuxloader-3.0.15-8-avant-9-20261117` (MD5 vérifiés).
+- Essai sur racecab1, 1920x1080, au banc vJoy : Dead Heat, Initial D 5 et Race TV en plein écran (60 i/s pour
+  Initial D 5 et Race TV), retour de force reçu (35, 32 et 470 paquets), aucune boîte d'erreur, sortie par Échap.
+- Pas essayé : racecab2 en jeu (mêmes fichiers par empreinte) ; Cruis'n Blast et son link, le jeu n'étant pas
+  copié sur les bornes (12 Go).
+
 ### Le link de Cruis'n Blast (demande 200)
 - Le fork n'en fait rien. Le jeu a son propre link (g5 : `UNet`, `CNet`, `GNet`) : réglages du menu de l'opérateur
   `networked` (Network on/off), `machineID` (0 à 7, distincts), et en mode dev `netchannel` et `netStaticIP` (on par
@@ -329,6 +418,36 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   - Pas de régression : Dead Heat, Nirin, Maximum Heat 3D (eux aussi en SDL 1.2), Race TV, Initial D 4 Export,
     Maximum Tune 3DX+ à 60 i/s (Nirin 55) avec leurs images. MinGW et MSVC compilent.
 - Pas de régression vue : Race TV, Dead Heat, Initial D 4 Export et Maximum Tune 3DX+ à 60 i/s avec leurs images.
+
+### Options du jeu depuis le picker (demande 197)
+- Demandé par njz3 via la session Windows loader Berstett, sur le modèle de windowsloader (`3800c6a`). Ici la table des
+  options (`config/gameOptions.c`) et la page « Options du jeu » (`guiGameOptions.cpp`) étaient déjà dans le même exe
+  que le picker : rien à déplacer.
+- Picker (`picker.cpp`) : sur la fiche d'un jeu reconnu, le bouton « Options du jeu (O) », la touche O ou Y à la
+  manette ouvrent une fenêtre avec la page du menu en jeu (mêmes options, mêmes aides), dans un enfant
+  `ImGuiChildFlags_NavFlattened` (le clavier et la manette passent des options aux boutons). Les réglages sont ceux du
+  jeu, lus comme lui (`loadGameConfigFile`, `config.c`) : le fichier avec lequel le picker le lance (`linuxloader.ini`
+  du dossier du jeu, `<nom court>.ini` ou `<dossier>.ini` à côté du loader, sinon `linuxloader.ini` du loader), sa
+  section `[Game.<nom court>]` par-dessus les clés générales ; ceux du picker sont gardés à part pendant ce temps et
+  remis à la fermeture. « Sauvegarder » écrit `[Game.<nom court>]` (options et cartes) dans ce fichier ; « Fermer »,
+  Échap ou B ferment sans sauvegarder (sauf si une liste est ouverte, qui les prend) ; tant que la fenêtre est ouverte,
+  Entrée, les flèches et les tuiles ne lancent ni ne changent le jeu, Tab n'ouvre pas les réglages. La page, en mode
+  picker, n'écrit pas « (au prochain lancement) » à chaque option mais une ligne « Pris en compte au prochain lancement
+  du jeu. ». L'aide du picker cite O. Trois textes traduits (`fr.po`, catalogue refait par `update-translations.sh`).
+- Dossier d'écriture (demandé ensuite par njz3, via la même session) : le picker trouve le fichier comme le jeu
+  (`mainShared.c`, `writeDir.c`, `config.c`) : le fichier de lancement (celui que le picker passe par `-c`, sinon
+  `linuxloader.ini` du loader) ; s'il a un `[Paths] WRITE_DIR` (relatif au dossier du loader), le `linuxloader.ini` à
+  la racine du dossier d'écriture ; puis `<nom court>.ini` à côté d'un `linuxloader.ini` s'il existe. Copie pas encore
+  faite : les valeurs sont lues dans le fichier de lancement, et la copie en est faite à la première sauvegarde, comme
+  au lancement du jeu ; le fichier d'origine n'est alors jamais modifié. Un dossier d'écriture qui ne peut pas être
+  écrit (vérifié comme au lancement, `writeDirUsable` : le dossier fait, un fichier écrit puis effacé) : le jeu lirait
+  les fichiers d'origine, la fenêtre les lit aussi, « Sauvegarder » est grisé et la fenêtre dit « Rien n'est
+  sauvegardé : le dossier d'écriture ne peut pas être écrit. ». La fenêtre affiche le fichier lu et écrit, et le
+  dossier d'écriture. Quatre textes traduits. Ouvrir la fenêtre fait le dossier d'écriture s'il n'existe pas (comme un
+  lancement).
+- MinGW et MSVC compilent ; picker ouvert dans un dossier à part : le bouton et l'aide s'affichent, en français. La
+  fenêtre elle-même n'a pas été essayée : SDL ne prend ni les touches ni les clics envoyés à une fenêtre sans le focus,
+  et je n'ai pas pris le focus du bureau. À essayer à la main.
 
 ### Release 3.0.15 -8 du 14/11 (demande 196)
 - Depuis `edef2f0` (la -7 et la correction d'Initial D en rendu hors écran). MinGW, 53 avertissements :
