@@ -92,6 +92,11 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 209 | 18/11 | Cruis'n Blast : laisser Start seul, une info-bulle disant qu'il sert de boost ; le clavier PIN mappable, le pavé numérique par défaut | ✅ info-bulle de Start (et des touches du clavier) dans Contrôles ; 12 actions Keypad0..9, KeypadStar, KeypadHash ([Driving]), pavé numérique par défaut (# sur Entrée et le point), aussi pour les `controls.ini` déjà écrits ; le jeu les lit aux emplacements 0x167..0x172, vérifié au test des contacts touche par touche ; traduit ; pas commité (voir journal) |
+| 208 | 18/11 | Cruis'n Blast : le test des entrées du menu de service, toutes mappées et configurables dans les contrôles ? Et la luminosité qui baisse fortement après Tab | ✅ View et Tunes du jeu n'étaient reliés à rien (ViewChange allait sur Vol -, CardInsert sur Vol +) : ViewChange sur View, MusicChange sur Tunes, entrées sans effet retirées (`remapPerGame`), vérifié au test des contacts ; luminosité : le jeu active `GL_FRAMEBUFFER_SRGB`, que `glPopAttrib` ne rendait pas après le menu, rendu à la main (`guiOverlay.cpp`), vérifié fenêtre visible ; commande d'agent `menu settings N` ; pas commité, pas essayé sur les bornes (voir journal) |
+| 207 | 18/11 | Demander à windowsloader ce qu'il va implémenter pour l'arrêt du FFB, et proposer un plan équivalent | 🔄 réponse de Windows loader (code local, pas commité) : à `ExitProcess` et `TerminateProcess` du processus lui-même, `SDL_StopHapticEffects` puis `SDL_CloseHaptic` dans le fil des commandes (300 ms d'attente au plus), volant jamais rouvert, puis trame 84 de couple nul avant « mame_stop » pour ses trames servo ; rien pour un plantage ou un kill ; pas essayé sur un volant. Plan équivalent proposé à njz3 (voir journal), en attente de son accord |
+| 206 | 18/11 | Quand on quitte un jeu, est-ce que les effets FFB sont bien tous arrêtés ? | ✅ réponse d'après le code : non dans tous les cas. Échap et fenêtre fermée : `SDL_Quit` retire les effets, mais le fil du FFB tourne encore ; « mame_stop » par `atexit`. `exit()` du jeu : « mame_stop » seul. Plantage ou kill : rien. `sdlFfbShutdown()` n'est jamais appelé |
+| 205 | 18/11 | (Image borne) Modèle solo de Cruis'n Blast (`saves_single`, accepté par njz3) : avec `--seed-dir saves_single`, un jeu sans `saves_single\<jeu>` part-il vide ? Un fichier absent du modèle est-il encore lu dans le dossier du jeu ? | ✅ réponse d'après `writeDir.c` : rien ne part vide, le dossier d'écriture est une couche sur le dossier du jeu (lecture : le sien, sinon celui du jeu) ; sans `SEED\<jeu>`, comme sans `--seed-dir` ; un fichier absent du modèle est lu comme avant ; `saves_single` relatif au dossier de `linuxloader.exe`. Posé ensuite par Image borne sur les deux bornes (accord de njz3), modèle à côté de `linuxloader.exe`, ancien lanceur sauvegardé ; pas essayé, le dossier solo existant déjà (voir journal) |
 | 204 | 18/11 | Commit et pousse. Fait une release | ✅ fenêtre d'options du picker commitée (`c4075ec`) et poussée sur `dev/ffbedition` ; `emulateurs/releases/linuxloader-v3.0.15-ffbedition-20261118-10-njz3-win32.zip` (MinGW) ; vérifiée depuis le zip : Cruis'n Blast et Race TV à 60 i/s ; Image borne prévenue ensuite ; posée par Image borne sur les deux bornes (accord de njz3, la -9 sauvegardée), pas essayée en jeu sur les bornes (voir journal) |
 | 203 | 17/11 | (Image borne) Cruis'n Blast lancé par linuxloader depuis AttractPlus : quels fichiers ajoutés au dossier du jeu retirer (plugin FFB, TeknoParrot, `fmod.dll`), comment préparer les dossiers d'écriture solo et link, le solo avec Network On | ✅ aucun de ces fichiers n'est utilisé (FMOD vient de `utils\*.so`) ; vérifié ici sur un dossier réduit à ce qu'Image borne garde, avec un `--seed-dir` qui met Network On : course seule, 1 humain et 9 IA ; conseil envoyé : copier une fois le `cruisnblast\` déjà réglé dans chaque dossier d'écriture, Network Off pour le solo. Fait par Image borne le 17/11 (voir journal) : Cruis'n Blast passé de TeknoParrot à LinuxLoader dans AttractPlus, modèles link amorcés par `--seed-dir`, solo réglé à la main sans modèle dans l'image ; essayé en solo et en link par les lanceurs |
 | 202 | 17/11 | Cruis'n Blast est normalement déjà présent sur les bornes | 🔄 Image borne l'avait dit absent ; demandé à Image borne : le chercher sur les deux bornes (lecture seule : ELF `game` à côté de `pmuser`, `SpecTex.ppm`, `eeprom.bin`, ou une entrée d'AttractPlus), puis, avec l'accord du propriétaire, l'essayer seul avec la -9, puis en link (Network on, machine ID 0 / 1). Trouvé sur les deux bornes, identique : `C:\Racecab\Games\Cruisn Blast 1.25 - Raw Thrills PC based`, lancé par TeknoParrot depuis AttractPlus ; son `game` a la même empreinte que le nôtre (le dump déchiffré, `CDB5F6B6…`), `game.Backup Original` est la version chiffrée ; réponse à Image borne : lancer `game` tel quel, rien à renommer, les écritures vont au dossier d'écriture ; pare-feu des bornes désactivé. Solo ✅ sur racecab1 (Image borne, accord du propriétaire, `--write-dir` à part) : 60 i/s en 1920x1080, étalonnage du volant et du gaz au premier lancement, course à Londres, retour de force, sortie par Échap ; « Serial Number mismatch » dans errorlog.txt (audit de TeknoParrot contre le dongle émulé 0xC0FFEE). Menu de l'opérateur : Scroll Up / Down = actions Up / Down de [Driving] (pas MusicChange ni les flèches, non liées), Select = Test, Exit = Service. ✅ Link entre les deux bornes (Image borne, 17/11) : course commune à Londres à 2 humains et 8 IA, PLAYER1 et PLAYER2 au classement, retour de force des deux côtés (voir journal) |
@@ -233,6 +238,90 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Cruis'n Blast : boost sur Start, clavier PIN (demande 209)
+- Pas de bouton de boost à part : le test des contacts n'en a pas, Start (le bouton START BLAST) en sert. Laissé
+  ainsi ; dans Contrôles, l'info-bulle de Start le dit (« Dans Cruis'n Blast, sert aussi de boost »).
+- Clavier PIN (comptes des joueurs) : 12 actions `Keypad0`..`Keypad9`, `KeypadStar`, `KeypadHash`, sans joueur,
+  d'un nouveau type `JVS_CALL_KEYPAD` (hors de la carte JVS : un masque lu par `sdlInputKeypad()`), reliées pour
+  Cruis'n Blast seulement (`remapPerGame`) ; `cruisnBlast.c` les donne aux emplacements 0x167..0x172 du jeu
+  (0..9, *, #, d'après le fork d'aderumier). Vérifié au test des contacts, touche par touche : chacune allume la
+  sienne et seulement elle.
+- Par défaut : le pavé numérique (`KEY_KP_0`..`KEY_KP_9`, `KEY_KP_MULTIPLY`, # sur `KEY_KP_ENTER` et
+  `KEY_KP_PERIOD`) dans `[Driving]` d'un nouveau `controls.ini` (`controlIniGen.c`). Un fichier déjà écrit, sans ces
+  lignes, les prend aussi (`gKeypadDefaults`, `loadProfileFromIni`) ; la page Contrôles montre leurs lignes avec
+  ces touches et ne les écrit qu'une fois changées. Libellés « Clavier PIN n », info-bulle, `fr.po` à jour
+  (`update-translations.sh`, 316 messages traduits).
+- Pas vérifié : les touches du pavé numérique elles-mêmes (le mode agent tient les actions, pas les touches), la
+  page Contrôles à l'écran, MSVC, les bornes.
+
+### Cruis'n Blast : entrées du menu de service et luminosité après Tab (demande 208)
+- Test des contacts (Diagnostics > Switch Tests), en mode agent, chaque entrée tenue : Coin Slot 1 et 2, Start,
+  Test, Service, Vol + (Up), Vol - (Down), volant et Gas Pedal répondaient ; View et Tunes jamais : le profil
+  Driving envoie ViewChange sur `BUTTON_DOWN` (Vol -) et CardInsert sur `BUTTON_UP` (Vol +, en bascule), et rien
+  sur `BUTTON_2` et `BUTTON_3`, que `cruisnBlast.c` lit pour View et Tunes. Pas reliés non plus, et laissés :
+  DBV (monnayeur à billets) et le clavier du code PIN (comptes de joueurs).
+- `remapPerGame` (`sdlInput.c`), Cruis'n Blast : ViewChange sur `BUTTON_2` (View), MusicChange sur `BUTTON_3`
+  (Tunes) ; CardInsert, Card1Insert, Left, Right et les actions du joueur 2 (sauf sa pièce, Coin Slot 2) retirées.
+  Vérifié : View, Tunes, Vol +, Vol -, Start et Service s'allument au test des contacts ; `inputs` de l'agent et la
+  liste « ce que le jeu reçoit » des contrôles n'ont plus que les entrées lues. Toutes ont leur ligne dans
+  `[Driving]` de `controls.ini`, donc dans la page Contrôles (Changer de vue, Changer de musique, Haut, Bas).
+- Dans le menu de l'opérateur, le jeu prend lui-même Tunes pour descendre, Start pour choisir et View pour revenir
+  (comme les boutons rouge, vert et bleu de ses icônes). Sur les bornes, ViewChange (vJoy 5) descendait dans le menu ;
+  avec ce changement il y revient en arrière : descendre se fait par MusicChange (Tunes) ou Down.
+- Gas Pedal affiche 1.00 (0000) relâché et 0.00 (1023) enfoncé avec l'étalonnage local : pas regardé plus loin.
+- Luminosité : reproduite en mode agent fenêtre visible avec une nouvelle commande `menu settings N` (le menu Tab
+  ouvert N images puis fermé, `agent.c`, `guiOverlay.cpp`) : moyenne de l'image divisée par deux environ après le
+  menu (74 avant, 37 après), rien sans le menu. Ce n'était ni la pause ni les échanges d'images : c'est le dessin du
+  menu. Cruis'n Blast active `GL_FRAMEBUFFER_SRGB` ; le menu le coupe pour lui et `glPopAttrib` ne le rendait pas
+  sur ce pilote. Rendu à la main après `glPopAttrib` : même luminosité avec et sans menu. Race TV inchangé avec le
+  menu (mêmes moyennes avec et sans).
+- Constat à part : en mode agent caché (rendu hors écran), les captures de Cruis'n Blast sont environ deux fois plus
+  sombres que la fenêtre (le jeu écrit en sRGB dans un FBO qui ne l'est pas) ; pas corrigé.
+
+### Arrêt du retour de force à la sortie d'un jeu (demandes 206 et 207)
+- Aujourd'hui (lu dans le code, rien essayé) : Échap et fenêtre fermée passent par `sdlQuit()` (`sdlCalls.c`),
+  dont `SDL_Quit` ferme les volants et retire leurs effets, le fil du FFB pas arrêté avant (course possible), puis
+  `exit(0)` : `netOutputsShutdown` (`atexit`, `init.c`) envoie « mame_stop ». `exit()` du jeu (`bridgeExit`) :
+  « mame_stop » seul, le volant laissé à la fin du processus. `abort()`, `_exit` de l'agent, `TerminateProcess`
+  de `gccBridge.cpp`, plantage, kill : rien. `sdlFfbShutdown()` (`forceFeedback.c`) n'est appelé nulle part.
+- windowsloader (réponse de Windows loader, son code local pas commité) : crochets `ExitProcess` et
+  `TerminateProcess` du processus lui-même (`system.cpp`) ; `wl_controls_ffb_stop()` (`controls.cpp`) :
+  `SDL_StopHapticEffects` puis `SDL_CloseHaptic` dans le fil des commandes, 300 ms d'attente au plus depuis un
+  autre fil, volant jamais rouvert ; `wl_outputs_stop()` (`outputs.cpp`) : trame `84 01 00 05` (couple nul) avant
+  « mame_stop » pour les trames servo qu'il fabrique, rien de plus pour RawDrive ; plantage ou kill : rien ;
+  vérifié seulement jusqu'à l'appel, pas sur un volant ni sur vJoy.
+- Plan équivalent proposé pour linuxloader :
+  - `sdlFfbStop()` : une seule fois, fil du FFB arrêté, verrou du volant pris (attente bornée), effets arrêtés et
+    détruits, volant fermé, jamais rouvert (changement de périphérique, branchement) ;
+  - couple nul `84 01 00` (et `85 10 00`, vibration coupée) avant « mame_stop » pour les trames servo du loader
+    (Cruis'n Blast, Dead Heat, Gaelco) et d'Initial D 4, RawDrive des Lindbergh laissé tel quel ;
+  - appelés, volant d'abord, dans `sdlQuit()` avant `SDL_Quit`, à `exit()` (`atexit`), dans `bridgeAbort`, avant
+    le `_exit` de l'agent et le `TerminateProcess` de `gccBridge.cpp` ;
+  - en option : le processus parent rouvre brièvement le volant après un plantage ou un kill du jeu ;
+  - vérification sur le vJoy de ce PC, puis sur les bornes par Image borne avec l'accord de njz3.
+
+### Modèle solo de Cruis'n Blast et `--seed-dir` (demande 205)
+- Préparé par Image borne dans `gameassets` (accord de njz3), pas encore sur les bornes :
+  `Emulators\linuxloader\saves_single\cruisnblast` (54 fichiers du `Saves\linuxloader_single\cruisnblast` de
+  racecab1, sans `errorlog.txt` ni `gamelog.txt`), et `RunLinuxLoaderGame.cmd` avec `--write-dir
+  "...\linuxloader_single" --seed-dir saves_single`. `saves` reste le modèle link de la borne (Build-Config).
+- Réponse, lue dans `writeDir.c` : le dossier d'écriture n'est pas une copie du dossier du jeu mais une couche
+  dessus. `writeDirForRead` prend le fichier de `WRITE_DIR\<jeu>` s'il y est, sinon celui du dossier du jeu ;
+  `writeDirForWrite` écrit dans `WRITE_DIR\<jeu>` (le fichier du jeu copié d'abord pour un ajout). `--seed-dir`
+  copie seulement, au lancement, les fichiers de `SEED\<jeu>` absents de `WRITE_DIR\<jeu>` (`seedFolder` dans
+  `writeDirEnterGame`), sans rien remplacer ni effacer.
+  - Jeu sans `SEED\<jeu>` : « seed folder: no …, nothing to seed », comme sans `--seed-dir`.
+  - Fichier absent du modèle : lu dans le dossier d'écriture s'il y est, sinon dans celui du jeu.
+  - `SEED_DIR` relatif : au dossier de `linuxloader.exe` (`absoluteFolder`), pas au dossier courant ; introuvable,
+    « not found » au journal et le jeu démarre quand même.
+  - `Saves\linuxloader_single\cruisnblast` existant déjà sur les bornes, le modèle n'y copie rien : il ne sert qu'à
+    une image neuve ou un dossier vidé.
+- Retour d'Image borne (18/11, accord de njz3) : modèle `Emulators\linuxloader\saves_single\cruisnblast` posé
+  dans `gameassets` et sur les deux bornes, `RunLinuxLoaderGame.cmd` avec `--seed-dir saves_single` posé sur les
+  deux, l'ancien dans `_sauvegardes\linuxloader-lanceur-avant-seed-solo-20261118` ; `.gitattributes` de
+  `gameassets` : `saves_single/** -text`, comme les modèles link. Pas essayé : le modèle ne copie rien tant que
+  `Saves\linuxloader_single\cruisnblast` existe.
 
 ### Release 3.0.15 -10 du 18/11 (demande 204)
 - La fenêtre « Options du jeu » du picker (demande 197) commitée seule, `c4075ec`, et poussée sur
