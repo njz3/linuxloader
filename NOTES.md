@@ -92,8 +92,8 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
-| 204 | 18/11 | Commit et pousse. Fait une release | ✅ fenêtre d'options du picker commitée (`c4075ec`) et poussée sur `dev/ffbedition` ; `emulateurs/releases/linuxloader-v3.0.15-ffbedition-20261118-10-njz3-win32.zip` (MinGW) ; vérifiée depuis le zip : Cruis'n Blast et Race TV à 60 i/s ; Image borne pas prévenue (voir journal) |
-| 203 | 17/11 | (Image borne) Cruis'n Blast lancé par linuxloader depuis AttractPlus : quels fichiers ajoutés au dossier du jeu retirer (plugin FFB, TeknoParrot, `fmod.dll`), comment préparer les dossiers d'écriture solo et link, le solo avec Network On | ✅ aucun de ces fichiers n'est utilisé (FMOD vient de `utils\*.so`) ; vérifié ici sur un dossier réduit à ce qu'Image borne garde, avec un `--seed-dir` qui met Network On : course seule, 1 humain et 9 IA ; conseil envoyé : copier une fois le `cruisnblast\` déjà réglé dans chaque dossier d'écriture, Network Off pour le solo (voir journal) |
+| 204 | 18/11 | Commit et pousse. Fait une release | ✅ fenêtre d'options du picker commitée (`c4075ec`) et poussée sur `dev/ffbedition` ; `emulateurs/releases/linuxloader-v3.0.15-ffbedition-20261118-10-njz3-win32.zip` (MinGW) ; vérifiée depuis le zip : Cruis'n Blast et Race TV à 60 i/s ; Image borne prévenue ensuite ; posée par Image borne sur les deux bornes (accord de njz3, la -9 sauvegardée), pas essayée en jeu sur les bornes (voir journal) |
+| 203 | 17/11 | (Image borne) Cruis'n Blast lancé par linuxloader depuis AttractPlus : quels fichiers ajoutés au dossier du jeu retirer (plugin FFB, TeknoParrot, `fmod.dll`), comment préparer les dossiers d'écriture solo et link, le solo avec Network On | ✅ aucun de ces fichiers n'est utilisé (FMOD vient de `utils\*.so`) ; vérifié ici sur un dossier réduit à ce qu'Image borne garde, avec un `--seed-dir` qui met Network On : course seule, 1 humain et 9 IA ; conseil envoyé : copier une fois le `cruisnblast\` déjà réglé dans chaque dossier d'écriture, Network Off pour le solo. Fait par Image borne le 17/11 (voir journal) : Cruis'n Blast passé de TeknoParrot à LinuxLoader dans AttractPlus, modèles link amorcés par `--seed-dir`, solo réglé à la main sans modèle dans l'image ; essayé en solo et en link par les lanceurs |
 | 202 | 17/11 | Cruis'n Blast est normalement déjà présent sur les bornes | 🔄 Image borne l'avait dit absent ; demandé à Image borne : le chercher sur les deux bornes (lecture seule : ELF `game` à côté de `pmuser`, `SpecTex.ppm`, `eeprom.bin`, ou une entrée d'AttractPlus), puis, avec l'accord du propriétaire, l'essayer seul avec la -9, puis en link (Network on, machine ID 0 / 1). Trouvé sur les deux bornes, identique : `C:\Racecab\Games\Cruisn Blast 1.25 - Raw Thrills PC based`, lancé par TeknoParrot depuis AttractPlus ; son `game` a la même empreinte que le nôtre (le dump déchiffré, `CDB5F6B6…`), `game.Backup Original` est la version chiffrée ; réponse à Image borne : lancer `game` tel quel, rien à renommer, les écritures vont au dossier d'écriture ; pare-feu des bornes désactivé. Solo ✅ sur racecab1 (Image borne, accord du propriétaire, `--write-dir` à part) : 60 i/s en 1920x1080, étalonnage du volant et du gaz au premier lancement, course à Londres, retour de force, sortie par Échap ; « Serial Number mismatch » dans errorlog.txt (audit de TeknoParrot contre le dongle émulé 0xC0FFEE). Menu de l'opérateur : Scroll Up / Down = actions Up / Down de [Driving] (pas MusicChange ni les flèches, non liées), Select = Test, Exit = Service. ✅ Link entre les deux bornes (Image borne, 17/11) : course commune à Londres à 2 humains et 8 IA, PLAYER1 et PLAYER2 au classement, retour de force des deux côtés (voir journal) |
 | 201 | 17/11 | Faire la release et prévenir Image borne | ✅ `emulateurs/releases/linuxloader-v3.0.15-ffbedition-20261117-9-njz3-win32.zip` (MinGW, `30c5982` : Cruis'n Blast et son link, sans la fenêtre d'options du picker) ; vérifiée depuis le zip : Cruis'n Blast et Race TV à 60 i/s ; posée par Image borne sur les deux bornes (accord du propriétaire, la -8 sauvegardée) ; Dead Heat, Initial D 5 et Race TV essayés sur racecab1 ; Cruis'n Blast pas copié, son link pas essayé (voir journal) |
 | 200 | 17/11 | Commit et push de Cruis'n Blast ; regarder son mode link | ✅ `57fe5ad` poussé (le port, sans la fenêtre d'options du picker, toujours à l'essai) ; link : celui du jeu (réglage Network de son menu, machine ID 0 à 7, UDP 46500 et TCP vers l'hôte de la course), rien à émuler ; ✅ ici à deux copies (`LOCAL_LINK_ADDRESS` 127.0.0.2 / .3) : « Linked Game Starting », course à Londres à 2 humains et 8 IA, PLAYER1 et PLAYER2 ; pour deux PC, eth0 = l'adresse du PC quand Network est on (`cruisnBlastLinked`), vérifié ici sur une copie (192.168.1.134) ; MinGW et MSVC ; pas essayé sur les bornes ; commité et poussé le 17/11 (voir journal) |
@@ -246,7 +246,11 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   `--list-games` identique à la -9 ; Cruis'n Blast à 60 i/s, pièce et Start, choix de la course ; Race TV à
   60 i/s jusqu'à l'écran CRIWARE. Pas essayé : la fenêtre d'options du picker depuis le zip, les autres jeux, les
   bornes.
-- Image borne pas prévenue (pas demandé) : les bornes restent sur la -9.
+- Image borne prévenue ensuite (demandé par njz3) : chemin, empreintes, nouveauté ; rien d'urgent, la -9 suffit pour Cruis'n Blast ; si le propriétaire la veut, même procédure que la -9, la -9 sauvegardée. Bornes encore sur la -9.
+- Retour d'Image borne (18/11, accord de njz3) : -10 posée sur les deux bornes (SHA-256 du zip et de l'exe vérifiés,
+  `--version` « linuxloader-v3.0.15-ffbedition-20261118-10-njz3 ») ; les 20 fichiers de la -9 sauvegardés dans
+  `_sauvegardes\linuxloader-3.0.15-9-avant-10-20261118` (empreintes vérifiées) ; ini, `controls.ini`, lanceurs et
+  dossiers d'écriture inchangés. Pas essayée en jeu sur les bornes.
 
 ### Cruis'n Blast depuis AttractPlus : fichiers et dossiers d'écriture (demande 203)
 - Le propriétaire veut lancer Cruis'n Blast par le loader depuis AttractPlus, et retirer du dossier du jeu les
@@ -268,6 +272,15 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
   - pour le solo, Network Off dans le menu, réglé une fois par `RunLinuxLoaderGame.cmd` ;
   - `SEED_DIR` seulement si les dossiers d'écriture sont vidés de temps en temps ;
   - les fichiers retirés déplacés en sauvegarde plutôt qu'effacés (TeknoParrot ne lancera plus le jeu sans eux).
+- Fait par Image borne le 17/11, sur les deux bornes et dans `gameassets` :
+  - AttractPlus : la ligne retirée des 13 listes TeknoParrot, ajoutée à ArcadeLoaders (LinuxLoader) et à
+    ArcadeLoadersMulti (LinuxLoaderMulti) ;
+  - une ligne CruisnBlast dans `RunLinuxLoaderGame.cmd` et `RunLinuxLoaderLinkGame.cmd` ;
+  - modèles link dans `Emulators\linuxloader\saves_link_cab1|2\cruisnblast` (Network On, ID 1 et ID 2), amorcés
+    par `--seed-dir` ;
+  - solo : `Saves\linuxloader_single\cruisnblast` posé à la main (Network Off), sans modèle dans l'image : sur une
+    image neuve, le premier lancement solo repasse par l'étalonnage ;
+  - essayé par les lanceurs, en solo et en link à deux.
 
 ### Cruis'n Blast sur les bornes, seul et en link (demande 202)
 - Le jeu y était déjà, identique sur les deux bornes : `C:\Racecab\Games\Cruisn Blast 1.25 - Raw Thrills PC
