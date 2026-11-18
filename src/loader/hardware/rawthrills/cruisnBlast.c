@@ -28,6 +28,7 @@
 #include "../lindbergh/forceFeedback.h"
 #include "../lindbergh/jvs.h"
 #include "../lindbergh/netOutputs.h"
+#include "../../input/sdlInput.h"
 #include "../../agent/agent.h"
 #include "../../log/log.h"
 #include "../../patching/flowControl.h"
@@ -50,6 +51,7 @@ enum
     CB_IO_BRAKE = 0x155,
     CB_IO_VIEW = 0x156,
     CB_IO_TUNES = 0x159,
+    CB_IO_KEYPAD0 = 0x167, // the PIN pad: 0..9, then * and #, to 0x172
     CB_IO_WHEEL = 0x173,
     CB_IO_GAS = 0x174,
 };
@@ -141,6 +143,9 @@ static int ioLoopHook(int dt)
     ioDigitalSet(CB_IO_DIAG, dt, (sw[SYSTEM] & BUTTON_TEST) != 0);
     ioDigitalSet(CB_IO_VOL_UP, dt, (sw[PLAYER_1] & BUTTON_UP) != 0);
     ioDigitalSet(CB_IO_VOL_DOWN, dt, (sw[PLAYER_1] & BUTTON_DOWN) != 0);
+    int keypad = sdlInputKeypad();
+    for (int key = 0; key < 12; key++)
+        ioDigitalSet(CB_IO_KEYPAD0 + key, dt, (keypad >> key) & 1);
     static CoinPulse coins[2];
     ioDigitalSet(CB_IO_COIN0, dt, coinPulse(&coins[0], io->state.coinCount[0]));
     ioDigitalSet(CB_IO_COIN1, dt, coinPulse(&coins[1], io->state.coinCount[1]));

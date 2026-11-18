@@ -37,6 +37,20 @@
 // --- GLOBAL STATE AND MAPPINGS ---
 ActionState gActionStates[MAX_ENTITIES][NUM_LOGICAL_ACTIONS];
 JVSActionMapping gJvsMap[MAX_ENTITIES][NUM_LOGICAL_ACTIONS];
+static SDL_AtomicInt gKeypad; // the cabinet keypad's keys held, bit k for key k (JVS_CALL_KEYPAD)
+
+static void setKeypadKey(int key, bool held)
+{
+    int bit = 1 << key, keys;
+    do
+        keys = SDL_GetAtomicInt(&gKeypad);
+    while (!SDL_CompareAndSwapAtomicInt(&gKeypad, keys, held ? keys | bit : keys & ~bit));
+}
+
+int sdlInputKeypad(void)
+{
+    return SDL_GetAtomicInt(&gKeypad);
+}
 static char gLoadedControlsPath[1024] = ""; // the controls.ini the bindings came from, empty for the built-in ones
 ChangedAction gChangedActions[NUM_LOGICAL_ACTIONS * MAX_ENTITIES];
 LogicalActionProperties gActionProperties[MAX_ENTITIES][NUM_LOGICAL_ACTIONS];
@@ -178,6 +192,18 @@ const struct
                       {"ButtonKan", LA_Kan},
                       {"ButtonAgari", LA_Agari},
                       {"ButtonCancel", LA_Cancel},
+                      {"Keypad0", LA_Keypad0},
+                      {"Keypad1", LA_Keypad1},
+                      {"Keypad2", LA_Keypad2},
+                      {"Keypad3", LA_Keypad3},
+                      {"Keypad4", LA_Keypad4},
+                      {"Keypad5", LA_Keypad5},
+                      {"Keypad6", LA_Keypad6},
+                      {"Keypad7", LA_Keypad7},
+                      {"Keypad8", LA_Keypad8},
+                      {"Keypad9", LA_Keypad9},
+                      {"KeypadStar", LA_KeypadStar},
+                      {"KeypadHash", LA_KeypadHash},
                       {"ExitGame", LA_ExitGame}};
 
 const int NUM_ACTION_NAMES = sizeof(gActionNameMap) / sizeof(gActionNameMap[0]);
@@ -695,6 +721,27 @@ void remapPerGame()
         gJvsMap[PLAYER_1][LA_GearDown] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_4};
         gJvsMap[PLAYER_1][LA_Boost] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_5};
         gJvsMap[PLAYER_1][LA_BoostRight] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_6};
+    }
+    else if (gId == CRUISN_BLAST)
+    {
+        // Raw Thrills' cabinet board (hardware/rawthrills/cruisnBlast.c): View on button 2, Tunes on button 3, as its
+        // switch test names them; Up and Down stay its Vol + and Vol -, the operator menu's Scroll Up and Scroll Down.
+        // No card reader, no joystick, no second player (player 2's coin is its second coin slot)
+        gJvsMap[PLAYER_1][LA_ViewChange] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_2};
+        gJvsMap[PLAYER_1][LA_MusicChange] = (JVSActionMapping){JVS_CALL_SWITCH, BUTTON_3};
+        gJvsMap[PLAYER_1][LA_CardInsert] = (JVSActionMapping){JVS_CALL_NONE, NONE};
+        gJvsMap[PLAYER_1][LA_Card1Insert] = (JVSActionMapping){JVS_CALL_NONE, NONE};
+        gJvsMap[PLAYER_1][LA_Left] = (JVSActionMapping){JVS_CALL_NONE, NONE};
+        gJvsMap[PLAYER_1][LA_Right] = (JVSActionMapping){JVS_CALL_NONE, NONE};
+        static const LogicalAction player2[] = {LA_Start,      LA_Service,     LA_Boost,       LA_GearUp,
+                                                LA_GearDown,   LA_Card2Insert, LA_Steer,       LA_Gas,
+                                                LA_Brake,      LA_Gas_Digital, LA_Brake_Digital, LA_Steer_Left,
+                                                LA_Steer_Right};
+        for (size_t i = 0; i < sizeof(player2) / sizeof(player2[0]); i++)
+            gJvsMap[PLAYER_2][player2[i]] = (JVSActionMapping){JVS_CALL_NONE, NONE};
+        // Its PIN pad (the players' accounts), read by cruisnBlast.c
+        for (int key = 0; key <= LA_KeypadHash - LA_Keypad0; key++)
+            gJvsMap[PLAYER_1][LA_Keypad0 + key] = (JVSActionMapping){JVS_CALL_KEYPAD, (JVSInput)key};
     }
     else if (gId == PRIMEVAL_HUNT_SBPP)
     {
@@ -1399,12 +1446,21 @@ static void parseAndApplyBindings(const char *value, JVSPlayer player, LogicalAc
     free(value_copy);
 }
 
+// The keypad's keys came after the controls.ini files already written: those without them get the numeric keypad's,
+// as a new file has them (controlIniGen.c)
+static const char *const gKeypadDefaults[] = {"KEY_KP_0", "KEY_KP_1", "KEY_KP_2", "KEY_KP_3",        "KEY_KP_4",
+                                              "KEY_KP_5", "KEY_KP_6", "KEY_KP_7", "KEY_KP_8",        "KEY_KP_9",
+                                              "KEY_KP_MULTIPLY", "KEY_KP_ENTER, KEY_KP_PERIOD"};
+static int gKeypadBound; // the keypad's keys the profile's sections name, bit k for key k
+
 int loadProfileFromIni(const IniSection *section)
 {
     if (!section)
         return 0;
 
     bool exitGameFound = false;
+    if (strcmp(section->name, "Common") == 0)
+        gKeypadBound = 0;
 
     for (int i = 0; i < section->numPairs; i++)
     {
@@ -1418,6 +1474,8 @@ int loadProfileFromIni(const IniSection *section)
 
         if (action == LA_ExitGame)
             exitGameFound = true;
+        if (action >= LA_Keypad0 && action <= LA_KeypadHash)
+            gKeypadBound |= 1 << (action - LA_Keypad0);
 
         if (player != SYSTEM && (action != LA_Card1Insert && action != LA_Card2Insert))
             player = fixPlayerForAction(action, player);
@@ -1430,6 +1488,11 @@ int loadProfileFromIni(const IniSection *section)
 
         parseAndApplyBindings(section->pairs[i].value, player, action);
     }
+
+    if (strcmp(section->name, "Driving") == 0)
+        for (int key = 0; key <= LA_KeypadHash - LA_Keypad0; key++)
+            if (!(gKeypadBound & (1 << key)))
+                parseAndApplyBindings(gKeypadDefaults[key], PLAYER_1, (LogicalAction)(LA_Keypad0 + key));
 
     if (strcmp(section->name, "Common") == 0 && !exitGameFound)
     {
@@ -2449,6 +2512,9 @@ void processChangedActions()
                 if (state->isActive)
                     incrementCoin(player, 1);
                 break;
+            case JVS_CALL_KEYPAD:
+                setKeypadKey((int)map->jvsInput, state->isActive);
+                break;
             case JVS_CALL_NONE:
                 break;
         }
@@ -2649,6 +2715,18 @@ bool needsPlayer(LogicalAction action, const char *name)
         case LA_MissileTrigger:
         case LA_ClimaxSwitch:
         case LA_CardInsert:
+        case LA_Keypad0:
+        case LA_Keypad1:
+        case LA_Keypad2:
+        case LA_Keypad3:
+        case LA_Keypad4:
+        case LA_Keypad5:
+        case LA_Keypad6:
+        case LA_Keypad7:
+        case LA_Keypad8:
+        case LA_Keypad9:
+        case LA_KeypadStar:
+        case LA_KeypadHash:
             return false;
         case LA_Up:
         case LA_Down:
@@ -2812,6 +2890,8 @@ void sdlInputAgentSetRaw(int player, int action, int raw)
         setSwitch((JVSPlayer)player, map->jvsInput, raw != 0);
     else if (map->call_type == JVS_CALL_COIN && raw > 0)
         incrementCoin((JVSPlayer)player, raw);
+    else if (map->call_type == JVS_CALL_KEYPAD)
+        setKeypadKey((int)map->jvsInput, raw != 0);
 }
 
 // What the game reads now: 1 for a pressed switch, an analogue channel's count, a player's coins
@@ -2827,6 +2907,8 @@ int sdlInputAgentGet(int player, int action)
             return io->state.analogueChannel[map->jvsInput];
         case JVS_CALL_COIN:
             return player >= 1 ? io->state.coinCount[player - 1] : 0;
+        case JVS_CALL_KEYPAD:
+            return (sdlInputKeypad() >> (int)map->jvsInput) & 1;
         default:
             return 0;
     }

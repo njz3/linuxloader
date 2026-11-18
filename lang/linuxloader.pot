@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lindbergh Loader\n"
 "Report-Msgid-Bugs-To: https://github.com/njz3/linuxloader/issues\n"
-"POT-Creation-Date: 2026-11-16 13:46+0100\n"
+"POT-Creation-Date: 2026-11-18 22:57+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -561,6 +561,54 @@ msgid "Climax switch"
 msgstr ""
 
 #: src/loader/gui/guiControls.cpp
+msgid "Keypad 0"
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad 1"
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad 2"
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad 3"
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad 4"
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad 5"
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad 6"
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad 7"
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad 8"
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad 9"
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad *"
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad #"
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
 msgid "Gun X centring"
 msgstr ""
 
@@ -690,6 +738,14 @@ msgstr ""
 #: src/loader/gui/guiControls.cpp
 #, c-format
 msgid "Player %d"
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
+msgid "In Cruis'n Blast, also the boost (its START BLAST button)."
+msgstr ""
+
+#: src/loader/gui/guiControls.cpp
+msgid "Cruis'n Blast's PIN pad (the players' accounts)."
 msgstr ""
 
 #: src/loader/gui/guiControls.cpp

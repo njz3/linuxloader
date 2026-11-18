@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lindbergh Loader\n"
 "Report-Msgid-Bugs-To: https://github.com/njz3/linuxloader/issues\n"
-"POT-Creation-Date: 2026-11-16 13:46+0100\n"
+"POT-Creation-Date: 2026-11-18 22:57+0100\n"
 "PO-Revision-Date: 2026-10-28 15:00+0100\n"
 "Last-Translator: njz3\n"
 "Language-Team: French\n"
@@ -605,6 +605,54 @@ msgid "Climax switch"
 msgstr "Bouton Climax"
 
 #: src/loader/gui/guiControls.cpp
+msgid "Keypad 0"
+msgstr "Clavier PIN 0"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad 1"
+msgstr "Clavier PIN 1"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad 2"
+msgstr "Clavier PIN 2"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad 3"
+msgstr "Clavier PIN 3"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad 4"
+msgstr "Clavier PIN 4"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad 5"
+msgstr "Clavier PIN 5"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad 6"
+msgstr "Clavier PIN 6"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad 7"
+msgstr "Clavier PIN 7"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad 8"
+msgstr "Clavier PIN 8"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad 9"
+msgstr "Clavier PIN 9"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad *"
+msgstr "Clavier PIN *"
+
+#: src/loader/gui/guiControls.cpp
+msgid "Keypad #"
+msgstr "Clavier PIN #"
+
+#: src/loader/gui/guiControls.cpp
 msgid "Gun X centring"
 msgstr "Centrage du pistolet X"
 
@@ -735,6 +783,14 @@ msgstr "Mahjong"
 #, c-format
 msgid "Player %d"
 msgstr "Joueur %d"
+
+#: src/loader/gui/guiControls.cpp
+msgid "In Cruis'n Blast, also the boost (its START BLAST button)."
+msgstr "Dans Cruis'n Blast, sert aussi de boost (son bouton START BLAST)."
+
+#: src/loader/gui/guiControls.cpp
+msgid "Cruis'n Blast's PIN pad (the players' accounts)."
+msgstr "Le clavier du code PIN de Cruis'n Blast (les comptes des joueurs)."
 
 #: src/loader/gui/guiControls.cpp
 msgid "Map"

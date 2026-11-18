@@ -89,6 +89,21 @@ const ControlBinding gDefaultDrivingBindings[] = {
     {INPUT_TYPE_KEY, 0, SDL_SCANCODE_J, AXIS_MODE_DIGITAL, 0, false, PLAYER_1, LA_Left, -1, 0},
     {INPUT_TYPE_KEY, 0, SDL_SCANCODE_L, AXIS_MODE_DIGITAL, 0, false, PLAYER_1, LA_Right, -1, 0},
     {INPUT_TYPE_KEY, 0, SDL_SCANCODE_F7, AXIS_MODE_DIGITAL, 0, false, PLAYER_1, LA_CardInsert, -1, 0},
+    // A cabinet's keypad (Cruis'n Blast's PIN pad) on the numeric keypad, # on its Enter and its period (sdlInput.c's
+    // gKeypadDefaults, for the files written before)
+    {INPUT_TYPE_KEY, 0, SDL_SCANCODE_KP_0, AXIS_MODE_DIGITAL, 0, false, PLAYER_1, LA_Keypad0, -1, 0},
+    {INPUT_TYPE_KEY, 0, SDL_SCANCODE_KP_1, AXIS_MODE_DIGITAL, 0, false, PLAYER_1, LA_Keypad1, -1, 0},
+    {INPUT_TYPE_KEY, 0, SDL_SCANCODE_KP_2, AXIS_MODE_DIGITAL, 0, false, PLAYER_1, LA_Keypad2, -1, 0},
+    {INPUT_TYPE_KEY, 0, SDL_SCANCODE_KP_3, AXIS_MODE_DIGITAL, 0, false, PLAYER_1, LA_Keypad3, -1, 0},
+    {INPUT_TYPE_KEY, 0, SDL_SCANCODE_KP_4, AXIS_MODE_DIGITAL, 0, false, PLAYER_1, LA_Keypad4, -1, 0},
+    {INPUT_TYPE_KEY, 0, SDL_SCANCODE_KP_5, AXIS_MODE_DIGITAL, 0, false, PLAYER_1, LA_Keypad5, -1, 0},
+    {INPUT_TYPE_KEY, 0, SDL_SCANCODE_KP_6, AXIS_MODE_DIGITAL, 0, false, PLAYER_1, LA_Keypad6, -1, 0},
+    {INPUT_TYPE_KEY, 0, SDL_SCANCODE_KP_7, AXIS_MODE_DIGITAL, 0, false, PLAYER_1, LA_Keypad7, -1, 0},
+    {INPUT_TYPE_KEY, 0, SDL_SCANCODE_KP_8, AXIS_MODE_DIGITAL, 0, false, PLAYER_1, LA_Keypad8, -1, 0},
+    {INPUT_TYPE_KEY, 0, SDL_SCANCODE_KP_9, AXIS_MODE_DIGITAL, 0, false, PLAYER_1, LA_Keypad9, -1, 0},
+    {INPUT_TYPE_KEY, 0, SDL_SCANCODE_KP_MULTIPLY, AXIS_MODE_DIGITAL, 0, false, PLAYER_1, LA_KeypadStar, -1, 0},
+    {INPUT_TYPE_KEY, 0, SDL_SCANCODE_KP_ENTER, AXIS_MODE_DIGITAL, 0, false, PLAYER_1, LA_KeypadHash, -1, 0},
+    {INPUT_TYPE_KEY, 0, SDL_SCANCODE_KP_PERIOD, AXIS_MODE_DIGITAL, 0, false, PLAYER_1, LA_KeypadHash, -1, 0},
 
     // Controller
     {INPUT_TYPE_GAMEPAD_AXIS, 0, SDL_GAMEPAD_AXIS_LEFTX, AXIS_MODE_FULL, 0, false, PLAYER_1, LA_Steer, -1, 0},

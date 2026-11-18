@@ -140,6 +140,18 @@ const char *actionLabel(const std::string &name)
         {"GunTrigger", N_("Gun trigger")},
         {"MissileTrigger", N_("Missile trigger")},
         {"ClimaxSwitch", N_("Climax switch")},
+        {"Keypad0", N_("Keypad 0")},
+        {"Keypad1", N_("Keypad 1")},
+        {"Keypad2", N_("Keypad 2")},
+        {"Keypad3", N_("Keypad 3")},
+        {"Keypad4", N_("Keypad 4")},
+        {"Keypad5", N_("Keypad 5")},
+        {"Keypad6", N_("Keypad 6")},
+        {"Keypad7", N_("Keypad 7")},
+        {"Keypad8", N_("Keypad 8")},
+        {"Keypad9", N_("Keypad 9")},
+        {"KeypadStar", N_("Keypad *")},
+        {"KeypadHash", N_("Keypad #")},
     };
     auto it = labels.find(name);
     return it != labels.end() ? tr(it->second) : name.c_str();
@@ -526,6 +538,8 @@ Row *configRow(const std::string &key)
     return nullptr;
 }
 
+bool readDefaults();
+
 void load()
 {
     g_rows.clear();
@@ -565,6 +579,21 @@ void load()
                 g_rows[section.name] = rows;
         }
         iniFree(ini);
+    }
+    // The keypad's keys came after: a file without them shows them as the game takes them, the numeric keypad's
+    // (sdlInput.c), written once one is changed
+    std::vector<Row> &driving = g_rows["Driving"];
+    if (!driving.empty() && readDefaults())
+    {
+        static const char *const keys[] = {"Keypad1", "Keypad2", "Keypad3", "Keypad4", "Keypad5",    "Keypad6",
+                                           "Keypad7", "Keypad8", "Keypad9", "Keypad0", "KeypadStar", "KeypadHash"};
+        for (const char *key : keys)
+        {
+            auto value = g_defaults["Driving"].find(key);
+            if (value != g_defaults["Driving"].end() &&
+                std::none_of(driving.begin(), driving.end(), [key](const Row &row) { return row.key == key; }))
+                driving.push_back({key, value->second, false});
+        }
     }
     g_loaded = true;
 }
@@ -798,7 +827,16 @@ void drawBindings(const std::string &section, int sectionIndex)
         ImGui::AlignTextToFramePadding();
         ImGui::Text("%s%s", actionLabel(name), row.dirty ? " *" : "");
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s", row.key.c_str());
+        {
+            // What an action also does in a game, which its name does not say
+            const char *note = name == "Start" ? tr("In Cruis'n Blast, also the boost (its START BLAST button).")
+                               : name.rfind("Keypad", 0) == 0 ? tr("Cruis'n Blast's PIN pad (the players' accounts).")
+                                                              : nullptr;
+            if (note)
+                ImGui::SetTooltip("%s\n%s", row.key.c_str(), note);
+            else
+                ImGui::SetTooltip("%s", row.key.c_str());
+        }
 
         const std::vector<std::string> tokens = deviceTokens(device, row.value);
         ImGui::TableSetColumnIndex(1);

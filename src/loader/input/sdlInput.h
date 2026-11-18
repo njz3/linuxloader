@@ -95,6 +95,19 @@ typedef enum
     LA_Kan,
     LA_Agari,
     LA_Cancel,
+    // A cabinet's keypad, outside its JVS board (Cruis'n Blast's PIN pad): 0..9, then * and #, in that order
+    LA_Keypad0,
+    LA_Keypad1,
+    LA_Keypad2,
+    LA_Keypad3,
+    LA_Keypad4,
+    LA_Keypad5,
+    LA_Keypad6,
+    LA_Keypad7,
+    LA_Keypad8,
+    LA_Keypad9,
+    LA_KeypadStar,
+    LA_KeypadHash,
     LA_ExitGame,
     NUM_LOGICAL_ACTIONS
 } LogicalAction;
@@ -180,6 +193,7 @@ typedef struct
         JVS_CALL_SWITCH,
         JVS_CALL_ANALOGUE,
         JVS_CALL_COIN,
+        JVS_CALL_KEYPAD, // jvsInput: the key, 0..11 (sdlInputKeypad)
         JVS_CALL_NONE
     } call_type;
     JVSInput jvsInput;
@@ -264,6 +278,8 @@ bool sdlInputAgentFind(const char *name, int *player, int *action, AgentInputKin
 void sdlInputAgentSet(int player, int action, float value);
 void sdlInputAgentSetRaw(int player, int action, int raw);
 int sdlInputAgentGet(int player, int action);
+// The cabinet keypad's keys held (JVS_CALL_KEYPAD): bit k for key k, 0..9 then * and #
+int sdlInputKeypad(void);
 void sdlInputAgentList(void (*emit)(const char *name, AgentInputKind kind, void *context), void *context);
 
 // What the game gets, as the settings show it (gui/guiControls.cpp)
