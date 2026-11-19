@@ -92,10 +92,11 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 211 | 19/11 | Fait l'arrêt du retour de force à la sortie d'un jeu | ✅ `sdlFfbStop()` (effets arrêtés et détruits, volant fermé, jamais rouvert, 300 ms d'attente au plus) puis couple nul `84 01 00 05` (et sinus nul) avant « mame_stop » pour les trames servo ; appelés dans `sdlQuit()`, à `exit()` (`atexit`), `abort()`, assertion du jeu, sortie de l'agent ; essayé sur vJoy en course de Cruis'n Blast, sortie de l'agent et fenêtre fermée ; MinGW et MSVC ; pas commité (voir journal) |
 | 210 | 19/11 | Fait une release et notifie Image borne pour déployer | ✅ `emulateurs/releases/linuxloader-v3.0.15-ffbedition-20261119-11-njz3-win32.zip` (MinGW, `22a2a20` : luminosité après Tab, View, Tunes et clavier PIN de Cruis'n Blast) ; vérifiée depuis le zip ; Image borne prévenue pour déployer, avec le changement du menu de l'opérateur (ViewChange y revient en arrière) ; posée par Image borne sur les deux bornes (accord de njz3, la -10 sauvegardée), essayée sur racecab1 : luminosité après Tab, View, Tunes et la touche 5 du pavé numérique au test des contacts, bons (voir journal) |
 | 209 | 18/11 | Cruis'n Blast : laisser Start seul, une info-bulle disant qu'il sert de boost ; le clavier PIN mappable, le pavé numérique par défaut | ✅ info-bulle de Start (et des touches du clavier) dans Contrôles ; 12 actions Keypad0..9, KeypadStar, KeypadHash ([Driving]), pavé numérique par défaut (# sur Entrée et le point), aussi pour les `controls.ini` déjà écrits ; le jeu les lit aux emplacements 0x167..0x172, vérifié au test des contacts touche par touche ; traduit ; pas commité (voir journal) |
 | 208 | 18/11 | Cruis'n Blast : le test des entrées du menu de service, toutes mappées et configurables dans les contrôles ? Et la luminosité qui baisse fortement après Tab | ✅ View et Tunes du jeu n'étaient reliés à rien (ViewChange allait sur Vol -, CardInsert sur Vol +) : ViewChange sur View, MusicChange sur Tunes, entrées sans effet retirées (`remapPerGame`), vérifié au test des contacts ; luminosité : le jeu active `GL_FRAMEBUFFER_SRGB`, que `glPopAttrib` ne rendait pas après le menu, rendu à la main (`guiOverlay.cpp`), vérifié fenêtre visible ; commande d'agent `menu settings N` ; pas commité, pas essayé sur les bornes (voir journal) |
-| 207 | 18/11 | Demander à windowsloader ce qu'il va implémenter pour l'arrêt du FFB, et proposer un plan équivalent | 🔄 réponse de Windows loader (code local, pas commité) : à `ExitProcess` et `TerminateProcess` du processus lui-même, `SDL_StopHapticEffects` puis `SDL_CloseHaptic` dans le fil des commandes (300 ms d'attente au plus), volant jamais rouvert, puis trame 84 de couple nul avant « mame_stop » pour ses trames servo ; rien pour un plantage ou un kill ; pas essayé sur un volant. Plan équivalent proposé à njz3 (voir journal), en attente de son accord |
+| 207 | 18/11 | Demander à windowsloader ce qu'il va implémenter pour l'arrêt du FFB, et proposer un plan équivalent | 🔄 réponse de Windows loader (code local, pas commité) : à `ExitProcess` et `TerminateProcess` du processus lui-même, `SDL_StopHapticEffects` puis `SDL_CloseHaptic` dans le fil des commandes (300 ms d'attente au plus), volant jamais rouvert, puis trame 84 de couple nul avant « mame_stop » pour ses trames servo ; rien pour un plantage ou un kill ; pas essayé sur un volant. Plan équivalent proposé à njz3 (voir journal) ; fait à la demande 211 |
 | 206 | 18/11 | Quand on quitte un jeu, est-ce que les effets FFB sont bien tous arrêtés ? | ✅ réponse d'après le code : non dans tous les cas. Échap et fenêtre fermée : `SDL_Quit` retire les effets, mais le fil du FFB tourne encore ; « mame_stop » par `atexit`. `exit()` du jeu : « mame_stop » seul. Plantage ou kill : rien. `sdlFfbShutdown()` n'est jamais appelé |
 | 205 | 18/11 | (Image borne) Modèle solo de Cruis'n Blast (`saves_single`, accepté par njz3) : avec `--seed-dir saves_single`, un jeu sans `saves_single\<jeu>` part-il vide ? Un fichier absent du modèle est-il encore lu dans le dossier du jeu ? | ✅ réponse d'après `writeDir.c` : rien ne part vide, le dossier d'écriture est une couche sur le dossier du jeu (lecture : le sien, sinon celui du jeu) ; sans `SEED\<jeu>`, comme sans `--seed-dir` ; un fichier absent du modèle est lu comme avant ; `saves_single` relatif au dossier de `linuxloader.exe`. Posé ensuite par Image borne sur les deux bornes (accord de njz3), modèle à côté de `linuxloader.exe`, ancien lanceur sauvegardé ; pas essayé, le dossier solo existant déjà (voir journal) |
 | 204 | 18/11 | Commit et pousse. Fait une release | ✅ fenêtre d'options du picker commitée (`c4075ec`) et poussée sur `dev/ffbedition` ; `emulateurs/releases/linuxloader-v3.0.15-ffbedition-20261118-10-njz3-win32.zip` (MinGW) ; vérifiée depuis le zip : Cruis'n Blast et Race TV à 60 i/s ; Image borne prévenue ensuite ; posée par Image borne sur les deux bornes (accord de njz3, la -9 sauvegardée), pas essayée en jeu sur les bornes (voir journal) |
@@ -239,6 +240,30 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Arrêt du retour de force à la sortie d'un jeu (demande 211)
+- Le plan des demandes 206 et 207, comme windowsloader :
+  - `sdlFfbStop()` (`forceFeedback.c`) : une seule fois, de n'importe quel fil ; le fil du FFB prié de partir,
+    le verrou du volant pris en 300 ms au plus (sinon « left to its driver » au journal), `SDL_StopHapticEffects`
+    puis les effets détruits, le volant ouvert par son nom fermé ; ensuite rien n'est rouvert ni joué
+    (`ffbUse`, `sdlFfbRumble`, branchement d'un appareil).
+  - `netOutputsServo()` (`netOutputs.c`) : les trames servo de Cruis'n Blast, Dead Heat, Gaelco et Initial D 4
+    (`patch.c`) gardent leur dernier couple (84) et sinus (85) ; à l'arrêt du serveur, `84 01 00 05` si le couple
+    n'était pas nul, `85 10 00 15` si le sinus ne l'était pas, puis « mame_stop ». Les octets RawDrive des
+    cartes Lindbergh, d'un autre protocole, restent tels quels.
+  - `ffbStopAtExit()` : le volant, puis le serveur des sorties (`netOutputsEnable(false)`, Winsock gardé pour le
+    jeu). Appelé au début de `sdlQuit()` (Échap, fenêtre fermée), par `atexit` enregistré après
+    `netOutputsShutdown` (donc avant lui : `exit()` du jeu et du loader), dans `bridgeAbort`, dans `__assert_fail`
+    (`gccBridge.cpp`) et avant le `_exit` de l'agent.
+- Pas couvert, comme windowsloader : un plantage ou un processus tué de l'extérieur.
+- Essayé, Cruis'n Blast fenêtre visible (le volant vJoy ouvert : « Effects sent to vJoy Device »), sorties réseau
+  sur un port à part lues par un client, 600 images de course volant à fond (couple `84 00 28` en dernier) :
+  - sortie de l'agent (`quit`, `_exit`) : « FFB: the effects stopped on vJoy Device (the game ends) », « the servo
+    board's torque and sine set to none before mame_stop », puis le client reçoit `84 01 00 05` et « mame_stop »
+    en dernier ; code de sortie 0 ;
+  - fenêtre fermée (`WM_CLOSE`, `sdlQuit`) : les mêmes lignes, une seule fois malgré l'`atexit` qui suit.
+  - Pas essayé : `exit()`, `abort()` et l'assertion du jeu (lus seulement), un vrai volant, BackForceFeeder.
+- MinGW et MSVC (Visual Studio 18 2026) compilent.
 
 ### Release 3.0.15 -11 du 19/11 (demande 210)
 - Depuis `22a2a20`, dans un worktree détaché : `version.h` à 3.0.15 avec `RELEASE_SUFFIX "-11"`, MinGW (Ninja,
