@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 212 | 19/11 | Un utilisateur : le loader plante sur plusieurs jeux, ce qui n'était pas le cas avant (journal `support/zhomgmyf1`) | 🔄 -10, The House of the Dead 4 : `ll-deps\libgcc_s_dw2-1.dll` ne se charge pas, d'où les `_Unwind_*` introuvables (exceptions C++ impossibles) ; mêmes messages reproduits ici en retirant `ll-deps\libwinpthread-1.dll` (le zip a les deux) ; le journal dit maintenant l'erreur Windows et la DLL manquante (ou seulement en 64 bits sur le PATH) ; la fin du jeu (code 0, sans erreur) pas expliquée ; pas commité (voir journal) |
 | 211 | 19/11 | Fait l'arrêt du retour de force à la sortie d'un jeu | ✅ `sdlFfbStop()` (effets arrêtés et détruits, volant fermé, jamais rouvert, 300 ms d'attente au plus) puis couple nul `84 01 00 05` (et sinus nul) avant « mame_stop » pour les trames servo ; appelés dans `sdlQuit()`, à `exit()` (`atexit`), `abort()`, assertion du jeu, sortie de l'agent ; essayé sur vJoy en course de Cruis'n Blast, sortie de l'agent et fenêtre fermée ; MinGW et MSVC ; pas commité (voir journal) |
 | 210 | 19/11 | Fait une release et notifie Image borne pour déployer | ✅ `emulateurs/releases/linuxloader-v3.0.15-ffbedition-20261119-11-njz3-win32.zip` (MinGW, `22a2a20` : luminosité après Tab, View, Tunes et clavier PIN de Cruis'n Blast) ; vérifiée depuis le zip ; Image borne prévenue pour déployer, avec le changement du menu de l'opérateur (ViewChange y revient en arrière) ; posée par Image borne sur les deux bornes (accord de njz3, la -10 sauvegardée), essayée sur racecab1 : luminosité après Tab, View, Tunes et la touche 5 du pavé numérique au test des contacts, bons (voir journal) |
 | 209 | 18/11 | Cruis'n Blast : laisser Start seul, une info-bulle disant qu'il sert de boost ; le clavier PIN mappable, le pavé numérique par défaut | ✅ info-bulle de Start (et des touches du clavier) dans Contrôles ; 12 actions Keypad0..9, KeypadStar, KeypadHash ([Driving]), pavé numérique par défaut (# sur Entrée et le point), aussi pour les `controls.ini` déjà écrits ; le jeu les lit aux emplacements 0x167..0x172, vérifié au test des contacts touche par touche ; traduit ; pas commité (voir journal) |
@@ -240,6 +241,27 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Plantages chez un utilisateur : libgcc_s_dw2-1.dll (demande 212)
+- Journal `emulateurs/support/zhomgmyf1/linuxloader.log` : -10 (`20261118-10`), The House of the Dead 4 Rev A,
+  `linuxloader.exe` dans `E:\SEGA Lindbergh\hotd4a\elf\` avec son `ll-deps`, vJoy en manette 0, NVIDIA.
+  `ll-deps\libgcc_s_dw2-1.dll` ne se charge pas (« Failed to load DLL from path », puis « [EH] WARNING:
+  libgcc_s_dw2-1.dll not found ») : les `_Unwind_*` restent introuvables, une exception C++ du jeu l'arrêterait.
+  Le jeu finit 48 s plus tard en chargeant le niveau 1, « exit code 0 », sans « Unresolved symbol called » : pas
+  une exception ni un plantage Windows (qui aurait un code 0xC...), mais une fin propre (Échap, fenêtre fermée,
+  ExitGame, `kill` du jeu sur lui-même : rien de cela n'est au journal au niveau WARN).
+- `libgcc_s_dw2-1.dll` importe `libwinpthread-1.dll` ; tous nos zips (-8 à -11) ont les deux dans `ll-deps`.
+  Reproduit ici : la -11 extraite dans un dossier à espace, `ll-deps\libwinpthread-1.dll` retiré, Race TV donne
+  exactement les mêmes messages (et tourne quand même). Avec le fichier remis : plus aucun. Ici, une
+  `libwinpthread-1.dll` 64 bits est sur le PATH (`C:\Program Files\Git\mingw64\bin`), inutilisable par le
+  loader 32 bits.
+- `symbolResolver.cpp` : un chargement de DLL raté dit son erreur Windows ; pour 126 (`ERROR_MOD_NOT_FOUND`), les
+  DLL importées introuvables à côté et ailleurs en 32 bits (`missingImports`, `is32BitDll`), par exemple « it
+  needs libwinpthread-1.dll (only a 64-bit one, C:\Program Files\Git\mingw64\bin\libwinpthread-1.dll) ». Vérifié
+  sur Race TV avec et sans le fichier. MinGW.
+- À demander à l'utilisateur : le contenu de son `ll-deps` (surtout `libwinpthread-1.dll`, un antivirus ?), son
+  `controls.ini` ([Common] ExitGame : sans cette ligne, vJoy 11 + 12 ensemble quittent le jeu), et comment le jeu
+  s'arrête à l'écran (fenêtre qui se ferme, message ?).
 
 ### Arrêt du retour de force à la sortie d'un jeu (demande 211)
 - Le plan des demandes 206 et 207, comme windowsloader :
