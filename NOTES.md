@@ -92,6 +92,7 @@ Légende : ✅ fait et vérifié · 🔄 en cours · ⏳ à faire · ⚠️ fait
 | 90 | 23/10 | Tableau des jeux faits et restant à faire | ✅ donné dans la conversation ; `BILAN.md` à jour |
 | 93 | 23/10 | Reste-t-il des jeux ? | ✅ deux jeux incomplets : R-Tuned (course entière, plantage MSVC) et Initial D 4 Japon (carte servo, FFB) |
 | 94 | 23/10 | Les faire | ✅ R-Tuned : plus de plantage MSVC, course entière, FFB, menu de test, vJoy ; Initial D 4 Japon : FFB par défaut, course, vJoy (voir journal) |
+| 210 | 19/11 | Fait une release et notifie Image borne pour déployer | ✅ `emulateurs/releases/linuxloader-v3.0.15-ffbedition-20261119-11-njz3-win32.zip` (MinGW, `22a2a20` : luminosité après Tab, View, Tunes et clavier PIN de Cruis'n Blast) ; vérifiée depuis le zip ; Image borne prévenue pour déployer, avec le changement du menu de l'opérateur (ViewChange y revient en arrière) ; posée par Image borne sur les deux bornes (accord de njz3, la -10 sauvegardée), essayée sur racecab1 : luminosité après Tab, View, Tunes et la touche 5 du pavé numérique au test des contacts, bons (voir journal) |
 | 209 | 18/11 | Cruis'n Blast : laisser Start seul, une info-bulle disant qu'il sert de boost ; le clavier PIN mappable, le pavé numérique par défaut | ✅ info-bulle de Start (et des touches du clavier) dans Contrôles ; 12 actions Keypad0..9, KeypadStar, KeypadHash ([Driving]), pavé numérique par défaut (# sur Entrée et le point), aussi pour les `controls.ini` déjà écrits ; le jeu les lit aux emplacements 0x167..0x172, vérifié au test des contacts touche par touche ; traduit ; pas commité (voir journal) |
 | 208 | 18/11 | Cruis'n Blast : le test des entrées du menu de service, toutes mappées et configurables dans les contrôles ? Et la luminosité qui baisse fortement après Tab | ✅ View et Tunes du jeu n'étaient reliés à rien (ViewChange allait sur Vol -, CardInsert sur Vol +) : ViewChange sur View, MusicChange sur Tunes, entrées sans effet retirées (`remapPerGame`), vérifié au test des contacts ; luminosité : le jeu active `GL_FRAMEBUFFER_SRGB`, que `glPopAttrib` ne rendait pas après le menu, rendu à la main (`guiOverlay.cpp`), vérifié fenêtre visible ; commande d'agent `menu settings N` ; pas commité, pas essayé sur les bornes (voir journal) |
 | 207 | 18/11 | Demander à windowsloader ce qu'il va implémenter pour l'arrêt du FFB, et proposer un plan équivalent | 🔄 réponse de Windows loader (code local, pas commité) : à `ExitProcess` et `TerminateProcess` du processus lui-même, `SDL_StopHapticEffects` puis `SDL_CloseHaptic` dans le fil des commandes (300 ms d'attente au plus), volant jamais rouvert, puis trame 84 de couple nul avant « mame_stop » pour ses trames servo ; rien pour un plantage ou un kill ; pas essayé sur un volant. Plan équivalent proposé à njz3 (voir journal), en attente de son accord |
@@ -238,6 +239,32 @@ Nouveaux jeux (build MinGW, mode agent, GPU NVIDIA, au 22/10 ; détail dans `BIL
 | Gaelco Championship Tuning Race | ✅ course, boîte manuelle, FFB, menu Test | son émulé ; joué par vJoy |
 
 ## Journal de développement
+
+### Release 3.0.15 -11 du 19/11 (demande 210)
+- Depuis `22a2a20`, dans un worktree détaché : `version.h` à 3.0.15 avec `RELEASE_SUFFIX "-11"`, MinGW (Ninja,
+  Release), 55 avertissements comme la -10. Worktree retiré ensuite.
+- `emulateurs/releases/linuxloader-v3.0.15-ffbedition-20261119-11-njz3-win32.zip`, 18 592 691 octets, SHA-256 du
+  zip `694ee6bfbd47578a191ccc0b2e058aebacac6985f8b41ae57b16b7b39659ed03`, de `linuxloader.exe`
+  `df93c6382aff8ca72722a0cdf2dc369345268925042a809fdf5104955505734a` ; mêmes 20 fichiers que la -10, `ll-deps`
+  repris ; seuls changent `linuxloader.exe`, `lang/fr.po` et `lang/linuxloader.pot` (en LF).
+- Vérifié depuis le zip extrait : `--version` « linuxloader-v3.0.15-ffbedition-20261119-11-njz3 », `--list-games`
+  identique à la -10 ; Cruis'n Blast, fenêtre visible, menu Tab ouvert 120 images puis fermé : même luminosité
+  (71,7 avant, 109 et plus ensuite, comme sans menu) ; test des contacts : View, Tunes, Keypad5 et KeypadHash
+  allument leur case ; Race TV à 60 i/s. Pas essayé : le pavé numérique lui-même, MSVC, les bornes.
+- Image borne prévenue pour déployer (demande de njz3) : chemin, empreintes, nouveautés, la -10 à sauvegarder ; dans
+  le menu de l'opérateur, ViewChange (vJoy 5 du banc) revient maintenant en arrière, descendre par MusicChange
+  (Tunes) ou Down ; essai proposé sur les bornes : Tab et le test des contacts.
+- Retour d'Image borne (19/11, accord de njz3) : -11 posée sur les deux bornes (SHA-256 du zip et de l'exe
+  vérifiés, `--version` « linuxloader-v3.0.15-ffbedition-20261119-11-njz3 »), les 20 fichiers de la -10
+  sauvegardés dans `_sauvegardes\linuxloader-3.0.15-10-avant-11-20261119` (empreintes vérifiées) ; ini,
+  `controls.ini`, lanceurs et dossiers d'écriture inchangés (MusicChange sur `JOY0_BUTTON_11`, vJoy 12, ViewChange
+  sur `JOY0_BUTTON_4`, vJoy 5).
+- Essai sur racecab1, Cruis'n Blast en solo par `RunLinuxLoaderGame.cmd` : Tab ouvert puis fermé sur le menu de
+  l'opérateur (image fixe), luminance moyenne 103,4 avant et 103,4 après ; légende du menu Scroll Down = Tunes,
+  Select = Start, Exit/Back = View, Diagnostics et Switch Tests atteints par Start ; au test des contacts, View
+  (vJoy 5), Tunes (vJoy 12) et la touche 5 du pavé numérique (vraie touche, `keybd_event`) allument leur case.
+  Captures dans `archives-bornes\20261119\cruisnblast-ll11`. Sortie par Échap, banc retiré de racecab1.
+  Pas essayé : racecab2 en jeu (mêmes fichiers par empreinte).
 
 ### Cruis'n Blast : boost sur Start, clavier PIN (demande 209)
 - Pas de bouton de boost à part : le test des contacts n'en a pas, Start (le bouton START BLAST) en sert. Laissé
