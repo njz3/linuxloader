@@ -37,6 +37,8 @@ extern "C"
 #include <fstream>
 #include <crtdbg.h>
 #include <algorithm>
+#include <cstddef>
+#include <iterator>
 
 #include "memoryManager.hpp"
 #include "glHooks.hpp"
@@ -226,6 +228,8 @@ static std::string FollowLinkFile(std::string path)
     return path;
 }
 
+static std::string missingImports(const std::string &dllPath);
+
 void SymbolResolver::InitSearchPaths(const std::string &libraryPathParam, const std::string &gameElfPath)
 {
     m_LibrarySearchPaths.clear();
@@ -400,7 +404,14 @@ void SymbolResolver::LoadNeededLibrary(const std::string &linuxName)
                     log_info("Successfully loaded DLL from search path: %s", candidatePath.c_str());
                     return;
                 }
-                log_warn("Failed to load DLL from path: %s", candidatePath.c_str());
+                DWORD error = GetLastError();
+                const std::string missing = error == ERROR_MOD_NOT_FOUND ? missingImports(candidatePath) : std::string();
+                if (!missing.empty())
+                    log_error("Failed to load DLL from path: %s (Windows error %lu): it needs %s, not found beside it "
+                              "nor in Windows' folders (a folder copied without all its files?)",
+                              candidatePath.c_str(), error, missing.c_str());
+                else
+                    log_warn("Failed to load DLL from path: %s (Windows error %lu)", candidatePath.c_str(), error);
             }
             testFile.close();
         }
@@ -537,6 +548,66 @@ void *SymbolResolver::FindNativeSymbol(const std::string &symbolName) const
 {
     auto it = m_NativeSymbols.find(symbolName);
     return it != m_NativeSymbols.end() ? it->second : nullptr;
+}
+
+// A Windows DLL built for x86, as the loader is
+static bool is32BitDll(const char *path)
+{
+    std::ifstream file(path, std::ios::binary);
+    IMAGE_DOS_HEADER dos = {};
+    IMAGE_FILE_HEADER header = {};
+    DWORD signature = 0;
+    if (!file.read((char *)&dos, sizeof(dos)) || dos.e_magic != IMAGE_DOS_SIGNATURE || !file.seekg(dos.e_lfanew) ||
+        !file.read((char *)&signature, sizeof(signature)) || !file.read((char *)&header, sizeof(header)))
+        return false;
+    return signature == IMAGE_NT_SIGNATURE && header.Machine == IMAGE_FILE_MACHINE_I386;
+}
+
+// The DLLs a Windows DLL imports that are found neither beside it nor where Windows looks (its folders, PATH): why
+// LoadLibrary failed with ERROR_MOD_NOT_FOUND (libgcc_s_dw2-1.dll without libwinpthread-1.dll in ll-deps)
+static std::string missingImports(const std::string &dllPath)
+{
+    std::ifstream file(dllPath.c_str(), std::ios::binary);
+    std::string data((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    auto at = [&data](size_t offset, size_t size) { return offset + size <= data.size() ? data.data() + offset : nullptr; };
+    const IMAGE_DOS_HEADER *dos = (const IMAGE_DOS_HEADER *)at(0, sizeof(IMAGE_DOS_HEADER));
+    if (!dos || dos->e_magic != IMAGE_DOS_SIGNATURE)
+        return "";
+    const IMAGE_NT_HEADERS32 *nt = (const IMAGE_NT_HEADERS32 *)at(dos->e_lfanew, sizeof(IMAGE_NT_HEADERS32));
+    if (!nt || nt->Signature != IMAGE_NT_SIGNATURE || nt->OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR32_MAGIC)
+        return "";
+    const IMAGE_SECTION_HEADER *sections = (const IMAGE_SECTION_HEADER *)at(
+        dos->e_lfanew + offsetof(IMAGE_NT_HEADERS32, OptionalHeader) + nt->FileHeader.SizeOfOptionalHeader,
+        nt->FileHeader.NumberOfSections * sizeof(IMAGE_SECTION_HEADER));
+    if (!sections)
+        return "";
+    auto fileOffset = [&](DWORD rva) -> size_t {
+        for (int i = 0; i < nt->FileHeader.NumberOfSections; i++)
+            if (rva >= sections[i].VirtualAddress && rva < sections[i].VirtualAddress + sections[i].SizeOfRawData)
+                return rva - sections[i].VirtualAddress + sections[i].PointerToRawData;
+        return (size_t)-1;
+    };
+    const std::string folder = dllPath.substr(0, dllPath.find_last_of("\\/") + 1);
+    std::string missing;
+    size_t entry = fileOffset(nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
+    for (const IMAGE_IMPORT_DESCRIPTOR *import; entry != (size_t)-1 &&
+                                                (import = (const IMAGE_IMPORT_DESCRIPTOR *)at(entry, sizeof(*import))) && import->Name;
+         entry += sizeof(*import))
+    {
+        size_t nameOffset = fileOffset(import->Name);
+        const char *name = nameOffset != (size_t)-1 ? at(nameOffset, 1) : nullptr;
+        if (!name || !memchr(name, 0, data.size() - nameOffset))
+            break;
+        if (GetFileAttributesA((folder + name).c_str()) != INVALID_FILE_ATTRIBUTES)
+            continue;
+        // Elsewhere, it must be a 32-bit DLL: a 64-bit one on PATH (Git's mingw64in) does not do
+        char found[MAX_PATH];
+        if (!SearchPathA(NULL, name, NULL, MAX_PATH, found, NULL))
+            missing += std::string(missing.empty() ? "" : ", ") + name;
+        else if (!is32BitDll(found))
+            missing += std::string(missing.empty() ? "" : ", ") + name + " (only a 64-bit one, " + found + ")";
+    }
+    return missing;
 }
 
 extern "C" void HandleUnresolvedSymbol(const char *symbolName, void *callerAddress)
