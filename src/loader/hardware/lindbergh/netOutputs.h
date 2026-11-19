@@ -36,6 +36,10 @@ void netOutputsSetGpo(int byteIndex, uint8_t value);
 void netOutputsSetGpoBit(int output, int action);
 // Bytes the game writes to the drive board, in order
 void netOutputsDrive(const uint8_t *bytes, size_t count);
+// A Sega servo board's 4-byte frame (84 torque, 85 sine...), made by the loader or written by the game to that board:
+// sent as netOutputsDrive sends it, and its torque and sine kept, so that the game's end sets them to none before
+// "mame_stop" (a Lindbergh drive board's own bytes, of another protocol, are left as they are)
+void netOutputsServo(const uint8_t frame[4]);
 
 // For the settings' list: whether the server runs, an output byte's last value and the last drive board byte, -1 if
 // the game gave none yet (kept while the server does not run)

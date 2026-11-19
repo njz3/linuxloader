@@ -5,6 +5,7 @@
 #include "../redirections/libcShared.h"
 #include "../redirections/writeDir.h"
 #include "../log/log.h"
+#include "../hardware/lindbergh/forceFeedback.h"
 #include "gccBridge.hpp"
 #include "symbolResolver.hpp"
 #include "elfCall.h"
@@ -578,6 +579,7 @@ namespace LibcBridge
         void *caller = __builtin_return_address(0);
 #endif
         log_fatal("abort() called by ELF! (from %p)", caller);
+        ffbStopAtExit(); // abort() runs no atexit
         ::abort();
     }
 

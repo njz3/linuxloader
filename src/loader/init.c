@@ -191,6 +191,8 @@ void initMain(char *configPath, char *controlsPath)
 
     netOutputsInit();
     atexit(netOutputsShutdown);
+    // Registered after it, run before it: the wheel stopped, then the outputs' torque set to none and mame_stop
+    atexit(ffbStopAtExit);
 
     securityBoardSetDipResolution(getConfig()->width, getConfig()->height);
     log_info("Security board dip resolution set");

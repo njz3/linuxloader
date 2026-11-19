@@ -830,6 +830,7 @@ static bool serve(char *line, unsigned int fbo, int width, int height)
     {
         // exit() would flush stdin, which the reader thread holds while it waits: straight out
         answer("bye");
+        ffbStopAtExit(); // _exit runs no atexit
         fflush(stderr);
         _exit(0);
     }

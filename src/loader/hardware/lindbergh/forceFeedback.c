@@ -8,6 +8,7 @@
 #include "../../input/sdlInput.h"
 #include "../../log/log.h"
 #include "../../agent/agent.h"
+#include "netOutputs.h"
 
 static int effect_id = -1;
 extern SDLControllers sdlJoysticks;
@@ -36,6 +37,7 @@ static SDL_Thread *wheelThread = NULL;
 static bool wheelQuit = false;
 static bool wheelPaused = false; // Tab settings open: the game waits, the wheel goes limp
 static bool agentBoard = false;  // the agent mode with no device touched: the board model kept for its journal only
+static SDL_AtomicInt ffbStopped; // the game ends (sdlFfbStop): no device opened or played again
 
 static int SDLCALL wheelThreadMain(void *data);
 
@@ -619,6 +621,12 @@ static bool hapticConnected(SDL_Haptic *haptic)
 // thread plays the board's state on it. A wheel plays the board's forces, a device with LEFTRIGHT rumbles.
 static void ffbUse(SDL_Haptic *haptic, bool owned)
 {
+    if (haptic && SDL_GetAtomicInt(&ffbStopped))
+    {
+        if (owned && haptic != ffbHaptic)
+            SDL_CloseHaptic(haptic);
+        return;
+    }
     SDL_LockMutex(wheelLock);
     if (ffbHaptic)
     {
@@ -817,7 +825,7 @@ void sdlFfbInit(void)
 
 void sdlFfbRumble(float left, float right, int duration_ms)
 {
-    if (!wheelLock)
+    if (!wheelLock || SDL_GetAtomicInt(&ffbStopped))
         return;
     SDL_LockMutex(wheelLock);
     if (ffbHaptic && !wheelMode) // a wheel plays the drive board's effects only, from the FFB thread
@@ -846,6 +854,61 @@ void sdlFfbPause(int paused)
     board.dirty = true;
     SDL_SignalCondition(boardChanged);
     SDL_UnlockMutex(boardLock);
+}
+
+// A lock taken within ms milliseconds, false when it was not: the end of a game never waits for long
+static bool lockWithin(SDL_Mutex *lock, int ms)
+{
+    for (int waited = 0; !SDL_TryLockMutex(lock); waited++)
+    {
+        if (waited >= ms)
+            return false;
+        SDL_Delay(1);
+    }
+    return true;
+}
+
+// The effects are infinite (SDL_HAPTIC_INFINITY): left as they are when the process goes, the device's driver may keep
+// the last force. Stopped here, the device closed, and the FFB thread told to leave; it then finds no device.
+void sdlFfbStop(void)
+{
+    if (SDL_SetAtomicInt(&ffbStopped, 1))
+        return;
+    if (boardLock && lockWithin(boardLock, 100))
+    {
+        wheelQuit = true;
+        SDL_SignalCondition(boardChanged);
+        SDL_UnlockMutex(boardLock);
+    }
+    if (!wheelLock)
+        return;
+    if (!lockWithin(wheelLock, 300))
+    {
+        log_warn("FFB: the device still busy after 300 ms: its effects left to its driver");
+        return;
+    }
+    if (ffbHaptic)
+    {
+        SDL_StopHapticEffects(ffbHaptic);
+        if (wheelMode)
+            wheelDestroy(ffbHaptic);
+        else if (effect_id >= 0)
+            SDL_DestroyHapticEffect(ffbHaptic, effect_id);
+        log_warn("FFB: the effects stopped on %s (the game ends)", SDL_GetHapticName(ffbHaptic));
+        if (ffbHapticOwned)
+            SDL_CloseHaptic(ffbHaptic);
+    }
+    ffbHaptic = NULL;
+    ffbHapticOwned = false;
+    wheelMode = false;
+    effect_id = -1;
+    SDL_UnlockMutex(wheelLock);
+}
+
+void ffbStopAtExit(void)
+{
+    sdlFfbStop();
+    netOutputsEnable(false); // the server only: Winsock stays for the game, which may still run a moment
 }
 
 void sdlFfbShutdown(void)

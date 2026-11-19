@@ -236,7 +236,7 @@ static void servoFrame(uint8_t command, int first, int second)
 {
     uint8_t frame[4] = {command, (uint8_t)(first & 0x7F), (uint8_t)(second & 0x7F), 0};
     frame[3] = (uint8_t)((frame[0] + frame[1] + frame[2]) & 0x7F);
-    netOutputsDrive(frame, 4);
+    netOutputsServo(frame);
     agentDriveboard(frame, 4);
     sdlFfbDriveboard(frame, 4);
 }

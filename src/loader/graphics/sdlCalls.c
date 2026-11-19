@@ -463,6 +463,7 @@ int makeSDLCurrent(SDL_Window *win, SDL_GLContext ctx)
 
 void sdlQuit()
 {
+    ffbStopAtExit(); // Escape or the window closed: the wheel let go before anything else
     setSwitch(SYSTEM, BUTTON_TEST, 1);
     usleep(50000);
     setSwitch(SYSTEM, BUTTON_TEST, 0);

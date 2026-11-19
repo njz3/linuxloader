@@ -93,6 +93,9 @@ static int lastError = 0; // why the last start failed, 0 when it did not
 static uint8_t gpo[NET_GPO_BYTES];
 static bool gpoKnown[NET_GPO_BYTES];
 static int lastDrive = -1;
+static bool servoSeen = false; // servo board frames sent (netOutputsServo)
+static int servoTorque = 0x80; // their last torque (84), 0x80 for none
+static int servoSine = 0;      // their last sine amplitude (85), 0 for none
 
 // Lines produced since the server thread last ran. Protected by stateMutex.
 static char *pending = NULL;
@@ -474,6 +477,21 @@ static void stopServer(void)
         return;
 
     SDL_LockMutex(stateMutex);
+    // A servo board left pushing would keep pushing in the tool that drives the wheel: no torque, no sine, then the end
+    if (servoSeen && running)
+    {
+        static const uint8_t noTorque[4] = {0x84, 0x01, 0x00, 0x05}, noSine[4] = {0x85, 0x10, 0x00, 0x15};
+        if (servoTorque != 0x80)
+            for (int i = 0; i < 4; i++)
+                pendingLine("RawDrive", noTorque[i]);
+        if (servoSine != 0)
+            for (int i = 0; i < 4; i++)
+                pendingLine("RawDrive", noSine[i]);
+        if (servoTorque != 0x80 || servoSine != 0)
+            log_warn("Network outputs: the servo board's torque and sine set to none before mame_stop");
+        servoTorque = 0x80;
+        servoSine = 0;
+    }
     pendingAppend("mame_stop = 1\r", strlen("mame_stop = 1\r"));
     stopping = true;
     running = false;
@@ -646,6 +664,20 @@ int netOutputsNamedLamps(NetNamedLamp *lamps, int *values, int max)
 bool netOutputsRunning(void)
 {
     return running;
+}
+
+void netOutputsServo(const uint8_t frame[4])
+{
+    if (!stateMutex || !frame)
+        return;
+    netOutputsDrive(frame, 4);
+    SDL_LockMutex(stateMutex);
+    servoSeen = true;
+    if (frame[0] == 0x84)
+        servoTorque = (frame[1] & 0x7F) << 7 | (frame[2] & 0x7F);
+    else if (frame[0] == 0x85)
+        servoSine = frame[2] & 0x7F;
+    SDL_UnlockMutex(stateMutex);
 }
 
 void netOutputsDrive(const uint8_t *bytes, size_t count)

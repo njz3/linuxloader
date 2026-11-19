@@ -1,6 +1,7 @@
 #if defined(_WIN32) || defined(__MINGW32__)
 #include "gccBridge.hpp"
 #include "../log/log.h"
+#include "../hardware/lindbergh/forceFeedback.h"
 #include "symbolResolver.hpp"
 #include <cstdlib>
 #include <cctype>
@@ -164,6 +165,7 @@ namespace GccBridge
         void __assert_fail(const char *assertion, const char *file, unsigned int line, const char *function)
         {
             fprintf(stderr, "ASSERTION FAILED: %s at %s:%d (%s)\n", assertion, file, line, function);
+            ffbStopAtExit(); // TerminateProcess runs no atexit
             TerminateProcess(GetCurrentProcess(), 1);
         }
 

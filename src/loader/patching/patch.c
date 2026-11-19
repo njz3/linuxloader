@@ -279,7 +279,7 @@ static int idFeedbackSend(void *sci, const unsigned char *buffer, unsigned int l
     (void)sci;
     if (buffer && length == 4)
     {
-        netOutputsDrive(buffer, 4);
+        netOutputsServo(buffer);
         agentDriveboard(buffer, 4);
         sdlFfbDriveboard(buffer, 4);
     }

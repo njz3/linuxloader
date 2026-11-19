@@ -3,8 +3,19 @@
 
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 void sdlFfbInit(void);
 void sdlFfbShutdown(void);
+// The game ends: the wheel's effects stopped and destroyed, the device it opened closed, nothing opened again after;
+// once, from any thread, waiting 300 ms at most for the FFB thread to leave the device
+void sdlFfbStop(void);
+// Every end of the game (Escape, the window closed, exit(), abort(), the agent's quit): the wheel stopped first, then
+// the network outputs' torque set to none and "mame_stop" sent
+void ffbStopAtExit(void);
 void sdlFfbRumble(float left, float right, int duration_ms);
 void sdlFfbDriveboard(const unsigned char *buffer, size_t count);
 void sdlFfbPause(int paused);
@@ -24,5 +35,9 @@ void sdlFfbSelect(const char *name);
 // The device the effects go to, NULL for none; the controller slot whose device it is, -1 for none
 const char *sdlFfbCurrentDevice(void);
 int sdlFfbJoystick(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
